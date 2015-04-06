@@ -29,3 +29,5 @@
 *~
 *.dmlc
 dmlc-core
+*.txt
+*.model
