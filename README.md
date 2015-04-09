@@ -1,5 +1,5 @@
-Wormhole
-====
+![Wormhole](wormhole.png)
+
 Portable, scalable and reliable distributed machine learning.
 
 Wormhole is a place where DMLC projects works together to provide
@@ -7,7 +7,7 @@ scalable and reliable machine learning toolkits that can run on various platform
 
 Features
 ====
-* Portable: 
+* Portable:
   - Supported platforms: YARN, MPI and Sungrid Engine
   - Planned: docker support
 * Rich support of Data Source
