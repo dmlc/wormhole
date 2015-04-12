@@ -159,21 +159,32 @@ class LinearObjFunction : public solver::IObjFunction<float> {
                         const float *weight,
                         size_t size) {
     if (nthread != 0) omp_set_num_threads(nthread);
+    
     CHECK(size == model.param.num_feature + 1) << "size consistency check";
     memset(out_grad, 0.0f, sizeof(float) * size);
     double sum_gbias = 0.0;    
     dtrain->BeforeFirst();
     while (dtrain->Next()) {
       const RowBlock<unsigned> &batch = dtrain->Value();
-      #pragma omp parallel for schedule(static) reduction(+:sum_gbias)
-      for (size_t i = 0; i < batch.size; ++i) {
-        Row<unsigned> v = batch[i];
-        float py = model.param.Predict(weight, v);
-        float grad = model.param.PredToGrad(v.label, py);
-        for (index_t j = 0; j < v.length; ++j) {
-          out_grad[v.index[j]] += v.get_value(j) * grad;
+      #pragma omp parallel reduction(+:sum_gbias)
+      {
+        size_t nfeat = model.param.num_feature;
+        size_t npart = omp_get_num_threads();
+        size_t step = (nfeat + npart - 1) / npart;
+        size_t tid = omp_get_thread_num();
+        size_t fbegin = std::min(nfeat, tid * step);
+        size_t fend = std::min(nfeat, (tid + 1) * step);
+        for (size_t i = 0; i < batch.size; ++i) {
+          Row<unsigned> v = batch[i];
+          float py = model.param.Predict(weight, v);
+          float grad = model.param.PredToGrad(v.label, py);
+          for (index_t j = 0; j < v.length; ++j) {
+            if (v.index[j] >= fbegin && v.index[j] < fend) {
+              out_grad[v.index[j]] += v.get_value(j) * grad;
+            }
+          }
+          sum_gbias += grad;
         }
-        sum_gbias += grad;
       }
     }
     out_grad[model.param.num_feature] = static_cast<float>(sum_gbias);
