@@ -168,12 +168,12 @@ class LinearObjFunction : public solver::IObjFunction<float> {
       const RowBlock<unsigned> &batch = dtrain->Value();
       #pragma omp parallel
       {
-        size_t nfeat = model.param.num_feature;
-        size_t npart = omp_get_num_threads();
-        size_t step = (nfeat + npart - 1) / npart;
-        size_t tid = omp_get_thread_num();
-        size_t fbegin = std::min(nfeat, tid * step);
-        size_t fend = std::min(nfeat, (tid + 1) * step);
+        unsigned nfeat = model.param.num_feature;
+        unsigned npart = omp_get_num_threads();
+        unsigned step = (nfeat + npart - 1) / npart;
+        unsigned tid = omp_get_thread_num();
+        unsigned fbegin = std::min(nfeat, tid * step);
+        unsigned fend = std::min(nfeat, (tid + 1) * step);
         for (size_t i = 0; i < batch.size; ++i) {
           Row<unsigned> v = batch[i];
           float py = model.param.Predict(weight, v);
@@ -183,9 +183,10 @@ class LinearObjFunction : public solver::IObjFunction<float> {
               out_grad[v.index[j]] += v.get_value(j) * grad;
             }
           }
-          if (tid == 0) {
+          if (tid == npart - 1) {
             sum_gbias += grad;
           }
+        }
       }
     }
     out_grad[model.param.num_feature] = static_cast<float>(sum_gbias);
