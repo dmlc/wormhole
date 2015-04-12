@@ -1,4 +1,4 @@
-Linear and Logistic Regression with Distributed L-BFGS solver
+Linear and Logistic Regression
 ====
 * input format: LibSVM
 * Local Example: [run-linear.sh](run-linear.sh)
