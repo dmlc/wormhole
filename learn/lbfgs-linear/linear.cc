@@ -166,7 +166,7 @@ class LinearObjFunction : public solver::IObjFunction<float> {
     dtrain->BeforeFirst();
     while (dtrain->Next()) {
       const RowBlock<unsigned> &batch = dtrain->Value();
-      #pragma omp parallel reduction(+:sum_gbias)
+      #pragma omp parallel
       {
         size_t nfeat = model.param.num_feature;
         size_t npart = omp_get_num_threads();
@@ -183,8 +183,9 @@ class LinearObjFunction : public solver::IObjFunction<float> {
               out_grad[v.index[j]] += v.get_value(j) * grad;
             }
           }
-          sum_gbias += grad;
-        }
+          if (tid == 0) {
+            sum_gbias += grad;
+          }
       }
     }
     out_grad[model.param.num_feature] = static_cast<float>(sum_gbias);
