@@ -162,10 +162,18 @@ class LinearObjFunction : public solver::IObjFunction<float> {
     
     CHECK(size == model.param.num_feature + 1) << "size consistency check";
     memset(out_grad, 0.0f, sizeof(float) * size);
-    double sum_gbias = 0.0;    
-    dtrain->BeforeFirst();
+    double sum_gbias = 0.0;
+    std::vector<float> grad;
+    dtrain->BeforeFirst();    
     while (dtrain->Next()) {
       const RowBlock<unsigned> &batch = dtrain->Value();
+      grad.resize(batch.size);
+      #pragma omp parallel for schedule(static)
+      for (size_t i = 0; i < batch.size; ++i) {
+        Row<unsigned> v = batch[i];
+        float py = model.param.Predict(weight, v);
+        grad[i] = model.param.PredToGrad(v.label, py);
+      }
       #pragma omp parallel
       {
         unsigned nfeat = model.param.num_feature;
@@ -176,15 +184,13 @@ class LinearObjFunction : public solver::IObjFunction<float> {
         unsigned fend = std::min(nfeat, (tid + 1) * step);
         for (size_t i = 0; i < batch.size; ++i) {
           Row<unsigned> v = batch[i];
-          float py = model.param.Predict(weight, v);
-          float grad = model.param.PredToGrad(v.label, py);
           for (index_t j = 0; j < v.length; ++j) {
             if (v.index[j] >= fbegin && v.index[j] < fend) {
-              out_grad[v.index[j]] += v.get_value(j) * grad;
+              out_grad[v.index[j]] += v.get_value(j) * grad[i];
             }
           }
           if (tid == npart - 1) {
-            sum_gbias += grad;
+            sum_gbias += grad[i];
           }
         }
       }
