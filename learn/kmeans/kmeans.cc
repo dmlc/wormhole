@@ -190,9 +190,13 @@ int main(int argc, char *argv[]) {
     // set number
     for (int k = 0; k < num_cluster; ++k) {
       float cnt = temp[k][num_feat];
-      utils::Check(cnt != 0.0f, "get zero sized cluster");
-      for (unsigned i = 0; i < num_feat; ++i) {
-        model.centroids[k][i] = temp[k][i] / cnt;
+      if (cnt != 0.0f) {        
+        for (unsigned i = 0; i < num_feat; ++i) {
+          model.centroids[k][i] = temp[k][i] / cnt;
+        }
+      } else {
+        rabit::TrackerPrintf("Error: found zero size cluster, maybe too less number of datapoints?\n");
+        exit(-1);
       }
     }
     model.Normalize();
