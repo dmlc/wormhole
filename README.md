@@ -17,6 +17,7 @@ Features
 List of Tools
 ====
 * Boosted Trees (GBDT): [XGBoost: eXtreme Gradient Boosting](learn/xgboost)
+* [L-BFGS based linear solver](learn/lbfgs-linear)
 
 Build
 ====
