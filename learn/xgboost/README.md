@@ -11,18 +11,24 @@ This folder contains information of Distributed XGBoost (Distributed GBDT).
 How to Use
 ====
 * Input data format: LIBSVM format. The example here uses generated data in ../data folder.
-* Put the data into some distribute filesytem(S3 or HDFS)
+* Put the data into some distribute filesytem (S3 or HDFS)
 * Use tracker script in dmlc-core/tracker to submit the jobs
 * Like all other DMLC tools, xgboost support taking a path to a folder as input argument
   - All the files in the folder will be used as input
 * Quick start in Hadoop YARN: run ```bash run_yarn.sh <n_hadoop_workers> <n_thread_per_worker> <path_in_HDFS>```
-  - More info of the usage of xgboost can be refered to [document](https://github.com/dmlc/xgboost/doc/README.md)
 
 Example
 ====
 * [run_yarn.sh](run_yarn.sh) shows how to submit job to Hadoop via YARN.
 
-Single machine vs Hadoop version
+Documentation  
+====
+* See [Document of xgboost](https://github.com/dmlc/xgboost/doc/README.md)
+  - The distributed version is essetially the same as CLI version of xgboost
+  - The only difference is change data path to path in hdfs (or s3) and submit with dmlc_yarn.py script  
+* It is highly recommended to try single machine version first
+
+Single machine vs Distributed Version
 ====
 If you have used xgboost (single machine version) before, this section will show you how to run xgboost on hadoop with a slight modification on conf file.
 * IO: instead of reading and writing file locally, we now use HDFS, put ```hdfs://``` prefix to the address of file you like to access
@@ -49,3 +55,7 @@ You only need to add cacheprefix to the input file to enable external memory mod
 data=hdfs:///path-to-my-data/#dtrain.cache
 ```
 This will make xgboost more memory efficient, allows you to run xgboost on larger-scale dataset.
+
+Contribution
+====
+Contribution of documents and usecases of distributed xgboost is welcomed! Open an issue at wormhole and send a pull request! 
