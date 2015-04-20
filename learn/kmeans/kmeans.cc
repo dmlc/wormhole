@@ -148,9 +148,10 @@ int main(int argc, char *argv[]) {
   
   RowBlockIter<index_t> *data
       = RowBlockIter<index_t>::Create
-      (InputSplit::Create(argv[1],
-                          rabit::GetRank(),
-                          rabit::GetWorldSize()));    
+      (argv[1],
+       rabit::GetRank(),
+       rabit::GetWorldSize(),
+       "libsvm");
   // load model
   Model model; 
   int iter = rabit::LoadCheckPoint(&model);

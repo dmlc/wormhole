@@ -228,9 +228,10 @@ int main(int argc, char *argv[]) {
   rabit::Init(argc, argv);
   dmlc::RowBlockIter<unsigned> *data
       = dmlc::RowBlockIter<unsigned>::Create
-      (dmlc::InputSplit::Create(argv[1],
-                                rabit::GetRank(),
-                                rabit::GetWorldSize()));  
+      (argv[1],
+       rabit::GetRank(),
+       rabit::GetWorldSize(),
+       "libsvm");  
   dmlc::linear::LinearObjFunction *linear = new dmlc::linear::LinearObjFunction(data);
   for (int i = 2; i < argc; ++i) {
     char name[256], val[256];
