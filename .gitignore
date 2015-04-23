@@ -31,3 +31,6 @@
 dmlc-core
 *.txt
 *.model
+
+# User-specific config
+config.mk
