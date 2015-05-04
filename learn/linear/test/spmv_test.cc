@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     SpMV::TransTimes(D, x, &y, nthreads[i]);
     double t = GetTime() - tv;
     if (i == 0) base_t = t;
-    LOG(INFO) << "Times: " << nthreads[i] << " threads, "
+    LOG(INFO) << "TransTimes: " << nthreads[i] << " threads, "
               << t << " sec, "
               << base_t / t << " speedup";
     float ret = norm(y);
