@@ -1,6 +1,8 @@
 namespace dmlc {
 namespace linear {
 
+using ps::Key FeaID;
+
 // commands
 static const int kRequestWorkload = 1;
 
@@ -12,8 +14,8 @@ struct Progress {
   static const int kfnum = 10;
   static const int kinum = 10;
   Progress() {
-    fsize = kfnum*sizeof(double);
-    isize = kinum*sizeof(uint64);
+    fdata.resize(kfnum);
+    idata.resize(kinum);
   }
 
   void Clear() {
@@ -42,8 +44,8 @@ struct Progress {
     memcpy(str->data()+fdata, idata, isize);
   }
 
-  double fdata[kfnum];
-  uint64 idata[kinum];
+  std::vector<double> fdata;
+  std::vector<double> idata;
 
   size_t fsize;
   size_t isize;

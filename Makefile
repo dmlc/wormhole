@@ -27,16 +27,20 @@ repo/xgboost:
 repo/xgboost/xgboost: dmlc-core/libdmlc.a | repo/xgboost dmlc-core
 	+	cd repo/xgboost; make dmlc=$(ROOTDIR)/dmlc-core config=$(ROOTDIR)/$(config)
 
+# parameter server
+repo/ps-lite:
+	cd repo; git clone https://github.com/dmlc/ps-lite; cd $(ROOTDIR)
 
 # rabit
 repo/rabit:
 	cd repo; git clone https://github.com/dmlc/rabit; cd $(ROOTDIR)
 
-repo/rabit/lib/librabit.a:  | repo/rabit 
+repo/rabit/lib/librabit.a:  | repo/rabit
 	+	cd repo/rabit; make; cd $(ROOTDIR)
 
 learn/kmeans/kmeans.dmlc: learn/kmeans/kmeans.cc |repo/rabit/lib/librabit.a dmlc-core/libdmlc.a
 	+	cd learn/kmeans;make kmeans.dmlc; cd $(ROOTDIR)
+
 
 # toolkits
 xgboost.dmlc: repo/xgboost/xgboost

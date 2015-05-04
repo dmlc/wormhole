@@ -1,16 +1,17 @@
 package dmlc.linear;
-import "../../../repo/ps-lite/src/proto/filter.proto";
+// import "../../repo/ps-lite/src/proto/filter.proto";
 
 // configuration for linear method
 message Config {
 
   // input & output
 
-  optional string train_data = 0;
+  optional string train_data = 1;
   optional string val_data = 2;
+  optional string data_format = 3 [default = "libsvm"];
 
-  optional string model_in = 3;
-  optional string model_out = 4;
+  optional string model_in = 4;
+  optional string model_out = 5;
 
   // objective function
 
@@ -75,12 +76,12 @@ message Config {
   optional int32 tail_feature_freq = 41 [default = 0];
 
   // filters to reduce communication costs
-  repeated FilterConfig push_filter = 42;
-  repeated FilterConfig pull_filter = 43;
+  // repeated ps.FilterConfig push_filter = 42;
+  // repeated ps.FilterConfig pull_filter = 43;
 
   // method specific options
 
-  Darlin darlin = 50;
+  optional Darlin darlin = 50;
 }
 
 message Darlin {
