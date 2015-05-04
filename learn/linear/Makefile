@@ -9,7 +9,7 @@ include ../../dmlc-core/make/dmlc.mk
 
 # THIRD_PATH=/Users/muli/work/third_party_gcc/
 
-CFLAGS  = -Wall -std=c++11 -I../../dmlc-core/include -I../../dmlc-core/src -I./ -fopenmp
+CFLAGS  = -O3 -Wall -std=c++11 -I../../dmlc-core/include -I../../dmlc-core/src -I./ -fopenmp
 LDFLAGS = ../../dmlc-core/libdmlc.a -pthread -lm
 
 all: build/linear test

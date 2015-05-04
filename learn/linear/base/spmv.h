@@ -10,7 +10,7 @@ namespace dmlc {
  */
 class SpMV {
  public:
-  static const int kDefaultNT = 4;
+  static const int kDefaultNT = 2;
   using SpMat = RowBlock<unsigned>;
 
 
@@ -29,7 +29,7 @@ class SpMV {
                     std::vector<V>* y, int nthreads = kDefaultNT) {
     CHECK_EQ(x.size(), D.size);
     CHECK_NOTNULL(y);
-    TransTimes<V>(D, x.data(), y->data(), nthreads);
+    TransTimes<V>(D, x.data(), y->data(), y->size(), nthreads);
   }
 
   /** \brief y = D * x */
@@ -57,10 +57,11 @@ class SpMV {
 
   /** \brief y = D^T * x */
   template<typename V>
-  static void TransTimes(const SpMat& D,  const V* const x, V* y, int nthreads = kDefaultNT) {
+  static void TransTimes(const SpMat& D,  const V* const x, V* y, size_t y_size,
+                         int nthreads = kDefaultNT) {
 #pragma omp parallel num_threads(nthreads)
     {
-      Range rg = Range(0, D.size).Segment(
+      Range rg = Range(0, y_size).Segment(
           omp_get_thread_num(), omp_get_num_threads());
       std::memset(y + rg.begin, 0, sizeof(V) * (rg.end - rg.begin));
 

@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     data.Push(iter->Value());
   }
   size_t nrow = data.offset.size() - 1;
-  size_t ncol = data.max_index;
+  size_t ncol = data.max_index + 1;
   LOG(INFO) << "read a " << nrow << " x "
             << ncol << " matrix in " << GetTime() - tv << " sec";
 
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
   for (size_t i = 0; i < nrow; ++i) {
     x[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
   }
-  y.resize(nrow);
+  y.resize(ncol);
 
   // warmup
   SpMV::TransTimes(D, x, &y, 1);
