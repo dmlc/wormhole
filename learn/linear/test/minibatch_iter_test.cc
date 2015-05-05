@@ -13,9 +13,11 @@ int main(int argc, char *argv[]) {
   reader.BeforeFirst();
   size_t num_ex = 0;
   while (reader.Next()) {
-    size_t size = reader.Value().size;
-    num_ex += size;
-    LOG(INFO) << "minibatch " << size << ", " << num_ex << " examples";
+    auto blk = reader.Value();
+    num_ex += blk.size;
+    LOG(INFO) << "minibatch " << blk.size << ", "
+              << blk.offset[blk.size] << " index, "
+              << num_ex << " examples";
   }
   return 0;
 }

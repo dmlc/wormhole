@@ -68,16 +68,11 @@ class MinibatchIter {
     CHECK_LE(pos + len, in_blk_.size);
     RowBlock<size_t> slice;
     slice.size = len;
-    slice.label = in_blk_.label + pos;
-    slice.index = in_blk_.index + in_blk_.offset[pos];
-    if (in_blk_.value) slice.value = in_blk_.value + in_blk_.offset[pos];
-    offset_.resize(len + 1);
-    std::memcpy(offset_.data(), in_blk_.offset+pos, sizeof(size_t)*(len+1));
-    size_t s = offset_[0];
-    for (size_t i = 0; i <= len; ++i) {
-      offset_[i] -= s;
-    }
-    slice.offset = offset_.data();
+    slice.offset  = in_blk_.offset + pos;
+    slice.label   = in_blk_.label  + pos;
+    slice.index   = in_blk_.index  + in_blk_.offset[pos];
+    if (in_blk_.value)
+      slice.value = in_blk_.value  + in_blk_.offset[pos];
     mb_.Push(slice);
   }
 
@@ -85,7 +80,6 @@ class MinibatchIter {
   Parser *parser_;
 
   size_t start_, end_;
-  std::vector<size_t> offset_;
   RowBlock<size_t> in_blk_;
   RowBlockContainer<IndexType> mb_;
   RowBlock<IndexType> out_blk_;
