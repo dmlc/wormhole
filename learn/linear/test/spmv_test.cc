@@ -5,21 +5,6 @@
 #include <dmlc/timer.h>
 #include "data/row_block.h"
 
-
-inline struct timespec hwtic() {
-  struct timespec tv;
-  clock_gettime(CLOCK_MONOTONIC_RAW, &tv);
-  return tv;
-}
-
-inline double hwtoc(struct timespec tv) {
-  struct timespec curr;
-  clock_gettime(CLOCK_MONOTONIC_RAW, &curr);
-  return  (double) ((curr.tv_sec - tv.tv_sec) +
-                        (curr.tv_nsec -tv.tv_nsec)*1e-9);
-}
-
-
 float norm(const std::vector<float>& v) {
   float r = 0;
   for (size_t i = 0; i < v.size(); ++i) {
@@ -29,13 +14,13 @@ float norm(const std::vector<float>& v) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 4) {
-    printf("Usage: <libsvm> partid npart\n");
+  if (argc < 2) {
+    printf("Usage: <libsvm>\n");
     return 0;
   }
   using namespace dmlc;
   RowBlockIter<unsigned> *iter = RowBlockIter<unsigned>::Create(
-      argv[1], atoi(argv[2]), atoi(argv[3]), "libsvm");
+      argv[1], 0, 1, "libsvm");
 
   data::RowBlockContainer<unsigned> data;
 
@@ -93,7 +78,7 @@ int main(int argc, char *argv[]) {
     SpMV::TransTimes(D, x, &y, nthreads[i]);
     double t = GetTime() - tv;
     if (i == 0) base_t = t;
-    LOG(INFO) << "Times: " << nthreads[i] << " threads, "
+    LOG(INFO) << "TransTimes: " << nthreads[i] << " threads, "
               << t << " sec, "
               << base_t / t << " speedup";
     float ret = norm(y);
