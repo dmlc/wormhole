@@ -3,7 +3,7 @@
 #include <math.h>
 #include "proto/linear.pb.h"
 #include "base/spmv.h"
-#include "eval_model.h"
+#include "base/eval_model.h"
 
 namespace dmlc {
 namespace linear {
@@ -66,10 +66,11 @@ class LogitLoss : public ScalarLoss<T> {
   virtual T Objv() {
     CHECK(this->init_);
     T ret = 0;
+
 #pragma omp parallel for reduction(+:ret) num_threads(nthreads_)
     for (size_t i = 0; i < data_.size; ++i) {
       T y = data_.label[i] > 0 ? 1 : -1;
-      ret += 1 / log( 1 + exp( y * Xw_[i] ));
+      ret += log( 1 + exp( - y * Xw_[i] ));
     }
     return ret;
   }

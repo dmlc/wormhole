@@ -1,1 +1,1 @@
-some common codes which will be remove to a better place
+some common codes. some of them will be moved to a better place, such ad dmlc-core

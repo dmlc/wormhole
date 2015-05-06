@@ -12,7 +12,7 @@ DEPS_PATH=/usr/local/
 CFLAGS  = -O3 -ggdb -Wall -std=c++11 -I../../dmlc-core/include -I../../dmlc-core/src -I./ -fopenmp
 LDFLAGS = ../../dmlc-core/libdmlc.a -pthread -lm
 
-all: build/linear test
+all: build/ftrl # build/linear test
 
 clean:
 	rm -rf build
@@ -29,9 +29,10 @@ build/%.o: %.cc
 	${DEPS_PATH}/bin/protoc --cpp_out=. --proto_path=. $<
 
 test: build/localizer_test build/spmv_test build/minibatch_iter_test \
-build/ftrl_test build/arg_parser\
+build/arg_parser\
 
-build/ftrl_test: build/proto/linear.pb.o -lprotobuf -lglog -lgflags
+build/ftrl: build/sgd/ftrl.o build/proto/linear.pb.o -lprotobuf -lglog -lgflags
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 build/%: build/test/%.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@

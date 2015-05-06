@@ -2,7 +2,7 @@
  * @file   sgd_server_handle.h
  * @brief  server handles for sgd
  */
-#include "linear.h"
+#include "base/linear.h"
 #include "../../repo/ps-lite/src/base/blob.h"
 namespace dmlc {
 namespace linear {

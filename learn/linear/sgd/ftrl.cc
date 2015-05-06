@@ -6,10 +6,9 @@
 #include "base/minibatch_iter.h"
 #include "base/arg_parser.h"
 #include "base/localizer.h"
-
+#include "base/loss.h"
 #include "proto/linear.pb.h"
-#include "sgd_server_handle.h"
-#include "loss.h"
+#include "sgd/sgd_server_handle.h"
 namespace dmlc {
 namespace linear {
 
@@ -82,6 +81,7 @@ class LocalWorker {
     auto loss = CreateLoss<real_t>(conf_.loss());
 
     size_t num_ex = 0;
+    int k = 0;
     for (int iter = 0; iter < conf_.max_data_pass(); ++iter) {
       reader.BeforeFirst();
       while (reader.Next()) {
@@ -97,15 +97,19 @@ class LocalWorker {
         // fetch the weight
         std::vector<real_t> buf(feaids.size());
         server.Pull(feaids, &buf);
-        // LOG(INFO) << "weight: " << DebugStr(buf);
 
         loss->Init(local.GetBlock(), buf);
         num_ex += global.size;
-        LOG(INFO) << "#ex " << num_ex
-                  << ", objv " << loss->Objv() / global.size
-                  << ", auc " << loss->AUC()
-                  << ", acc " << loss->Accuracy()
-                  << ", nnz " << server.nnz();
+
+        if ( ++k % conf_.print_iter() == 0) {
+          LOG(INFO) << "#ex " << num_ex
+                    << ", objv " << loss->Objv() / global.size
+                    << ", auc " << loss->AUC()
+                    << ", acc " << loss->Accuracy()
+                    << ", nnz " << server.nnz();
+        // LOG(INFO) << "weight: " << DebugStr(buf);
+
+        }
 
         loss->CalcGrad(&buf);
         server.Push(feaids, buf);

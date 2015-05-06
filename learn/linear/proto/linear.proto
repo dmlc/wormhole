@@ -52,6 +52,8 @@ message Config {
   // the maximal number of data passes
   optional int32 max_data_pass = 22 [default = 10];
 
+  // print the progress every #iter
+  optional int32 print_iter = 23 [default = 1];
 
   // convergance critiria. stop if the relative objective <= epsilon
   optional double epsilon = 24 [default = 1e-4];
