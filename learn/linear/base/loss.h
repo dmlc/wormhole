@@ -3,7 +3,7 @@
 #include <math.h>
 #include "proto/linear.pb.h"
 #include "base/spmv.h"
-#include "base/eval_model.h"
+#include "base/evaluation.h"
 
 namespace dmlc {
 namespace linear {

@@ -2,13 +2,6 @@
 namespace dmlc {
 namespace linear {
 
-// #include "../../repo/ps-lite/src/base/blob.h"
-// using ps::Key FeaID;
-
-// commands
-static const int kRequestWorkload = 1;
-
-
 /**
  * @brief objective values, running time, ...
  */
@@ -52,5 +45,6 @@ struct Progress {
   size_t fsize;
   size_t isize;
 };
+
 }  // namespace linear
 }  // namespace dmlc

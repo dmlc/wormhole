@@ -1,6 +1,7 @@
 // single machine version of online ftrl
 #include <unordered_map>
 #include <gflags/gflags.h>
+#include "dmlc/timer.h"
 
 #include "base/utils.h"
 #include "base/minibatch_iter.h"
@@ -46,7 +47,9 @@ class LocalServer {
     }
   }
 
-  size_t nnz() { return tracker.prog.ivec[1]; }
+  // size_t nnz() { return tracker.prog.ivec[1]; }
+
+  const Progress& progress() { return tracker.prog; }
  private:
   static const int kVS = 3;  // value size
   real_t* FindValue(FeaID key) {
@@ -61,7 +64,7 @@ class LocalServer {
   }
 
   Config conf_;
-  OnlineModelTracker tracker;
+  ModelMonitor tracker;
   FTRLHandle<FeaID, real_t> handle_;
   std::unordered_map<FeaID, real_t[kVS]> data_;
   template <typename T> using Blob = ps::Blob<T>;
@@ -69,7 +72,8 @@ class LocalServer {
 
 class LocalWorker {
  public:
-  LocalWorker(const Config& conf) : conf_(conf) { }
+  LocalWorker(const Config& conf) : conf_(conf), server_(conf) { }
+
   void Run() {
 
     CHECK(conf_.has_train_data());
@@ -77,50 +81,74 @@ class LocalWorker {
         conf_.train_data().c_str(), 0, 1, conf_.data_format().c_str(),
         conf_.minibatch());
 
-    LocalServer server(conf_);
-    auto loss = CreateLoss<real_t>(conf_.loss());
-
-    size_t num_ex = 0;
-    int k = 0;
     for (int iter = 0; iter < conf_.max_data_pass(); ++iter) {
-      reader.BeforeFirst();
-      while (reader.Next()) {
-        // localize the minibatch
-        auto global = reader.Value();
-        // LOG(INFO) << "global " << DebugStr(global);
-        dmlc::data::RowBlockContainer<unsigned> local;
-        std::vector<FeaID> feaids;
-        Localizer<FeaID> lc;
-        lc.Localize(global, &local, &feaids);
+      Process(reader, 1, true);
+      LOG(INFO) << "iter " << iter << " done";
+    }
 
-        // LOG(INFO) << "global " << DebugStr(local);
-        // fetch the weight
-        std::vector<real_t> buf(feaids.size());
-        server.Pull(feaids, &buf);
+    if (conf_.has_train_data()) {
+      dmlc::data::MinibatchIter<FeaID> val_reader(
+          conf_.val_data().c_str(), 0, 1, conf_.data_format().c_str(),
+          10000);
 
-        loss->Init(local.GetBlock(), buf);
-        num_ex += global.size;
-
-        if ( ++k % conf_.print_iter() == 0) {
-          LOG(INFO) << "#ex " << num_ex
-                    << ", objv " << loss->Objv() / global.size
-                    << ", auc " << loss->AUC()
-                    << ", acc " << loss->Accuracy()
-                    << ", nnz " << server.nnz();
-        // LOG(INFO) << "weight: " << DebugStr(buf);
-
-        }
-
-        loss->CalcGrad(&buf);
-        server.Push(feaids, buf);
-
-        // LOG(INFO) << "grad: " << DebugStr(buf);
-      }
+      Process(val_reader, 0, false);
     }
   }
 
  private:
+  void Print() {
+    mnt_.prog.Merge(server_.progress());
+    auto& prog = mnt_.prog;
+    size_t num_ex = mnt_.prog.num_ex();
+    LOG(INFO) << "#ex " << num_ex
+              << ", objv " << prog.objv() / prog.num_ex()
+              << ", auc " << prog.auc() / prog.count()
+              << ", acc " << prog.acc() / prog.count()
+              << ", nnz w " << prog.nnz_w();
+    mnt_.prog.Clear();
+    mnt_.prog.num_ex() = num_ex;
+  }
+
+  void Process(
+      dmlc::data::MinibatchIter<FeaID>& reader, int disp, bool update) {
+
+    auto loss = CreateLoss<real_t>(conf_.loss());
+    reader.BeforeFirst();
+    double tv = GetTime();
+    while (reader.Next()) {
+      // localize the minibatch
+      auto global = reader.Value();
+      dmlc::data::RowBlockContainer<unsigned> local;
+      std::vector<FeaID> feaids;
+      Localizer<FeaID> lc;
+      lc.Localize(global, &local, &feaids);
+
+      // fetch the weight
+      std::vector<real_t> buf(feaids.size());
+      server_.Pull(feaids, &buf);
+
+      loss->Init(local.GetBlock(), buf);
+
+      mnt_.Update(global.size, loss);
+
+      if (disp > 0 && (GetTime() - tv > disp)) {
+        Print();
+        tv = GetTime();
+      }
+
+      if (update) {
+        loss->CalcGrad(&buf);
+        server_.Push(feaids, buf);
+        // LOG(INFO) << "grad: " << DebugStr(buf);
+      }
+    }
+    if (disp == 0) Print();
+    delete loss;
+  }
+
   Config conf_;
+  LocalServer server_;
+  WorkerMonitor mnt_;
 };
 
 }  // namespace linear
