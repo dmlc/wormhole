@@ -21,7 +21,7 @@ message Config {
     HINGE = 3;
     SQUARE_HINGE = 4;
   }
-  optional Loss loss = 10;
+  optional Loss loss = 10 [default = LOGIT];
 
   enum Penalty {
     L1 = 1; // lambda(0) * ||w||_1 + .5 * lambda(1) * ||w||_F^2
@@ -47,7 +47,7 @@ message Config {
   optional Algo algo = 20;
 
   // the size of minibatch for online methods
-  optional int32 minibatch = 21 [default = 10000];
+  optional int32 minibatch = 21 [default = 1000];
 
   // the maximal number of data passes
   optional int32 max_data_pass = 22 [default = 10];

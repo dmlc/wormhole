@@ -9,6 +9,7 @@
 #include "data/row_block.h"
 #include "data/parser.h"
 #include "data/libsvm_parser.h"
+#include "base/utils.h"
 namespace dmlc {
 namespace data {
 
@@ -73,6 +74,8 @@ class MinibatchIter {
     slice.index   = in_blk_.index  + in_blk_.offset[pos];
     if (in_blk_.value)
       slice.value = in_blk_.value  + in_blk_.offset[pos];
+
+    // LOG(INFO) << DebugStr(slice);
     mb_.Push(slice);
   }
 

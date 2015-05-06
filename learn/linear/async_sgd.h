@@ -2,8 +2,8 @@
  * @file   async_sgd.h
  * @brief  Asynchronous stochastic gradient descent to solve linear methods.
  */
-#include "proto/linear.pb.h"
 #include "./linear.h"
+#include "proto/linear.pb.h"
 #include "base/minibatch_iter.h"
 
 namespace dmlc {
@@ -66,7 +66,7 @@ class AsyncSGDWorker : public ISGDCompNode {
       lc.Localize(iter->Value(), feaid.get(), batch);
 
       // pull the weight for this minibatch from servers
-      std::vector<real_t>* w = new std::vector<real_t>(feaid.size());
+     std::vector<real_t>* w = new std::vector<real_t>(feaid.size());
       SyncOpts opts;
       opts.callback = [this, batch, feaid, w]() {
         CalcGrad(*batch, feaid, *w);

@@ -2,6 +2,8 @@
  * @file   sgd_server_handle.h
  * @brief  server handles for sgd
  */
+#include "linear.h"
+#include "../../repo/ps-lite/src/base/blob.h"
 namespace dmlc {
 namespace linear {
 
@@ -11,26 +13,37 @@ namespace linear {
 struct OnlineModelTracker {
  public:
   inline void Send() {
-    if (!reporter) return;
-    reporter->Report(prog);
-    prog.fdata[3] = 0;
-    prog.fdata[4] = 0;
+  //   if (!reporter) return;
+  //   reporter->Report(prog);
+  //   prog.fvec[3] = 0;
+  //   prog.fvec[4] = 0;
   }
 
-  inline template<typename V>
-  void Update(V cur, V old) {
-    if (cur == 0 && old != 0) {
-      -- prog.idata[1];
-    } else if (cur != 0 && old == 0) {
-      ++ prog.idata[1];
+  // ivec[1] : nnz(w), fvec[3] : |w|^2_2, fvec[4] : |delta_w|^2_2
+  template<typename V>
+  inline void Update(V cur, V old) {
+    if (cur == 0) {
+      if (old == 0) {
+        return;
+      } else {
+        -- prog.ivec[1];
+        prog.fvec[4] += old * old;
+      }
+    } else {
+      V cc = cur * cur;
+      prog.fvec[3] += cc;
+      if (old == 0) {
+        ++ prog.ivec[1];
+        prog.fvec[4] += cc;
+      } else {
+        V delta = cur - old;
+        prog.fvec[4] += delta * delta;
+      }
     }
-    prog.fdata[3] += cur * cur;
-    V delta = cur - old;
-    prog.fdata[4] += delta * delta;
   }
 
   Progress prog;
-  MonitorSlaver<Progress>* reporter = nullptr;
+  // MonitorSlaver<Progress>* reporter = nullptr;
 };
 
 /**
@@ -39,17 +52,18 @@ struct OnlineModelTracker {
  * my_val is a length-3 vector, 0: weight, 1: z, 2: square rooted cumulatived
  * gradient
  */
-template <typename V>
+
+template <typename K, typename V>
 struct FTRLHandle {
  public:
+  template <typename T> using Blob = ps::Blob<T>;
+
   inline void HandlePush(
-      int ts, CBlob<Key> recv_keys, CBlob<V> recv_vals, Blob<V>* my_vals) {
-    DCHECK_EQ(my_vals->size, 3);
-    DCHECK_EQ(recv_vals.size, 1);
-    V* val = my_vals->data;
+      int ts, Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
+    V* val = my_val.data;
 
     // update cum grad
-    V grad = recv_vals.data[0];
+    V grad = recv_val[0];
     V sqrt_n = val[2];
     val[2] = sqrt(sqrt_n * sqrt_n + grad * grad);
 
@@ -59,13 +73,12 @@ struct FTRLHandle {
     val[1] += grad  - sigma * w;
 
     // update w
-    V eta = alpha / (val[2] + beta);
-    V t = lambda1 * eta;
-    V u = - val[1] * eta;
-    if (u <= t && u >= -t) {
+    V z = val[1];
+    if (z <= lambda1 && z >= -lambda1) {
       val[0] = 0;
-    } else if (u > 0) {
-      val[0] = (u + (u > 0 ? -t : t)) / ( 1 + lambda2 * eta);
+    } else {
+      val[0] = - (z - (z > 0 ? 1 : -1) * lambda1) /
+               ((beta + val[2]) / alpha + lambda2);
     }
 
     // update monitor
@@ -74,17 +87,14 @@ struct FTRLHandle {
   }
 
   inline void HandlePull(
-      int ts, CBlob<Key> recv_keys, CBlob<V> my_vals, Blob<V>* send_vals) {
-    DCHECK_EQ(my_vals.size, 3);
-    DCHECK_EQ(send_vals->size, 1);
-    send_vals->data[0] += my_vals.data[0];
+      int ts, Blob<const K> recv_key, Blob<const V> my_val, Blob<V> send_val) {
+    send_val[0] += my_val[0];
   }
 
-  inline void HandleInit(int ts, CBlob<Key> keys, Blob<V>* vals) {
-    DCHECK_EQ(vals->size, 3);
-    vals->data[0] = 0;
-    vals->data[1] = 0;
-    vals->data[2] = 0;
+  inline void HandleInit(int ts, Blob<const K> key, Blob<V> val) {
+    val[0] = 0;
+    val[1] = 0;
+    val[2] = 0;
   }
 
   // learning rate

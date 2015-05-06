@@ -15,16 +15,15 @@ namespace linear {
  * real valued label and outputs a non-negative loss value. Examples include the
  * hinge hinge loss, binary classification loss, and univariate regression loss.
  */
-template<typename T> c
+template<typename T>
 class ScalarLoss {
  public:
   ScalarLoss() : init_(false), nthreads_(2) { }
   virtual ~ScalarLoss() { }
 
   using Data = RowBlock<unsigned>;
-  using Param = std::vector<T>;
 
-  void Init(const Data& data, const Param& w) {
+  void Init(const Data& data, const std::vector<T>& w) {
     data_ = data;
     Xw_.resize(data_.size);
     SpMV::Times(data_, w, &Xw_, nthreads_);
@@ -35,7 +34,7 @@ class ScalarLoss {
   virtual T Objv() = 0;
 
   /*! \brief compute the gradients */
-  virtual void CalcGrad(Param* grad) = 0;
+  virtual void CalcGrad(std::vector<T>* grad) = 0;
 
   T AUC() {
     CHECK(init_);
@@ -60,9 +59,12 @@ class ScalarLoss {
 
 template <typename T>
 class LogitLoss : public ScalarLoss<T> {
-
+ public:
+  using ScalarLoss<T>::data_;
+  using ScalarLoss<T>::Xw_;
+  using ScalarLoss<T>::nthreads_;
   virtual T Objv() {
-    CHECK(init_);
+    CHECK(this->init_);
     T ret = 0;
 #pragma omp parallel for reduction(+:ret) num_threads(nthreads_)
     for (size_t i = 0; i < data_.size; ++i) {
@@ -72,9 +74,9 @@ class LogitLoss : public ScalarLoss<T> {
     return ret;
   }
 
-  virtual void CalcGrad(Param* grad) {
-    CHECK(init_);
-    std::vector<T> dual(data_.size());
+  virtual void CalcGrad(std::vector<T>* grad) {
+    CHECK(this->init_);
+    std::vector<T> dual(data_.size);
 #pragma omp parallel for num_threads(nthreads_)
     for (size_t i = 0; i < data_.size; ++i) {
       T y = data_.label[i] > 0 ? 1 : -1;
@@ -86,9 +88,12 @@ class LogitLoss : public ScalarLoss<T> {
 
 template <typename T>
 class SquareHingeLoss : public ScalarLoss<T> {
-
+ public:
+  using ScalarLoss<T>::data_;
+  using ScalarLoss<T>::Xw_;
+  using ScalarLoss<T>::nthreads_;
   virtual T Objv() {
-    CHECK(init_);
+    CHECK(this->init_);
     T ret = 0;
 #pragma omp parallel for reduction(+:ret) num_threads(nthreads_)
     for (size_t i = 0; i < data_.size; ++i) {
@@ -99,10 +104,10 @@ class SquareHingeLoss : public ScalarLoss<T> {
     return ret;
   }
 
-  virtual void CalcGrad(Param* grad) {
-    CHECK(init_);
+  virtual void CalcGrad(std::vector<T>* grad) {
+    CHECK(this->init_);
 
-    std::vector<T> dual(data_.size());
+    std::vector<T> dual(data_.size);
 #pragma omp parallel for num_threads(nthreads_)
     for (size_t i = 0; i < data_.size; ++i) {
       T y = data_.label[i] > 0 ? 1 : -1;

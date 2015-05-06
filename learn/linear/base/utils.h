@@ -25,11 +25,12 @@ inline std::string DebugStr(const std::vector<V>& vec) {
 template<typename I>
 inline std::string DebugStr(const RowBlock<I>& blk) {
   std::stringstream ss;
+  size_t idx_size = blk.offset[blk.size] - blk.offset[0];
   ss << "label: " << DebugStr<real_t>(blk.label, blk.size) << "\n"
      << "offset: " << DebugStr<size_t>(blk.offset, blk.size+1) << "\n"
-     << "index: " << DebugStr<I>(blk.index, blk.offset[blk.size]);
+     << "index: " << DebugStr<I>(blk.index, idx_size);
   if (blk.value) {
-    ss << "\nvalue: " << DebugStr<real_t>(blk.value, blk.offset[blk.size]);
+    ss << "\nvalue: " << DebugStr<real_t>(blk.value, idx_size);
   }
   return ss.str();
 }
