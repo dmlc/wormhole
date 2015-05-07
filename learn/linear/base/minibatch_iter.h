@@ -26,12 +26,12 @@ class MinibatchIter {
       : mb_size_(minibatch_size), start_(0), end_(0) {
     // create parser
     if (!strcmp(type, "libsvm")) {
-      parser_ = new LibSVMParser(InputSplit::Create(
+      parser_ = new LibSVMParser<IndexType>(InputSplit::Create(
           uri, part_index, num_parts, "text"), 1);
     } else {
       LOG(FATAL) << "unknown datatype " << type;
     }
-	parser_ = new ThreadedParser(parser_);
+	parser_ = new ThreadedParser<IndexType>(parser_);
   }
 
   virtual ~MinibatchIter() {
@@ -67,7 +67,7 @@ class MinibatchIter {
   void Push(size_t pos, size_t len) {
     if (!len) return;
     CHECK_LE(pos + len, in_blk_.size);
-    RowBlock<size_t> slice;
+    RowBlock<IndexType> slice;
     slice.size = len;
     slice.offset  = in_blk_.offset + pos;
     slice.label   = in_blk_.label  + pos;
@@ -80,10 +80,10 @@ class MinibatchIter {
   }
 
   unsigned mb_size_;
-  Parser *parser_;
+  Parser<IndexType> *parser_;
 
   size_t start_, end_;
-  RowBlock<size_t> in_blk_;
+  RowBlock<IndexType> in_blk_;
   RowBlockContainer<IndexType> mb_;
   RowBlock<IndexType> out_blk_;
 };

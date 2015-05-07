@@ -90,7 +90,7 @@ class LocalWorker {
       dmlc::data::MinibatchIter<FeaID> val_reader(
           conf_.val_data().c_str(), 0, 1, conf_.data_format().c_str(),
           10000);
-
+      mnt_.prog.Clear();
       Process(val_reader, 0, false);
     }
   }
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
   using namespace dmlc;
 
   ArgParser parser;
-if (!FLAGS_conf.empty()) parser.ReadFile(FLAGS_conf.c_str());
+  if (!FLAGS_conf.empty()) parser.ReadFile(FLAGS_conf.c_str());
   parser.ReadArgs(argc-1, argv+1);
   linear::Config conf; parser.ParseToProto(&conf);
 
