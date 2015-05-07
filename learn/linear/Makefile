@@ -12,10 +12,10 @@ DEPS_PATH=/usr/local/
 CFLAGS  = -O3 -ggdb -Wall -std=c++11 -I../../dmlc-core/include -I../../dmlc-core/src -I./ -fopenmp
 LDFLAGS = ../../dmlc-core/libdmlc.a -pthread -lm
 
-all: build/ftrl # build/linear test
+all: build/ftrl test # build/linear test
 
 clean:
-	rm -rf build
+	rm -rf build/*
 
 build/linear:
 

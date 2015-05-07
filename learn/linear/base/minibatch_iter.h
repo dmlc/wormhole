@@ -9,6 +9,7 @@
 #include "data/row_block.h"
 #include "data/parser.h"
 #include "data/libsvm_parser.h"
+#include "base/criteo_parser.h"
 #include "base/utils.h"
 namespace dmlc {
 namespace data {
@@ -25,9 +26,11 @@ class MinibatchIter {
                 const char* type, unsigned minibatch_size)
       : mb_size_(minibatch_size), start_(0), end_(0) {
     // create parser
+    InputSplit* input = InputSplit::Create(uri, part_index, num_parts, "text");
     if (!strcmp(type, "libsvm")) {
-      parser_ = new LibSVMParser<IndexType>(InputSplit::Create(
-          uri, part_index, num_parts, "text"), 1);
+      parser_ = new LibSVMParser<IndexType>(input, 1);
+    } else if (!strcmp(type, "criteo")) {
+      parser_ = new CriteoParser<IndexType>(input);
     } else {
       LOG(FATAL) << "unknown datatype " << type;
     }
@@ -59,6 +62,10 @@ class MinibatchIter {
     return out_blk_.size > 0;
   }
 
+  size_t BytesRead(void) const {
+    return parser_->BytesRead();
+  }
+
   const RowBlock<IndexType> &Value(void) const {
     return out_blk_;
   }
@@ -72,9 +79,11 @@ class MinibatchIter {
     slice.offset  = in_blk_.offset + pos;
     slice.label   = in_blk_.label  + pos;
     slice.index   = in_blk_.index  + in_blk_.offset[pos];
-    if (in_blk_.value)
+    if (in_blk_.value) {
       slice.value = in_blk_.value  + in_blk_.offset[pos];
-
+    } else {
+      slice.value = NULL;
+    }
     // LOG(INFO) << DebugStr(slice);
     mb_.Push(slice);
   }
