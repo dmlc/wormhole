@@ -1,0 +1,13 @@
+/**
+ * @file   sys.proto
+ * @brief  used by system
+ */
+package dmlc.linear;
+
+message File {
+  optional string file = 1;
+  optional int32 n = 2 [default = 1];
+  optional int32 k = 3 [default = 0];
+  optional bool train = 4;
+  optional int32 id = 5;
+}

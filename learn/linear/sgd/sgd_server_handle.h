@@ -3,7 +3,7 @@
  * @brief  server handles for sgd
  */
 #include "base/monitor.h"
-#include "../../repo/ps-lite/src/base/blob.h"
+#include "ps/blob.h"
 namespace dmlc {
 namespace linear {
 
@@ -57,8 +57,8 @@ struct FTRLHandle {
  public:
   template <typename T> using Blob = ps::Blob<T>;
 
-  inline void HandlePush(
-      int ts, Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
+  inline void Push(
+      Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
     V* val = my_val.data;
 
     // update cum grad
@@ -85,16 +85,17 @@ struct FTRLHandle {
     tracker->Update(val[0], w);
   }
 
-  inline void HandlePull(
-      int ts, Blob<const K> recv_key, Blob<const V> my_val, Blob<V> send_val) {
+  inline void Pull(
+      Blob<const K> recv_key, Blob<const V> my_val, Blob<V> send_val) {
     send_val[0] += my_val[0];
   }
 
-  inline void HandleInit(int ts, Blob<const K> key, Blob<V> val) {
+  inline void Init(Blob<const K> key, Blob<V> val) {
     val[0] = 0;
     val[1] = 0;
     val[2] = 0;
   }
+
 
   // learning rate
   V alpha = 0.1, beta = 1;
@@ -103,6 +104,11 @@ struct FTRLHandle {
   V lambda1 = 1, lambda2 = .1;
 
   ModelMonitor* tracker = nullptr;
+
+  // empty funcs
+  inline void SetCaller(void *obj) { }
+  inline void Start(bool push, int timestamp, const std::string& worker) { }
+  inline void Finish() { }
 };
 }  // namespace linear
 }  // namespace dmlc

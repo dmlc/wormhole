@@ -2,100 +2,149 @@
  * @file   async_sgd.h
  * @brief  Asynchronous stochastic gradient descent to solve linear methods.
  */
-#include "./linear.h"
-#include "proto/linear.pb.h"
+#include "proto/config.pb.h"
+#include "proto/sys.pb.h"
+#include "dmlc/timer.h"
 #include "base/minibatch_iter.h"
+#include "base/arg_parser.h"
+#include "base/localizer.h"
+#include "base/loss.h"
+#include "sgd/sgd_server_handle.h"
 
+#include "base/utils.h"
+#include "ps.h"
+#include "ps/app.h"
 namespace dmlc {
 namespace linear {
 
+using FeaID = ps::Key;
+using Real = float;
+
+// commands
+static const int kRequestWorkload = 1;
+
+/***************************************
+ * \brief The scheduler node
+ **************************************/
+
+class AsyncSGDScheduler : public ps::App {
+ public:
+  AsyncSGDScheduler(const Config& conf) : conf_(conf) {
+
+  }
+  virtual ~AsyncSGDScheduler() { }
+
+  virtual void Run() {
+
+  }
+ private:
+  Config conf_;
+};
 
 /***************************************
  * \brief A server node
  **************************************/
-template <typename V>
-class AsyncSGDServer : public ISGDCompNode {
- public:
 
+class AsyncSGDServer : public ps::App {
+ public:
+  AsyncSGDServer(const Config& conf) : conf_(conf) {
+    Init();
+  }
+  virtual ~AsyncSGDServer() { }
+
+  virtual void Run() { }  // empty
+ private:
+  void Init() {
+    auto algo = conf_.algo();
+    if (algo == Config::FTRL) {
+      ps::KVServer<Real, FTRLHandle<FeaID, Real>, 3> ftrl;
+      auto& updt = ftrl.handle();
+      if (conf_.has_lr_eta()) updt.alpha = conf_.lr_eta();
+      if (conf_.has_lr_beta()) updt.beta = conf_.lr_beta();
+      if (conf_.lambda_size() > 0) updt.lambda1 = conf_.lambda(0);
+      if (conf_.lambda_size() > 1) updt.lambda2 = conf_.lambda(1);
+      updt.tracker = &tracker;
+      ftrl.Run();
+    } else {
+      LOG(FATAL) << "unknown algo: " << algo;
+    }
+  }
+  Config conf_;
+  ModelMonitor tracker;
 };
 
 /***************************************
  * \brief A worker node
  **************************************/
-template <typename V>
-class AsyncSGDWorker : public ISGDCompNode {
+class AsyncSGDWorker : public ps::App {
  public:
-  AsyncSGDWorker(const Config& conf) : conf_(conf) {
-      // : ISGDCompNode(), conf_(conf) {
-    // loss_ = createLoss<V>(conf_.loss());
-  }
+  AsyncSGDWorker(const Config& conf) : conf_(conf) { }
   virtual ~AsyncSGDWorker() { }
 
   virtual void Run() {
     while (true) {
-      // request one training data file from the scheduler
+      using namespace ps;
+      // request one data file from the scheduler
       Task task; task.set_cmd(kRequestWorkload);
       Wait(Submit(task, SchedulerID()));
-      std::string file = LastResponse()->msg();
-
-      // train
+      std::string file = LastResponse()->task.msg();
       if (file.empty()) {
         LOG(INFO) << MyNodeID() << ": all workloads are done";
         break;
       }
-      Train(file);
+      Process(file);
     }
   }
-
  private:
-  using Minibatch = data::RowBlockContainer<unsigned>;
-  using SharedFeaID = std::shared_ptr<std::vector<FeaID> >;
+  void Process(const std::string file_str) {
+    File file; CHECK(file.ParseFromString(file_str));
+    LOG(INFO) << ps::MyNodeID() << ": start to process " << file.ShortDebugString();
 
-  void Train(const std::string file) {
-    LOG(INFO) << MyNodeID() << ": start to process " << file;
-    dmlc::data::MinibatchIter<FeaID> iter(
-        file, 0, 1, conf_.data_format(), conf_.minibatch());
-    iter.BeforeFirst();
+    dmlc::data::MinibatchIter<FeaID> reader(
+        file.file().c_str(), file.k(), file.n(),
+        conf_.data_format().c_str(), conf_.minibatch());
 
-    int id = 0;
-    while (iter->Next()) {
-      // find the feature id in this minibatch
-      Minibatch* batch = new Minibatch();
-      SharedFeaID feaid(new std::vector<FeaID>());
-      Localizer<FeaID> lc;
-      lc.Localize(iter->Value(), feaid.get(), batch);
+    reader.BeforeFirst();
+    while (reader.Next()) {
+      using std::vector;
+      using std::shared_ptr;
+      using Minibatch = dmlc::data::RowBlockContainer<unsigned>;
 
-      // pull the weight for this minibatch from servers
-     std::vector<real_t>* w = new std::vector<real_t>(feaid.size());
-      SyncOpts opts;
-      opts.callback = [this, batch, feaid, w]() {
-        CalcGrad(*batch, feaid, *w);
-        delete batch;
-        delete w;
+      // localize the minibatch
+      auto global = reader.Value();
+      Minibatch* local = new Minibatch();
+      shared_ptr<vector<FeaID> > feaid(new vector<FeaID>());
+      Localizer<FeaID> lc; lc.Localize(global, local, feaid.get());
+
+      // pull the weight
+      vector<Real>* buf = new vector<Real>(feaid.get()->size());
+      ps::SyncOpts opts;
+      bool is_train = file.train();
+      opts.callback = [this, local, feaid, buf, is_train]() {
+        // eval
+        auto loss = CreateLoss<real_t>(conf_.loss());
+        loss->Init(local->GetBlock(), *buf);
+        mnt_.Update(local->label.size(), loss);
+        if (is_train) {
+          // calc and push grad
+          loss->CalcGrad(buf);
+          ps::SyncOpts opts;
+          server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
+        } else {
+          delete buf;
+        }
+        delete local;
+        delete loss;
       };
-      ps_->ZPull(feaid, w, opts);
+
+      server_.ZPull(feaid, buf, opts);
     }
-    LOG(INFO) << MyNodeID() << ": finished " << file;
-  }
-
-  /**
-   * @brief Compute gradient
-   * @param id minibatch id
-   */
-  void CalcGrad(const Minibatch& batch, const SharedFeaID& feaid,
-                const std::vector<real_t> weight) {
-    // evalute
-
-    // compute gradient
-
-    // push
-
+    LOG(INFO) << ps::MyNodeID() << ": finished";
   }
 
   Config conf_;
-  KVWorker<FeaID> ps_;
-
-
+  ps::KVWorker<Real> server_;
+  WorkerMonitor mnt_;
 };
 
 

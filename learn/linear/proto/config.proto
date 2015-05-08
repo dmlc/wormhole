@@ -1,10 +1,13 @@
+/**
+ * @file   config.proto
+ * @brief  configuration for linear method
+ */
 package dmlc.linear;
 // import "../../repo/ps-lite/src/proto/filter.proto";
 
-// configuration for linear method
 message Config {
 
-  // input & output
+  /// input & output
 
   optional string train_data = 1;
   optional string val_data = 2;
@@ -13,7 +16,7 @@ message Config {
   optional string model_in = 4;
   optional string model_out = 5;
 
-  // objective function
+  /// objective function
 
   enum Loss {
     SQUARE = 1;
@@ -30,7 +33,7 @@ message Config {
   optional Penalty penalty = 11;
   repeated float lambda = 12;
 
-  // optimization methods
+  /// optimization methods
 
   enum Algo {
     // (minibatch) online methods
@@ -68,7 +71,7 @@ message Config {
   optional float lr_eta = 31;
   optional float lr_beta = 32;
 
-  // to reduce sync cost
+  /// to reduce sync cost
 
   // maximal allowed delay during synchronization
   optional int32 max_delay = 40 [default = 0];

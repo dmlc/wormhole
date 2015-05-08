@@ -1,24 +1,27 @@
-ifneq ("$(wildcard ../config.mk)","")
+# global config
+ifneq ("$(wildcard ../../config.mk)","")
 	config = ../../config.mk
 else
 	config = ../../make/config.mk
 endif
 
 include $(config)
-include ../../dmlc-core/make/dmlc.mk
 
 DEPS_PATH=/usr/local/
 
-CFLAGS  = -O3 -ggdb -Wall -std=c++11 -I../../dmlc-core/include -I../../dmlc-core/src -I./ -fopenmp
-LDFLAGS = ../../dmlc-core/libdmlc.a -pthread -lm
+CORE_PATH=../../dmlc-core
+include $(CORE_PATH)/make/dmlc.mk
+PS_PATH=../../repo/ps-lite
+INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src
+CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(INC)
+LDFLAGS = ../../dmlc-core/libdmlc.a $(DMLC_LDFLAGS) #-pthread -lm
 
-all: build/ftrl test # build/linear test
+all: bin test # build/linear test
 
 clean:
 	rm -rf build/*
 
-build/linear:
-
+bin: build/ftrl build/async_sgd
 
 build/%.o: %.cc
 	@mkdir -p $(@D)
@@ -31,7 +34,12 @@ build/%.o: %.cc
 test: build/localizer_test build/spmv_test build/minibatch_iter_test \
 build/arg_parser\
 
-build/ftrl: build/sgd/ftrl.o build/proto/linear.pb.o -lprotobuf -lglog -lgflags
+build/async_sgd: build/sgd/async_sgd.o \
+build/proto/config.pb.o build/proto/sys.pb.o \
+$(PS_PATH)/build/libps.a -lgflags -lprotobuf -lglog -lzmq
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+build/ftrl: build/sgd/ftrl.o build/proto/config.pb.o -lprotobuf -lgflags
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 build/%: build/test/%.o

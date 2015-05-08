@@ -1,7 +1,7 @@
 #pragma once
 #include <dmlc/data.h>
 #include <math.h>
-#include "proto/linear.pb.h"
+#include "proto/config.pb.h"
 #include "base/spmv.h"
 #include "base/evaluation.h"
 

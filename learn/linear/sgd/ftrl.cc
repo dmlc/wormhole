@@ -8,7 +8,7 @@
 #include "base/arg_parser.h"
 #include "base/localizer.h"
 #include "base/loss.h"
-#include "proto/linear.pb.h"
+#include "proto/config.pb.h"
 #include "sgd/sgd_server_handle.h"
 namespace dmlc {
 namespace linear {
@@ -30,9 +30,9 @@ class LocalServer {
     for (size_t i = 0; i < keys.size(); ++i) {
       const FeaID* k = keys.data() + i;
       real_t* v = FindValue(*k);
-      handle_.HandlePush(
-          0, Blob<const FeaID>(k, 1), Blob<const real_t>(grad.data()+i, 1),
-          Blob<real_t>(v, kVS));
+      handle_.Push(Blob<const FeaID>(k, 1),
+                   Blob<const real_t>(grad.data()+i, 1),
+                   Blob<real_t>(v, kVS));
     }
   }
 
@@ -41,9 +41,9 @@ class LocalServer {
     for (size_t i = 0; i < keys.size(); ++i) {
       const FeaID* k = keys.data() + i;
       real_t* v = FindValue(*k);
-      handle_.HandlePull(
-          0, Blob<const FeaID>(k, 1), Blob<const real_t>(v, kVS),
-          Blob<real_t>(weight->data()+i, 1));
+      handle_.Pull(Blob<const FeaID>(k, 1),
+                   Blob<const real_t>(v, kVS),
+                   Blob<real_t>(weight->data()+i, 1));
     }
   }
 
@@ -57,7 +57,8 @@ class LocalServer {
     if (it == data_.end()) {
       // init if necessary
       real_t* v = data_[key];
-      handle_.HandleInit(0, Blob<const FeaID>(&key, 1), Blob<real_t>(v, kVS));
+      handle_.Init(Blob<const FeaID>(&key, 1),
+                   Blob<real_t>(v, kVS));
       return v;
     }
     return it->second;
@@ -86,7 +87,7 @@ class LocalWorker {
       LOG(INFO) << "iter " << iter << " done";
     }
 
-    if (conf_.has_train_data()) {
+    if (conf_.has_val_data()) {
       dmlc::data::MinibatchIter<FeaID> val_reader(
           conf_.val_data().c_str(), 0, 1, conf_.data_format().c_str(),
           10000);
