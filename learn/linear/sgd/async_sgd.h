@@ -46,7 +46,7 @@ class AsyncSGDScheduler : public ps::App {
 
   virtual void Run() {
     double t = GetTime();
-    int itv = (int) (conf_.show_prog() * 1000);
+    int itv = (int) (conf_.show_prog() * 1000000);
     usleep(itv / 2);
     size_t num_ex = 0;
 
@@ -54,9 +54,9 @@ class AsyncSGDScheduler : public ps::App {
       usleep(itv);
       Progress prog; monitor_.Get(0, &prog);
       num_ex += prog.num_ex();
-      LOG(INFO) << GetTime() - t << " sec, "
+      std::cout << GetTime() - t << " sec, "
                 << "#ex " << num_ex << ", "
-                << prog.PrintStr();
+                << prog.PrintStr() << std::endl;
     }
     // TODO save model
 
@@ -98,6 +98,7 @@ class AsyncSGDServer : public ps::App {
     auto algo = conf_.algo();
     if (algo == Config::FTRL) {
       ps::KVServer<Real, FTRLHandle<FeaID, Real>, 3> ftrl;
+      ftrl.set_sync_val_len(1);
       auto& updt = ftrl.handle();
       if (conf_.has_lr_eta()) updt.alpha = conf_.lr_eta();
       if (conf_.has_lr_beta()) updt.beta = conf_.lr_beta();

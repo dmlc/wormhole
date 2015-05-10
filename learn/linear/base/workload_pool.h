@@ -51,18 +51,19 @@ class WorkloadPool {
 
       LOG(INFO) << "found file: " << file;
       for (int j = 0; j < npart; ++j) {
-        files_.push_back(File());
-        files_.back().set_file(file);
-        files_.back().set_n(npart);
-        files_.back().set_k(j);
-        remain_.push_back(&files_.back());
+        File f;
+        f.set_file(file);
+        f.set_n(npart);
+        f.set_k(j);
+        remain_.push_back(f);
       }
     }
+
+    num_ = nconsumer == 0 ? 0 : remain_.size() / nconsumer;
   }
 
   void Clear() {
     std::lock_guard<std::mutex> lk(mu_);
-    files_.clear();
     remain_.clear();
     assigned_.clear();
     num_ = 0;
@@ -110,15 +111,15 @@ class WorkloadPool {
 
   void GetOne(const std::string& id, Files* files) {
     if (remain_.empty()) return;
-    files->add_file()->CopyFrom(*remain_.front());
+    files->add_file()->CopyFrom(remain_.front());
     assigned_.push_back(std::make_pair(id, remain_.front()));
     remain_.pop_front();
   }
 
   int num_;
-  std::vector<File> files_;
-  std::list<File*> remain_;
-  std::list<std::pair<std::string, File*>> assigned_;
+  // std::vector<File> files_;
+  std::list<File> remain_;
+  std::list<std::pair<std::string, File>> assigned_;
   std::mutex mu_;
 };
 
