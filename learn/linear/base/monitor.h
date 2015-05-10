@@ -1,3 +1,4 @@
+#pragma once
 #include <cstring>
 #include "dmlc/logging.h"
 namespace dmlc {
@@ -35,7 +36,7 @@ class Progress {
     std::memcpy(ivec.data(), str.data()+fsize, isize);
   }
 
-  void Serialize(std::string* str) {
+  void Serialize(std::string* str) const {
     str->clear();
     str->append((char*)fvec.data(), fsize);
     str->append((char*)ivec.data(), isize);
@@ -102,6 +103,7 @@ struct ModelMonitor {
       Update(cur_w[i], old_w[i]);
     }
   }
+  virtual void Report() { }
 
   void Clear() { prog.Clear(); }
   Progress prog;

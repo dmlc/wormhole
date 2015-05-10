@@ -10,6 +10,7 @@
 #include "base/localizer.h"
 #include "base/loss.h"
 #include "sgd/sgd_server_handle.h"
+#include "base/dist_monitor.h"
 
 #include "base/utils.h"
 #include "ps.h"
@@ -47,7 +48,7 @@ class AsyncSGDScheduler : public ps::App {
 
 class AsyncSGDServer : public ps::App {
  public:
-  AsyncSGDServer(const Config& conf) : conf_(conf) {
+  AsyncSGDServer(const Config& conf) : conf_(conf), monitor_(conf_.show_prog())  {
     Init();
   }
   virtual ~AsyncSGDServer() { }
@@ -63,14 +64,14 @@ class AsyncSGDServer : public ps::App {
       if (conf_.has_lr_beta()) updt.beta = conf_.lr_beta();
       if (conf_.lambda_size() > 0) updt.lambda1 = conf_.lambda(0);
       if (conf_.lambda_size() > 1) updt.lambda2 = conf_.lambda(1);
-      updt.tracker = &tracker;
+      updt.tracker = &monitor_;
       ftrl.Run();
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }
   }
   Config conf_;
-  ModelMonitor tracker;
+  DistModelMonitor monitor_;
 };
 
 /***************************************
@@ -78,7 +79,7 @@ class AsyncSGDServer : public ps::App {
  **************************************/
 class AsyncSGDWorker : public ps::App {
  public:
-  AsyncSGDWorker(const Config& conf) : conf_(conf) { }
+  AsyncSGDWorker(const Config& conf) : conf_(conf), reporter_(conf_.show_prog()) { }
   virtual ~AsyncSGDWorker() { }
 
   virtual void Run() {
@@ -124,9 +125,11 @@ class AsyncSGDWorker : public ps::App {
         // eval
         auto loss = CreateLoss<real_t>(conf_.loss());
         loss->Init(local->GetBlock(), *buf);
-        mnt_.Update(local->label.size(), loss);
+        monitor_.Update(local->label.size(), loss);
+        reporter_.Report(&monitor_.prog);
+
+        // calc and push grad
         if (is_train) {
-          // calc and push grad
           loss->CalcGrad(buf);
           ps::SyncOpts opts;
           server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
@@ -136,7 +139,6 @@ class AsyncSGDWorker : public ps::App {
         delete local;
         delete loss;
       };
-
       server_.ZPull(feaid, buf, opts);
     }
     LOG(INFO) << ps::MyNodeID() << ": finished";
@@ -144,7 +146,8 @@ class AsyncSGDWorker : public ps::App {
 
   Config conf_;
   ps::KVWorker<Real> server_;
-  WorkerMonitor mnt_;
+  WorkerMonitor monitor_;
+  TimeReporter reporter_;
 };
 
 

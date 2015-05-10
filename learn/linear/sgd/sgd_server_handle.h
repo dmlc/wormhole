@@ -96,6 +96,8 @@ struct FTRLHandle {
     val[2] = 0;
   }
 
+  inline void Finish() { tracker->Report(); }
+
 
   // learning rate
   V alpha = 0.1, beta = 1;
@@ -108,7 +110,7 @@ struct FTRLHandle {
   // empty funcs
   inline void SetCaller(void *obj) { }
   inline void Start(bool push, int timestamp, const std::string& worker) { }
-  inline void Finish() { }
+
 };
 }  // namespace linear
 }  // namespace dmlc
