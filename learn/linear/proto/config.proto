@@ -12,7 +12,10 @@ message Config {
   optional string train_data = 1;
   optional string val_data = 2;
   optional string data_format = 3 [default = "libsvm"];
-
+  // partition a file into npart
+  optional int32 num_parts_per_file = 6 [default = 1];
+  // limit the number of files send to a worker
+  optional int32 num_files_per_worker = 7 [default = 0];
   optional string model_in = 4;
   optional string model_out = 5;
 

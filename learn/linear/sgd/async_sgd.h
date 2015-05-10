@@ -11,6 +11,7 @@
 #include "base/loss.h"
 #include "sgd/sgd_server_handle.h"
 #include "base/dist_monitor.h"
+#include "base/workload_pool.h"
 
 #include "base/utils.h"
 #include "ps.h"
@@ -27,25 +28,63 @@ static const int kRequestWorkload = 1;
 /***************************************
  * \brief The scheduler node
  **************************************/
-
 class AsyncSGDScheduler : public ps::App {
  public:
   AsyncSGDScheduler(const Config& conf) : conf_(conf) {
-
+    CHECK(conf_.has_train_data());
+    for (int i = 0; i < conf_.max_data_pass(); ++i) {
+      pool_.Add(conf_.train_data(), conf_.num_parts_per_file());
+    }
   }
   virtual ~AsyncSGDScheduler() { }
 
+  virtual void ProcessRequest(ps::Message* request) {
+    if (request->task.cmd() == kRequestWorkload) {
+      RequestWorkload(request);
+    }
+  }
+
   virtual void Run() {
+    double t = GetTime();
+    int itv = (int) (conf_.show_prog() * 1000);
+    usleep(itv / 2);
+    size_t num_ex = 0;
+
+    while (!done_) {
+      usleep(itv);
+      Progress prog; monitor_.Get(0, &prog);
+      num_ex += prog.num_ex();
+      LOG(INFO) << GetTime() - t << " sec, "
+                << "#ex " << num_ex << ", "
+                << prog.PrintStr();
+    }
+    // TODO save model
 
   }
  private:
+  void RequestWorkload(ps::Message* req) {
+    // a simple version
+    pool_.Finish(req->sender);
+    Files files; pool_.Get(req->sender, &files);
+    files.set_train(true);
+    std::string msg; files.SerializeToString(&msg);
+    ps::Task res; res.set_msg(msg);
+    Reply(req, res);
+
+    if (pool_.IsFinished()) done_ = true;
+  }
+
   Config conf_;
+  WorkloadPool pool_;
+  bool done_ = false;
+  // int cur_iter_ = 0;
+  // bool is_train_ = true;
+  ps::MonitorMaster<Progress> monitor_;
 };
 
 /***************************************
  * \brief A server node
  **************************************/
-
 class AsyncSGDServer : public ps::App {
  public:
   AsyncSGDServer(const Config& conf) : conf_(conf), monitor_(conf_.show_prog())  {
@@ -98,8 +137,10 @@ class AsyncSGDWorker : public ps::App {
   }
  private:
   void Process(const std::string file_str) {
-    File file; CHECK(file.ParseFromString(file_str));
-    LOG(INFO) << ps::MyNodeID() << ": start to process " << file.ShortDebugString();
+    Files files; CHECK(files.ParseFromString(file_str));
+    LOG(INFO) << ps::MyNodeID() << ": start to process " << files.ShortDebugString();
+    CHECK_EQ(files.file_size(), 1);
+    File file = files.file(0);
 
     dmlc::data::MinibatchIter<FeaID> reader(
         file.file().c_str(), file.k(), file.n(),
@@ -120,13 +161,13 @@ class AsyncSGDWorker : public ps::App {
       // pull the weight
       vector<Real>* buf = new vector<Real>(feaid.get()->size());
       ps::SyncOpts opts;
-      bool is_train = file.train();
+      bool is_train = files.train();
       opts.callback = [this, local, feaid, buf, is_train]() {
         // eval
         auto loss = CreateLoss<real_t>(conf_.loss());
         loss->Init(local->GetBlock(), *buf);
         monitor_.Update(local->label.size(), loss);
-        reporter_.Report(&monitor_.prog);
+        reporter_.Report(0, &monitor_.prog);
 
         // calc and push grad
         if (is_train) {

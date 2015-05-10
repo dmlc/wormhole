@@ -10,11 +10,11 @@ class TimeReporter {
   TimeReporter(double report_itv) : itv_(report_itv) { }
   ~TimeReporter() { }
 
-  void Report(Progress* prog) {
+  void Report(int chl, Progress* prog) {
     double tv = GetTime();
     if (tv - last_report_ > itv_ ) {
       last_report_ = tv;
-      sch_.Report(*prog);
+      sch_.Report(chl, *prog);
       prog->Clear();
     }
   }
@@ -28,7 +28,7 @@ struct DistModelMonitor : public ModelMonitor {
   DistModelMonitor(double report_itv) : reporter(report_itv) { }
   virtual ~DistModelMonitor() { }
 
-  void Report() { reporter.Report(&prog); }
+  void Report(int chl = 0) { reporter.Report(chl, &prog); }
 
   TimeReporter reporter;
 };

@@ -8,6 +8,10 @@ message File {
   optional string file = 1;
   optional int32 n = 2 [default = 1];
   optional int32 k = 3 [default = 0];
-  optional bool train = 4;
-  optional int32 id = 5;
+}
+
+message Files {
+  repeated File file = 1;
+  optional bool train = 2;
+  optional int32 id = 3;
 }

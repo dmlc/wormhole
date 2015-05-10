@@ -1,5 +1,6 @@
 #pragma once
 #include <cstring>
+#include <sstream>
 #include "dmlc/logging.h"
 namespace dmlc {
 namespace linear {
@@ -42,6 +43,14 @@ class Progress {
     str->append((char*)ivec.data(), isize);
   }
 
+  std::string PrintStr() {
+    std::stringstream ss;
+    ss << ", objv " << objv() / num_ex()
+       << ", auc " << auc() / count()
+       << ", acc " << acc() / count()
+       << ", nnz w " << nnz_w();
+    return ss.str();
+  }
 
   // mutator
   double& objv() { return fvec[0]; }
