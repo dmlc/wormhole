@@ -39,7 +39,7 @@ build/proto/config.pb.o build/proto/sys.pb.o \
 $(PS_PATH)/build/libps.a -lgflags -lprotobuf -lglog -lzmq
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-build/ftrl: build/sgd/ftrl.o build/proto/config.pb.o -lprotobuf -lgflags
+build/ftrl: build/sgd/ftrl.o build/proto/config.pb.o build/proto/sys.pb.o -lprotobuf -lgflags
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 build/%: build/test/%.o

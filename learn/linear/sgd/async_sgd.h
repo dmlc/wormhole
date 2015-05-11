@@ -16,8 +16,10 @@
 #include "base/utils.h"
 #include "ps.h"
 #include "ps/app.h"
+
 namespace dmlc {
 namespace linear {
+ #define LL LOG(ERROR)
 
 using FeaID = ps::Key;
 using Real = float;
@@ -53,11 +55,11 @@ class AsyncSGDScheduler : public ps::App {
     while (!done_) {
       usleep(itv);
       Progress prog; monitor_.Get(0, &prog);
+      if (prog.num_ex() == 0) continue;
       monitor_.Clear(0);
       num_ex += prog.num_ex();
-      std::cout << GetTime() - t << " sec, "
-                << "#ex " << num_ex
-                << prog.PrintStr() << std::endl;
+      printf("%7.1lf sec, #ex %.3g, %s\n",
+             GetTime() - t, (double)num_ex, prog.PrintStr().c_str());
     }
     // TODO save model
 
@@ -152,6 +154,7 @@ class AsyncSGDWorker : public ps::App {
     reader.BeforeFirst();
 
     while (reader.Next()) {
+
       using std::vector;
       using std::shared_ptr;
       using Minibatch = dmlc::data::RowBlockContainer<unsigned>;
@@ -195,7 +198,8 @@ class AsyncSGDWorker : public ps::App {
       // wait for data consistency
       std::unique_lock<std::mutex> lk(mb_mu_);
       ++ num_mb_fly_;
-      mb_cond_.wait(lk, [this] {return conf_.max_delay() <= num_mb_fly_;});
+      mb_cond_.wait(lk, [this] {return conf_.max_delay() >= num_mb_fly_;});
+      // LL << num_mb_fly_;
     }
 
     // wait untill all are done

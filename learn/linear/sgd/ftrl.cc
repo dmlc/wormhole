@@ -11,6 +11,7 @@
 #include "base/loss.h"
 #include "proto/config.pb.h"
 #include "sgd/sgd_server_handle.h"
+#include "base/workload_pool.h"
 namespace dmlc {
 namespace linear {
 
@@ -77,24 +78,32 @@ class LocalWorker {
   LocalWorker(const Config& conf) : conf_(conf), server_(conf), num_ex_(0) { }
 
   void Run() {
-
     CHECK(conf_.has_train_data());
-    dmlc::data::MinibatchIter<FeaID> reader(
-        conf_.train_data().c_str(), 0, 1, conf_.data_format().c_str(),
-        conf_.minibatch());
+    printf("training...\n");
+    WorkloadPool pool;
+    for (int iter = 0; iter < conf_.max_data_pass(); ++iter) {
+      pool.Add(conf_.train_data(), 1);
+    }
 
     start_ = GetTime();
-    for (int iter = 0; iter < conf_.max_data_pass(); ++iter) {
-      Process(reader, 1, true);
-      LOG(INFO) << "iter " << iter << " done";
+    Files files;
+    while (true) {
+      pool.Get("", &files);
+      if (!Process(files, conf_.show_prog(), true)) break;
     }
 
     if (conf_.has_val_data()) {
-      dmlc::data::MinibatchIter<FeaID> val_reader(
-          conf_.val_data().c_str(), 0, 1, conf_.data_format().c_str(),
-          10000);
+      pool.Clear();
       mnt_.prog.Clear();
-      Process(val_reader, 0, false);
+      num_ex_ = 0;
+      printf("evaluation...\n");
+
+      pool.Add(conf_.val_data(), 1);
+      while (true) {
+        pool.Get("", &files);
+        if (!Process(files, 0, true)) break;
+      }
+      Print();
     }
   }
 
@@ -102,18 +111,20 @@ class LocalWorker {
   void Print() {
     mnt_.prog.Merge(server_.progress());
     num_ex_ += mnt_.prog.num_ex();
-    std::cout << GetTime() - start_ << " sec, #ex "
-              << num_ex_ << mnt_.prog.PrintStr()
-              << std::endl;
+    printf("%7.1lf sec, #ex %.3g, %s\n",
+           GetTime() - start_, (double)num_ex_, mnt_.prog.PrintStr().c_str());
     mnt_.prog.Clear();
   }
 
-  void Process(
-      dmlc::data::MinibatchIter<FeaID>& reader, int disp, bool update) {
-
+  bool Process(const Files& files, int disp, bool update) {
+    if (files.file_size() == 0) return false;
     auto loss = CreateLoss<real_t>(conf_.loss());
-    reader.BeforeFirst();
     double tv = GetTime();
+    File file = files.file(0);
+    dmlc::data::MinibatchIter<FeaID> reader(
+        file.file().c_str(), file.k(), file.n(),
+        conf_.data_format().c_str(), conf_.minibatch());
+    reader.BeforeFirst();
     while (reader.Next()) {
       // localize the minibatch
       auto global = reader.Value();
@@ -141,8 +152,8 @@ class LocalWorker {
         // LOG(INFO) << "grad: " << DebugStr(buf);
       }
     }
-    if (disp == 0) Print();
     delete loss;
+    return true;
   }
 
   Config conf_;
@@ -158,6 +169,7 @@ class LocalWorker {
 DEFINE_string(conf, "", "config file");
 
 int main(int argc, char *argv[]) {
+  google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
   using namespace dmlc;
 

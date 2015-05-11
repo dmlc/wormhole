@@ -45,10 +45,14 @@ class Progress {
 
   std::string PrintStr() {
     std::stringstream ss;
-    ss << ", objv " << objv() / num_ex()
-       << ", auc " << auc() / count()
-       << ", acc " << acc() / count()
-       << ", nnz w " << nnz_w();
+    if (num_ex() == 0) {
+      ss << " no update ";
+    } else {
+      ss << "objv " << objv() / num_ex()
+         << ", auc " << auc() / count()
+         << ", acc " << acc() / count()
+         << ", nnz w " << nnz_w();
+    }
     return ss.str();
   }
 
