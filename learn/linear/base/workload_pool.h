@@ -23,7 +23,8 @@ class WorkloadPool {
    * @param npart divide one file into npart
    * @param nconsumer
    */
-  void Add(const std::string& files, int npart, int nconsumer = 0) {
+  void Add(const std::string& files, int npart,
+           int nconsumer = 0, Workload::Type type = Workload::TRAIN) {
     std::lock_guard<std::mutex> lk(mu_);
     // get the path
     size_t pos = files.find_last_of("/\\");
@@ -59,6 +60,7 @@ class WorkloadPool {
       }
     }
 
+    type_ = type;
     num_ = nconsumer == 0 ? 0 : remain_.size() / nconsumer;
   }
 
@@ -112,10 +114,12 @@ class WorkloadPool {
   void GetOne(const std::string& id, Workload* wl) {
     if (remain_.empty()) return;
     wl->add_file()->CopyFrom(remain_.front());
+    wl->set_type(type_);
     assigned_.push_back(std::make_pair(id, remain_.front()));
     remain_.pop_front();
   }
 
+  Workload::Type type_;
   int num_;
   // std::vector<File> files_;
   std::list<File> remain_;

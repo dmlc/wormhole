@@ -40,8 +40,11 @@ class AsyncSGDScheduler : public ps::App {
   virtual void ProcessResponse(ps::Message* response) {
     if (response->task.cmd() == kProcess) {
       auto id = response->sender;
-      Progress p; p.Parse(response->task.msg());
-      prog_.Merge(p);
+      if (!response->task.msg().empty()) {
+        Progress p;
+        p.Parse(response->task.msg());
+        prog_.Merge(p);
+      }
       pool_.Finish(id);
       Workload wl; pool_.Get(id, &wl);
       if (wl.file_size() > 0) SendWorkload(id, wl);
@@ -58,7 +61,7 @@ class AsyncSGDScheduler : public ps::App {
     for (int i = 0; i < conf_.max_data_pass(); ++i) {
       printf("training #iter = %d\n", i);
       // train
-      pool_.Add(conf_.train_data(), conf_.num_parts_per_file());
+      pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
       Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
       sleep(1);
@@ -75,7 +78,7 @@ class AsyncSGDScheduler : public ps::App {
       // val
       if (!conf_.has_val_data()) continue;
       printf("validation #iter = %d\n", i);
-      pool_.Add(conf_.val_data(), conf_.num_parts_per_file());
+      pool_.Add(conf_.val_data(), conf_.num_parts_per_file(), 0, Workload::VAL);
       SendWorkload(ps::kWorkerGroup, wl);
 
       while (!pool_.IsFinished()) { sleep(1); }
@@ -85,6 +88,7 @@ class AsyncSGDScheduler : public ps::App {
       prog_.Clear();
     }
 
+    printf("saving model");
     ps::Task task; task.set_cmd(kSaveModel);
     Wait(Submit(task, ps::kServerGroup));
   }
@@ -100,8 +104,6 @@ class AsyncSGDScheduler : public ps::App {
   WorkloadPool pool_;
   bool done_ = false;
   Progress prog_;
-  // int cur_iter_ = 0;
-  // bool is_train_ = true;
   ps::MonitorMaster<Progress> monitor_;
 };
 
@@ -207,12 +209,11 @@ class AsyncSGDWorker : public ps::App {
           loss->CalcGrad(buf);
           ps::SyncOpts opts;
           opts.callback = [this]() {
-            // wake the main thread
-            mb_mu_.lock(); -- num_mb_fly_; ++ num_mb_done_; mb_mu_.unlock();
-            mb_cond_.notify_one();
+            FinishMinibatch();
           };
           server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
         } else {
+          FinishMinibatch();
           delete buf;
         }
         delete local;
@@ -233,6 +234,11 @@ class AsyncSGDWorker : public ps::App {
     LOG(INFO) << ps::MyNodeID() << ": finished";
   }
 
+  void FinishMinibatch() {
+    // wake the main thread
+    mb_mu_.lock(); -- num_mb_fly_; ++ num_mb_done_; mb_mu_.unlock();
+    mb_cond_.notify_one();
+  }
   Config conf_;
   ps::KVWorker<Real> server_;
   WorkerMonitor monitor_;
