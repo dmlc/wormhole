@@ -53,6 +53,7 @@ class AsyncSGDScheduler : public ps::App {
     while (!done_) {
       usleep(itv);
       Progress prog; monitor_.Get(0, &prog);
+      monitor_.Clear(0);
       num_ex += prog.num_ex();
       std::cout << GetTime() - t << " sec, "
                 << "#ex " << num_ex << ", "
@@ -147,7 +148,9 @@ class AsyncSGDWorker : public ps::App {
         file.file().c_str(), file.k(), file.n(),
         conf_.data_format().c_str(), conf_.minibatch());
 
+    num_mb_fly_ = num_mb_done_ = 0;
     reader.BeforeFirst();
+
     while (reader.Next()) {
       using std::vector;
       using std::shared_ptr;
@@ -168,12 +171,18 @@ class AsyncSGDWorker : public ps::App {
         auto loss = CreateLoss<real_t>(conf_.loss());
         loss->Init(local->GetBlock(), *buf);
         monitor_.Update(local->label.size(), loss);
+        // LOG(ERROR) << monitor_.prog.PrintStr();
         reporter_.Report(0, &monitor_.prog);
 
         // calc and push grad
         if (is_train) {
           loss->CalcGrad(buf);
           ps::SyncOpts opts;
+          opts.callback = [this]() {
+            // wake the main thread
+            mb_mu_.lock(); -- num_mb_fly_; ++ num_mb_done_; mb_mu_.unlock();
+            mb_cond_.notify_one();
+          };
           server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
         } else {
           delete buf;
@@ -182,7 +191,16 @@ class AsyncSGDWorker : public ps::App {
         delete loss;
       };
       server_.ZPull(feaid, buf, opts);
+
+      // wait for data consistency
+      std::unique_lock<std::mutex> lk(mb_mu_);
+      ++ num_mb_fly_;
+      mb_cond_.wait(lk, [this] {return conf_.max_delay() <= num_mb_fly_;});
     }
+
+    // wait untill all are done
+    std::unique_lock<std::mutex> lk(mb_mu_);
+    mb_cond_.wait(lk, [this] {return num_mb_fly_ <= 0;});
     LOG(INFO) << ps::MyNodeID() << ": finished";
   }
 
@@ -190,6 +208,12 @@ class AsyncSGDWorker : public ps::App {
   ps::KVWorker<Real> server_;
   WorkerMonitor monitor_;
   TimeReporter reporter_;
+
+  int num_mb_fly_;
+  int num_mb_done_;
+  std::mutex mb_mu_;
+  std::condition_variable mb_cond_;
+
 };
 
 

@@ -5,6 +5,8 @@
 #include "base/spmv.h"
 #include "base/evaluation.h"
 
+#include "ps/blob.h"
+
 namespace dmlc {
 namespace linear {
 
@@ -28,6 +30,9 @@ class ScalarLoss {
     Xw_.resize(data_.size);
     SpMV::Times(data_, w, &Xw_, nthreads_);
     init_ = true;
+
+    // LOG(ERROR) << "w: " << ps::Blob<const T>(w);
+    // LOG(ERROR) << "Xw: " << ps::Blob<const T>(Xw_);
   }
 
   /*! \brief evaluate the loss value */
@@ -66,7 +71,6 @@ class LogitLoss : public ScalarLoss<T> {
   virtual T Objv() {
     CHECK(this->init_);
     T ret = 0;
-
 #pragma omp parallel for reduction(+:ret) num_threads(nthreads_)
     for (size_t i = 0; i < data_.size; ++i) {
       T y = data_.label[i] > 0 ? 1 : -1;

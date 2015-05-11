@@ -150,6 +150,7 @@ class LocalWorker {
   Config conf_;
   LocalServer server_;
   WorkerMonitor mnt_;
+
 };
 
 }  // namespace linear

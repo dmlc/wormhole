@@ -87,7 +87,7 @@ struct FTRLHandle {
 
   inline void Pull(
       Blob<const K> recv_key, Blob<const V> my_val, Blob<V> send_val) {
-    send_val[0] += my_val[0];
+    send_val[0] = my_val[0];
   }
 
   inline void Init(Blob<const K> key, Blob<V> val) {
@@ -96,7 +96,10 @@ struct FTRLHandle {
     val[2] = 0;
   }
 
-  inline void Finish() { tracker->Report(); }
+  inline void Finish() {
+    // LOG(ERROR) << tracker->prog.PrintStr();
+    tracker->Report();
+  }
 
 
   // learning rate
