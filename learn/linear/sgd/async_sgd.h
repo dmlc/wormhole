@@ -56,7 +56,7 @@ class AsyncSGDScheduler : public ps::App {
       monitor_.Clear(0);
       num_ex += prog.num_ex();
       std::cout << GetTime() - t << " sec, "
-                << "#ex " << num_ex << ", "
+                << "#ex " << num_ex
                 << prog.PrintStr() << std::endl;
     }
     // TODO save model

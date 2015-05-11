@@ -1,5 +1,6 @@
 // single machine version of online ftrl
 #include <unordered_map>
+#include <iostream>
 #include <gflags/gflags.h>
 #include "dmlc/timer.h"
 
@@ -73,7 +74,7 @@ class LocalServer {
 
 class LocalWorker {
  public:
-  LocalWorker(const Config& conf) : conf_(conf), server_(conf) { }
+  LocalWorker(const Config& conf) : conf_(conf), server_(conf), num_ex_(0) { }
 
   void Run() {
 
@@ -82,6 +83,7 @@ class LocalWorker {
         conf_.train_data().c_str(), 0, 1, conf_.data_format().c_str(),
         conf_.minibatch());
 
+    start_ = GetTime();
     for (int iter = 0; iter < conf_.max_data_pass(); ++iter) {
       Process(reader, 1, true);
       LOG(INFO) << "iter " << iter << " done";
@@ -99,15 +101,11 @@ class LocalWorker {
  private:
   void Print() {
     mnt_.prog.Merge(server_.progress());
-    auto& prog = mnt_.prog;
-    size_t num_ex = mnt_.prog.num_ex();
-    LOG(INFO) << "#ex " << num_ex
-              << ", objv " << prog.objv() / prog.num_ex()
-              << ", auc " << prog.auc() / prog.count()
-              << ", acc " << prog.acc() / prog.count()
-              << ", nnz w " << prog.nnz_w();
+    num_ex_ += mnt_.prog.num_ex();
+    std::cout << GetTime() - start_ << " sec, #ex "
+              << num_ex_ << mnt_.prog.PrintStr()
+              << std::endl;
     mnt_.prog.Clear();
-    mnt_.prog.num_ex() = num_ex;
   }
 
   void Process(
@@ -150,7 +148,8 @@ class LocalWorker {
   Config conf_;
   LocalServer server_;
   WorkerMonitor mnt_;
-
+  size_t num_ex_;
+  double start_;
 };
 
 }  // namespace linear
