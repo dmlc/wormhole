@@ -1,43 +1,48 @@
-/**
- * @file   config.proto
- * @brief  configuration for linear method
- */
+//  @file   config.proto
+//  @brief  configuration for linear method
+//
 package dmlc.linear;
 // import "../../repo/ps-lite/src/proto/filter.proto";
 
 message Config {
-
-  /// input & output
-
+  //
+  // data
+  //
   optional string train_data = 1;
   optional string val_data = 2;
-  optional string data_format = 3 [default = "libsvm"];
+  optional string test_data = 3;
+  optional string data_format = 4 [default = "libsvm"];
+
   // partition a file into npart
-  optional int32 num_parts_per_file = 6 [default = 1];
+  optional int32 num_parts_per_file = 5 [default = 1];
   // limit the number of files send to a worker
-  optional int32 num_files_per_worker = 7 [default = 0];
-  optional string model_in = 4;
-  optional string model_out = 5;
+  optional int32 num_files_per_worker = 6 [default = 0];
+
+  //
+  // model
+  //
+  optional string model_in = 10;
+  optional string model_out = 11;
 
   /// objective function
-
   enum Loss {
     SQUARE = 1;
     LOGIT = 2;
     HINGE = 3;
     SQUARE_HINGE = 4;
   }
-  optional Loss loss = 10 [default = LOGIT];
+  optional Loss loss = 20 [default = LOGIT];
 
   enum Penalty {
     L1 = 1; // lambda(0) * ||w||_1 + .5 * lambda(1) * ||w||_F^2
     L2 = 2;  // .5 * lambda(0) * ||w||_F^2
   }
-  optional Penalty penalty = 11;
-  repeated float lambda = 12;
+  optional Penalty penalty = 21;
+  repeated float lambda = 22;
 
-  /// optimization methods
-
+  //
+  // optimization methods
+  //
   enum Algo {
     // (minibatch) online methods
     SGD = 1;  // standard sgd
@@ -50,19 +55,19 @@ message Config {
     // stochastic (block) coordinate descent
     DARLIN = 5;
   }
-  optional Algo algo = 20;
+  optional Algo algo = 30;
 
   // the size of minibatch for online methods
-  optional int32 minibatch = 21 [default = 1000];
+  optional int32 minibatch = 31 [default = 1000];
 
   // the maximal number of data passes
-  optional int32 max_data_pass = 22 [default = 10];
+  optional int32 max_data_pass = 32 [default = 10];
 
   // print the progress every *show_prog* sec
-  optional float show_prog = 23 [default = 1];
+  optional float disp_itv = 33 [default = 1];
 
   // convergance critiria. stop if the relative objective <= epsilon
-  optional double epsilon = 24 [default = 1e-4];
+  optional double epsilon = 34 [default = 1e-4];
 
   // learning rate
   enum LearningRate {
@@ -70,26 +75,29 @@ message Config {
     DECAY = 2;    // = lr_eta / (lr_beta + x), where x is user-defined, such as
                   // sqrt(iter), or the cumulative gradient on adagrad
   }
-  optional LearningRate lr = 30;
-  optional float lr_eta = 31;
-  optional float lr_beta = 32;
+  optional LearningRate lr = 40;
+  optional float lr_eta = 41;
+  optional float lr_beta = 42;
 
-  /// to reduce sync cost
+  //
+  // to reduce sync cost
+  //
 
   // maximal allowed delay during synchronization
-  optional int32 max_delay = 40 [default = 0];
+  optional int32 max_delay = 50 [default = 0];
 
   // features which occurs <= *tail_feature_freq* will be filtered. it save both
   // memory and bandwidth.
-  optional int32 tail_feature_freq = 41 [default = 0];
+  optional int32 tail_feature_freq = 51 [default = 0];
 
   // filters to reduce communication costs
   // repeated ps.FilterConfig push_filter = 42;
   // repeated ps.FilterConfig pull_filter = 43;
 
+  //
   // method specific options
-
-  optional Darlin darlin = 50;
+  //
+  // optional Darlin darlin = 100;
 }
 
 message Darlin {

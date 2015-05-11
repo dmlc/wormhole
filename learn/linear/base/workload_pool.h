@@ -71,14 +71,14 @@ class WorkloadPool {
 
   // get one to id when nconsumer == 0
   // divide the workload into nconsumer part, give one to id
-  void Get(const std::string& id, Files* files) {
+  void Get(const std::string& id, Workload* wl) {
     std::lock_guard<std::mutex> lk(mu_);
-    files->Clear();
+    wl->Clear();
     if (num_ == 0) {
-      GetOne(id, files);
+      GetOne(id, wl);
     } else {
       for (int i = 0; i < num_; ++i) {
-        GetOne(id, files);
+        GetOne(id, wl);
       }
     }
   }
@@ -109,9 +109,9 @@ class WorkloadPool {
 
   }
 
-  void GetOne(const std::string& id, Files* files) {
+  void GetOne(const std::string& id, Workload* wl) {
     if (remain_.empty()) return;
-    files->add_file()->CopyFrom(remain_.front());
+    wl->add_file()->CopyFrom(remain_.front());
     assigned_.push_back(std::make_pair(id, remain_.front()));
     remain_.pop_front();
   }

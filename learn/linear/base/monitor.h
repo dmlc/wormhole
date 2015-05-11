@@ -22,6 +22,10 @@ class Progress {
     std::memset(ivec.data(), 0, isize);
   }
 
+  bool Empty() const {
+    return (ivec[1] == 0);
+  }
+
   void Merge(const Progress& other) {
     for (int i = 0; i < kfnum; ++i) {
       fvec[i] += other.fvec[i];

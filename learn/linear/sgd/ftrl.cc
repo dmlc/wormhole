@@ -86,10 +86,10 @@ class LocalWorker {
     }
 
     start_ = GetTime();
-    Files files;
+    Workload files;
     while (true) {
       pool.Get("", &files);
-      if (!Process(files, conf_.show_prog(), true)) break;
+      if (!Process(files, conf_.disp_itv(), true)) break;
     }
 
     if (conf_.has_val_data()) {
@@ -116,7 +116,7 @@ class LocalWorker {
     mnt_.prog.Clear();
   }
 
-  bool Process(const Files& files, int disp, bool update) {
+  bool Process(const Workload& files, int disp, bool update) {
     if (files.file_size() == 0) return false;
     auto loss = CreateLoss<real_t>(conf_.loss());
     double tv = GetTime();

@@ -12,9 +12,11 @@ DEPS_PATH=/usr/local/
 CORE_PATH=../../dmlc-core
 include $(CORE_PATH)/make/dmlc.mk
 PS_PATH=../../repo/ps-lite
+include $(PS_PATH)/make/ps.mk
+
 INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src
-CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(INC)
-LDFLAGS = ../../dmlc-core/libdmlc.a $(DMLC_LDFLAGS) #-pthread -lm
+CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC)
+LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_PATH)/build/libps.a $(PS_LDFLAGS) #-pthread -lm
 
 all: bin test # build/linear test
 
@@ -35,11 +37,10 @@ test: build/localizer_test build/spmv_test build/minibatch_iter_test \
 build/arg_parser\
 
 build/async_sgd: build/sgd/async_sgd.o \
-build/proto/config.pb.o build/proto/sys.pb.o \
-$(PS_PATH)/build/libps.a -lgflags -lprotobuf -lglog -lzmq
+build/proto/config.pb.o build/proto/sys.pb.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-build/ftrl: build/sgd/ftrl.o build/proto/config.pb.o build/proto/sys.pb.o -lprotobuf -lgflags
+build/ftrl: build/sgd/ftrl.o build/proto/config.pb.o build/proto/sys.pb.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 build/%: build/test/%.o

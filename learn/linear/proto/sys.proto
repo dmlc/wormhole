@@ -10,8 +10,13 @@ message File {
   optional int32 k = 3 [default = 0];
 }
 
-message Files {
+message Workload {
+  enum Type {
+    TRAIN = 1;
+    VAL = 2;
+    TEST = 3;
+  }
+  optional Type type = 2;
   repeated File file = 1;
-  optional bool train = 2;
   optional int32 id = 3;
 }

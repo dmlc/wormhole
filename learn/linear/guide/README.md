@@ -41,7 +41,7 @@ max_data_pass = 1
 minibatch = 10000
 lr_eta = .1
 lr_beta = 1
-show_prog = 1
+disp_itv = 1
 max_delay = 1
 ```
 

@@ -7,19 +7,33 @@ namespace linear {
 
 class TimeReporter {
  public:
-  TimeReporter(double report_itv) : itv_(report_itv) { }
+  explicit TimeReporter(double report_itv)  {
+    set_report_itv(report_itv);
+  }
+  TimeReporter() { }
   ~TimeReporter() { }
+
+  void set_report_itv(double sec) { report_itv_ = sec; }
 
   void Report(int chl, Progress* prog) {
     double tv = GetTime();
-    if (tv - last_report_ > itv_ ) {
+    chl_ = chl;
+    prog_.Merge(*prog);
+    prog->Clear();
+    if (tv - last_report_ > report_itv_ ) {
       last_report_ = tv;
-      sch_.Report(chl, *prog);
-      prog->Clear();
+      Flush();
     }
   }
+
+  // sent immediatly
+  void Flush() {
+    sch_.Report(chl_, prog_); prog_.Clear();
+  }
  private:
-  double itv_, last_report_ = 0;
+  Progress prog_;
+  int chl_ = 0;
+  double report_itv_ = 1, last_report_ = 0;
   ps::MonitorSlaver<Progress> sch_;
 };
 
