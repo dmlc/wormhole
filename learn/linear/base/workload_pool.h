@@ -102,7 +102,12 @@ class WorkloadPool {
     auto it = assigned_.begin();
     while (it != assigned_.end()) {
       if (it->first == id) {
-        if (!del) remain_.push_front(it->second);
+        if (!del) {
+          LOG(INFO) << id << " failed to finish workload " << it->second.ShortDebugString();
+          remain_.push_front(it->second);
+        } else {
+          LOG(INFO) << id << " finished workload " << it->second.ShortDebugString();
+        }
         it = assigned_.erase(it);
       } else {
         ++ it;
@@ -116,6 +121,8 @@ class WorkloadPool {
     wl->add_file()->CopyFrom(remain_.front());
     wl->set_type(type_);
     assigned_.push_back(std::make_pair(id, remain_.front()));
+    LOG(INFO) << "assign " << id << " workload "
+              << remain_.front().ShortDebugString();
     remain_.pop_front();
   }
 

@@ -16,7 +16,7 @@ include $(PS_PATH)/make/ps.mk
 
 INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src
 CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC)
-LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_PATH)/build/libps.a $(PS_LDFLAGS) #-pthread -lm
+LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS)  $(PS_LDFLAGS) #-pthread -lm
 
 all: bin test # build/linear test
 
@@ -36,8 +36,12 @@ build/%.o: %.cc
 test: build/localizer_test build/spmv_test build/minibatch_iter_test \
 build/arg_parser\
 
+$(PS_PATH)/build/libps.a:
+	make -C $(PS_PATH) ps
+
 build/async_sgd: build/sgd/async_sgd.o \
-build/proto/config.pb.o build/proto/sys.pb.o
+build/proto/config.pb.o build/proto/sys.pb.o \
+$(PS_PATH)/build/libps.a
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 build/ftrl: build/sgd/ftrl.o build/proto/config.pb.o build/proto/sys.pb.o

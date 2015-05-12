@@ -61,6 +61,7 @@ class AsyncSGDScheduler : public ps::App {
     for (int i = 0; i < conf_.max_data_pass(); ++i) {
       printf("training #iter = %d\n", i);
       // train
+      pool_.Clear();
       pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
       Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
@@ -78,6 +79,7 @@ class AsyncSGDScheduler : public ps::App {
       // val
       if (!conf_.has_val_data()) continue;
       printf("validation #iter = %d\n", i);
+      pool_.Clear();
       pool_.Add(conf_.val_data(), conf_.num_parts_per_file(), 0, Workload::VAL);
       SendWorkload(ps::kWorkerGroup, wl);
 
@@ -88,7 +90,7 @@ class AsyncSGDScheduler : public ps::App {
       prog_.Clear();
     }
 
-    printf("saving model");
+    printf("saving model\n");
     ps::Task task; task.set_cmd(kSaveModel);
     Wait(Submit(task, ps::kServerGroup));
   }
@@ -208,9 +210,10 @@ class AsyncSGDWorker : public ps::App {
           // calc and push grad
           loss->CalcGrad(buf);
           ps::SyncOpts opts;
-          opts.callback = [this]() {
-            FinishMinibatch();
-          };
+          opts.callback = [this]() { FinishMinibatch(); };
+          opts.AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(1);
+          opts.AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(true);
+          opts.AddFilter(ps::Filter::COMPRESSING);
           server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
         } else {
           FinishMinibatch();
@@ -219,6 +222,9 @@ class AsyncSGDWorker : public ps::App {
         delete local;
         delete loss;
       };
+      opts.AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(1);
+      opts.AddFilter(ps::Filter::KEY_CACHING);
+      opts.AddFilter(ps::Filter::COMPRESSING);
       server_.ZPull(feaid, buf, opts);
 
       // wait for data consistency
@@ -236,7 +242,10 @@ class AsyncSGDWorker : public ps::App {
 
   void FinishMinibatch() {
     // wake the main thread
-    mb_mu_.lock(); -- num_mb_fly_; ++ num_mb_done_; mb_mu_.unlock();
+    mb_mu_.lock();
+    -- num_mb_fly_;
+    ++ num_mb_done_;
+    mb_mu_.unlock();
     mb_cond_.notify_one();
   }
   Config conf_;
