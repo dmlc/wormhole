@@ -38,12 +38,16 @@ build/%.o: %.cc
 test: build/localizer_test build/spmv_test build/minibatch_iter_test \
 build/arg_parser\
 
+repo:
+	make -C ../.. repo
+pull:
+	make -C ../.. pull
+
 core: $(CORE_PATH)/libdmlc.a
 $(CORE_PATH)/libdmlc.a:
 	make -C $(CORE_PATH) -j4 config=$(ROOTDIR)/$(config)
 
 ps: $(PS_PATH)/build/libps.a
-
 $(PS_PATH)/build/libps.a:
 	make -C $(PS_PATH) -j4 p config=$(ROOTDIR)/$(config)s
 
