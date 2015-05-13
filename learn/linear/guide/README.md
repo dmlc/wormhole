@@ -9,11 +9,33 @@ min_w sum_i loss(y_i, <w, x_i>) + penalty(w)
 where `(x_i, y_i)` is the data pair and vector `w` is the model we will to
 learn.
 
-We will use the Kaggle
+## Build
+
+Use [build.sh](../build.sh) to build this applications. It will first download
+[dmlc-core](https://github.com/dmlc/dmlc-core) and
+[ps-lite](https://github.com/dmlc/ps-lite), next generate a default build configuration,
+and then build all.
+
+In the default configuration, it disables HDFS (`USE_HDFS=0`) and S3
+(`USE_S3=0`). And since criteo only contains millions of unique features, it uses
+32bit integers for feature ID to save network bandwidth
+(`USE_KEY32=1`). (Parameter server use 64bit feature ID in default.)
+
+
+## Run
+
+[demo_local.sh](demo_local.sh) will train the sample dataset in local, and
+[demo_yarn.sh](demo_yarn.sh) will run the job on yarn. The latter needs to set
+`USE_HDFS=1` during compling. (If you are using CDH hadoop, then you need put
+`hdfs.h` in `dmlc-core/include`, see this
+[issue](https://github.com/dmlc/dmlc-core/issues/10) for more details.)
+
+## Train on Criteo CTR dataset
+
+Next will use the Kaggle
 [Criteo CTR](https://www.kaggle.com/c/criteo-display-ad-challenge) dataset as an
-example here, which has around 46 millions exmaples and millions of
-features. There is a script to download this dataset
-[download_criteo.sh](./download_criteo.sh).
+example, which has around 46 millions exmaples and millions of features. There
+is a script to download this dataset [download_criteo.sh](./download_criteo.sh).
 
 ## Configuration
 
@@ -54,36 +76,24 @@ max_delay = 1
 
 - Solver. We use an online solver
 
-## Build
+To start the job on local using 2 servers and 2 workers.
+```
+../../../dmlc-core/tracker/dmlc_local.py \
+    -n 2 -s 2 ../build/async_sgd \
+    -conf criteo.conf
+```
 
-Use [build.sh](../build.sh) to build this applications. It will first download
-[dmlc-core](https://github.com/dmlc/dmlc-core) and
-[ps-lite](https://github.com/dmlc/ps-lite), next generate a default build configuration,
-and then build all.
 
-In the default configuration, it disables HDFS (`USE_HDFS=0`) and S3
-(`USE_S3=0`). And since criteo only contains millions of unique features, it uses
-32bit integers for feature ID to save network bandwidth
-(`USE_KEY32=1`). (Parameter server use 64bit feature ID in default.)
+There are various
+[trackers](https://github.com/dmlc/dmlc-core/tree/master/tracker) to start
+the jobs on Yarn, MPI, SUN SGE, ...
 
-## Run
-
-We have a single machine implementation [ftrl.cc](../sgd/ftrl.cc) which helps to
-read the code. To run the algorithm, simply run
+PS: there is single machine implementation [ftrl.cc](../sgd/ftrl.cc) which might
+help read and debug the codes. Run it via
 ```
 ../build/ftrl -conf criteo.conf
 ```
-
-We can use the
-[dmlc tracker](https://github.com/dmlc/dmlc-core/tree/master/tracker) to start
-the distributed version `async_sgd`. Or simply start 2 servers and 2 workers in the local
-machine
-
-```
-./local.sh 2 2 ../build/async_sgd -conf criteo.conf
-```
-
-(PS. using 1 worker and `max_delay=0`, `async_sgd` is identical to `ftrl`).
+It is identical to using 1 worker and set `max_delay=0` on `async_sgd`.
 
 
 ## Related links

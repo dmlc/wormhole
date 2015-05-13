@@ -37,7 +37,7 @@ message Config {
     L1 = 1; // lambda(0) * ||w||_1 + .5 * lambda(1) * ||w||_F^2
     L2 = 2;  // .5 * lambda(0) * ||w||_F^2
   }
-  optional Penalty penalty = 21;
+  optional Penalty penalty = 21 [default = L1];
   repeated float lambda = 22;
 
   //
@@ -55,7 +55,7 @@ message Config {
     // stochastic (block) coordinate descent
     DARLIN = 5;
   }
-  optional Algo algo = 30;
+  optional Algo algo = 30 [default = FTRL];
 
   // the size of minibatch for online methods
   optional int32 minibatch = 31 [default = 1000];

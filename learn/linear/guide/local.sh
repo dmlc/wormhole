@@ -12,7 +12,7 @@ num_workers=$1
 shift
 bin=$1
 shift
-arg="-num_servers ${num_servers} -num_workers ${num_workers} -log_dir log $@"
+arg="-num_servers ${num_servers} -num_workers ${num_workers} $@"
 
 
 # killall -q $(basename ${bin})

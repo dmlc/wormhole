@@ -18,7 +18,7 @@ struct Range {
    */
   inline Range Segment(size_t idx, size_t nparts) const {
     CHECK_GE(end, begin);
-    CHECK_GT(nparts, 0);
+    CHECK_GT(nparts, (size_t)0);
     CHECK_LT(idx, nparts);
     double itv = static_cast<double>(end - begin) /
                  static_cast<double>(nparts);
