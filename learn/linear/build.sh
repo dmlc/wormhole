@@ -1,11 +1,14 @@
 #!/bin/bash
+cd `dirname $0`
 
-# make -C ../.. dmlc-core
-# make -C ../.. repo/ps-lite
-# ../../repo/ps-lite/make/install_deps.sh
+echo "Clone dmlc-core, ps-lite and build the deps"
+make -C ../.. dmlc-core
+make -C ../.. repo/ps-lite
+../../repo/ps-lite/make/install_deps.sh
 
 # set the config.mk
 cd ../../
+echo "Generate a default config at `pwd`/config.mk"
 deps_path=`pwd`/repo/ps-lite/deps
 cat <<< "# sample config for learn/linear
 CC = gcc
@@ -16,6 +19,7 @@ STATIC_DEPS = 1
 USE_HDFS = 0
 USE_S3 = 0
 USE_KEY32 = 1" >config.mk
+cat config.mk
 cd learn/linear
 
-make
+make -j4

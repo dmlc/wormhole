@@ -54,6 +54,18 @@ max_delay = 1
 
 - Solver. We use an online solver
 
+## Build
+
+Use [build.sh](../build.sh) to build this applications. It will first download
+[dmlc-core](https://github.com/dmlc/dmlc-core) and
+[ps-lite](https://github.com/dmlc/ps-lite), next generate a default build configuration,
+and then build all.
+
+In the default configuration, it disables HDFS (`USE_HDFS=0`) and S3
+(`USE_S3=0`). And since criteo only contains millions of unique features, it uses
+32bit integers for feature ID to save network bandwidth
+(`USE_KEY32=1`). (Parameter server use 64bit feature ID in default.)
+
 ## Run
 
 We have a single machine implementation [ftrl.cc](../sgd/ftrl.cc) which helps to
