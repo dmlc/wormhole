@@ -29,7 +29,7 @@ repo/xgboost/xgboost: dmlc-core/libdmlc.a | repo/xgboost dmlc-core
 
 # parameter server
 repo/ps-lite:
-	git clone https://github.com/dmlc/ps-lite repo/ps-lit
+	git clone https://github.com/dmlc/ps-lite repo/ps-lite
 
 # rabit
 repo/rabit:
