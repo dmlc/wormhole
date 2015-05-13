@@ -1,24 +1,26 @@
-# global config
+ROOTDIR = $(CURDIR)
+
 ifneq ("$(wildcard ../../config.mk)","")
 	config = ../../config.mk
 else
 	config = ../../make/config.mk
 endif
-
 include $(config)
-
-DEPS_PATH=/usr/local/
 
 CORE_PATH=../../dmlc-core
 include $(CORE_PATH)/make/dmlc.mk
+
 PS_PATH=../../repo/ps-lite
 include $(PS_PATH)/make/ps.mk
+ifndef DEPS_PATH
+DEPS_PATH = $(PS_PATH)/deps
+endif
 
-INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src
+INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
 CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC)
-LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS)  $(PS_LDFLAGS) #-pthread -lm
+LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) #-pthread -lm
 
-all: bin test # build/linear test
+all: core ps bin # test
 
 clean:
 	rm -rf build/*
@@ -36,8 +38,14 @@ build/%.o: %.cc
 test: build/localizer_test build/spmv_test build/minibatch_iter_test \
 build/arg_parser\
 
+core: $(CORE_PATH)/libdmlc.a
+$(CORE_PATH)/libdmlc.a:
+	make -C $(CORE_PATH) -j4 config=$(ROOTDIR)/$(config)
+
+ps: $(PS_PATH)/build/libps.a
+
 $(PS_PATH)/build/libps.a:
-	make -C $(PS_PATH) ps
+	make -C $(PS_PATH) -j4 p config=$(ROOTDIR)/$(config)s
 
 build/async_sgd: build/sgd/async_sgd.o \
 build/proto/config.pb.o build/proto/sys.pb.o \
