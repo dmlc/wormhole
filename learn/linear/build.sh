@@ -1,10 +1,10 @@
 #!/bin/bash
 cd `dirname $0`
 
-echo "Clone dmlc-core, ps-lite and build the deps"
-make -C ../.. dmlc-core
-make -C ../.. repo/ps-lite
-../../repo/ps-lite/make/install_deps.sh
+if [ ! -d `pwd`/../../repo/ps-lite ]; then
+    ./build_deps.sh
+fi
+
 
 # set the config.mk
 cd ../../
@@ -16,7 +16,7 @@ CXX = g++
 USE_GLOG = 1
 DEPS_PATH = $deps_path
 USE_HDFS = 0
-USE_S3 = 0
+USE_S3 = 1
 USE_KEY32 = 1" >config.mk
 cat config.mk
 cd learn/linear
