@@ -28,7 +28,7 @@ clean_core:
 clean_ps:
 	make -C $(PS_PATH) clean
 
-bin: build/ftrl build/async_sgd
+bin: build/async_sgd
 
 build/%.o: %.cc
 	@mkdir -p $(@D)

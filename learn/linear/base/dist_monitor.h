@@ -42,7 +42,7 @@ struct DistModelMonitor : public ModelMonitor {
   DistModelMonitor(double report_itv) : reporter(report_itv) { }
   virtual ~DistModelMonitor() { }
 
-  void Report(int chl = 0) { reporter.Report(chl, &prog); }
+  virtual void Report() { reporter.Report(0, &prog); }
 
   TimeReporter reporter;
 };

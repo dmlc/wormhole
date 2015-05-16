@@ -60,6 +60,7 @@ class AsyncSGDScheduler : public ps::App {
     CHECK(conf_.has_train_data());
     double t = GetTime();
     size_t num_ex = 0;
+    int64_t nnz_w = 0;
     for (int i = 0; i < conf_.max_data_pass(); ++i) {
       printf("training #iter = %d\n", i);
       // train
@@ -67,6 +68,7 @@ class AsyncSGDScheduler : public ps::App {
       pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
       Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
+      printf("time(sec)  #example  delta #ex    |w|_1     %s\n", prog_.HeadStr().c_str());
       sleep(1);
       while (!pool_.IsFinished()) {
         sleep((int) conf_.disp_itv());
@@ -74,8 +76,10 @@ class AsyncSGDScheduler : public ps::App {
         monitor_.Clear(0);
         if (prog.Empty()) continue;
         num_ex += prog.num_ex();
-        printf("%7.1lf sec, #train %.3g, %s\n",
-               GetTime() - t, (double)num_ex, prog.PrintStr().c_str());
+        nnz_w += prog.nnz_w();
+        printf("%7.0lf  %10.5g  %8ld  %9ld  %s\n",
+               GetTime() - t, (double)num_ex, prog.num_ex(), nnz_w,
+               prog.PrintStr().c_str());
       }
 
       // val
@@ -186,6 +190,7 @@ class AsyncSGDWorker : public ps::App {
     reader.BeforeFirst();
     while (reader.Next()) {
 
+      LOG(INFO) << " read one ";
       using std::vector;
       using std::shared_ptr;
       using Minibatch = dmlc::data::RowBlockContainer<unsigned>;
@@ -233,6 +238,7 @@ class AsyncSGDWorker : public ps::App {
       std::unique_lock<std::mutex> lk(mb_mu_);
       ++ num_mb_fly_;
       mb_cond_.wait(lk, [this, max_delay] {return max_delay >= num_mb_fly_;});
+      LOG(INFO) << num_mb_fly_;
       // LL << num_mb_fly_;
     }
 

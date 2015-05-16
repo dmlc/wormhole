@@ -14,7 +14,7 @@ class Progress {
     fvec.resize(kfnum);
     fsize = kfnum * sizeof(double);
     ivec.resize(kinum);
-    isize = kinum * sizeof(size_t);
+    isize = kinum * sizeof(int64_t);
   }
 
   void Clear() {
@@ -47,17 +47,15 @@ class Progress {
     str->append((char*)ivec.data(), isize);
   }
 
+  std::string HeadStr() {
+    return "  objv       AUC    accuracy";
+  }
   std::string PrintStr() {
-    std::stringstream ss;
-    if (num_ex() == 0) {
-      ss << " no update ";
-    } else {
-      ss << "objv " << objv() / num_ex()
-         << ", auc " << auc() / count()
-         << ", acc " << acc() / count()
-         << ", nnz w " << nnz_w();
-    }
-    return ss.str();
+    if (num_ex() == 0) return " no update ";
+    char buf[60];
+    snprintf(buf, 60, "%8.6lf  %8.6lf  %8.6lf",
+             objv() / num_ex(), auc() / count(), acc() / count());
+    return std::string(buf);
   }
 
   // mutator
@@ -67,9 +65,9 @@ class Progress {
   double& weight2() { return fvec[3]; }
   double& wdelta2() { return fvec[4]; }
 
-  size_t& count() { return ivec[0]; }
-  size_t& num_ex() { return ivec[1]; }
-  size_t& nnz_w() { return ivec[2]; }
+  int64_t& count() { return ivec[0]; }
+  int64_t& num_ex() { return ivec[1]; }
+  int64_t& nnz_w() { return ivec[2]; }
 
 
  private:
@@ -77,7 +75,7 @@ class Progress {
   static const int kinum = 10;
 
   std::vector<double> fvec;
-  std::vector<size_t> ivec;
+  std::vector<int64_t> ivec;
 
   size_t fsize;
   size_t isize;

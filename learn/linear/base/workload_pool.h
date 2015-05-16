@@ -106,9 +106,15 @@ class WorkloadPool {
           LOG(INFO) << id << " failed to finish workload " << it->second.ShortDebugString();
           remain_.push_front(it->second);
         } else {
-          LOG(INFO) << id << " finished workload " << it->second.ShortDebugString();
+          LOG(INFO) << id << " finished " << it->second.ShortDebugString();
         }
         it = assigned_.erase(it);
+
+        int k = 0;
+        for (const auto& it2 : assigned_) {
+          if (++k > 5) break;
+          LOG(INFO) << assigned_.size() << " remain " << it2.first;
+        }
       } else {
         ++ it;
       }
