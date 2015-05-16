@@ -15,8 +15,9 @@ CC = gcc
 CXX = g++
 USE_GLOG = 1
 DEPS_PATH = $deps_path
+STATIC_DEPS = 1
 USE_HDFS = 0
-USE_S3 = 1
+USE_S3 = 0
 USE_KEY32 = 1" >config.mk
 cat config.mk
 cd learn/linear

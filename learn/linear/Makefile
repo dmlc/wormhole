@@ -23,8 +23,9 @@ all: core ps bin # test
 clean:
 	rm -rf build/*
 
-clean_deps:
+clean_core:
 	make -C $(CORE_PATH) clean
+clean_ps:
 	make -C $(PS_PATH) clean
 
 bin: build/ftrl build/async_sgd
@@ -41,12 +42,10 @@ test: build/localizer_test build/spmv_test build/minibatch_iter_test \
 build/arg_parser\
 
 ROOTDIR = $(CURDIR)
-core: $(CORE_PATH)/libdmlc.a
-$(CORE_PATH)/libdmlc.a:
+core:
 	make -C $(CORE_PATH) -j4 config=$(ROOTDIR)/$(config)
 
-ps: $(PS_PATH)/build/libps.a
-$(PS_PATH)/build/libps.a:
+ps:
 	make -C $(PS_PATH) -j4 ps config=$(ROOTDIR)/$(config)
 
 build/async_sgd: build/proto/config.pb.o build/proto/sys.pb.o \

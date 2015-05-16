@@ -52,6 +52,8 @@ class AsyncSGDScheduler : public ps::App {
   }
 
   virtual void Run() {
+    printf("waiting %d workers and %d servers are connected\n",
+           ps::NumWorkers(), ps::NumServers());
     // wait nodes are ready
     ps::App::Run();
 
