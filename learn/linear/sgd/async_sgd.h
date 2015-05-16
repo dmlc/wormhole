@@ -189,11 +189,16 @@ class AsyncSGDWorker : public ps::App {
         conf_.data_format().c_str(), mb_size);
     reader.BeforeFirst();
     while (reader.Next()) {
-
-      LOG(INFO) << " read one ";
       using std::vector;
       using std::shared_ptr;
       using Minibatch = dmlc::data::RowBlockContainer<unsigned>;
+
+      if (conf_.test_io()) {
+        // debug performance
+        monitor_.prog.num_ex() += reader.Value().size;
+        reporter_.Report(0, &monitor_.prog);
+        continue;
+      }
 
       // localize the minibatch
       auto global = reader.Value();

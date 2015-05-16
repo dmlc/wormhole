@@ -98,6 +98,10 @@ message Config {
   // method specific options
   //
   // optional Darlin darlin = 100;
+
+  // debug options
+
+  optional bool test_io = 80 [default = false];
 }
 
 message Darlin {
