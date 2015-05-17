@@ -1,6 +1,6 @@
 #ifndef DMLC_DATA_CRC32_H_
 #define DMLC_DATA_CRC32_H_
-#include <nmmintrin.h>
+// #include <nmmintrin.h>
 #include <stddef.h>
 #include <stdint.h>
 namespace dmlc {
