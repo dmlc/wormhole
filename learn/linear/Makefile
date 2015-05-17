@@ -16,9 +16,9 @@ endif
 
 INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
 CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC)
-LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) #-pthread -lm
+LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) -lunwind #-pthread -lm
 
-all: core ps bin # test
+all: core ps bin tool # test
 
 clean:
 	rm -rf build/*
@@ -48,13 +48,20 @@ core:
 ps:
 	make -C $(PS_PATH) -j4 ps config=$(ROOTDIR)/$(config)
 
-build/async_sgd: build/proto/config.pb.o build/proto/sys.pb.o \
+
+build/async_sgd: build/proto/config.pb.o build/proto/workload.pb.o build/proto/criteo.pb.o \
 build/sgd/async_sgd.o \
 $(PS_PATH)/build/libps.a
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/sgd/ftrl.o
+tool: build/text2rec_criteo build/print_crite_rec
+build/text2rec_criteo: build/proto/criteo.pb.o build/tool/text2rec_criteo.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+build/print_crite_rec: build/proto/criteo.pb.o build/tool/print_criteo_rec.o
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+# build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/sgd/ftrl.o
+# 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 build/%: build/test/%.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@

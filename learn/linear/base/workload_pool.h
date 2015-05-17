@@ -1,5 +1,5 @@
 #pragma once
-#include "proto/sys.pb.h"
+#include "proto/workload.pb.h"
 #include "io/filesys.h"
 #include "dmlc/logging.h"
 #include <vector>

@@ -1,0 +1,17 @@
+/// @file   criteo.proto
+/// @brief  for criteo ctr dataset
+package dmlc.linear;
+
+// criteo message
+message Criteo {
+  // label fields
+  required int32 label = 5;
+  // bitmask for missing value in integer
+  required uint32 miss_int = 4;
+  // bitmask for missing value in categorical features
+  required uint32 miss_cat = 3;
+  // integer features
+  repeated uint32 dint = 2 [packed = true];
+  // categorical features
+  repeated uint32 dcat = 1 [packed = true];
+}

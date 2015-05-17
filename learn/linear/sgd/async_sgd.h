@@ -3,7 +3,7 @@
  * @brief  Asynchronous stochastic gradient descent to solve linear methods.
  */
 #include "proto/config.pb.h"
-#include "proto/sys.pb.h"
+#include "proto/workload.pb.h"
 #include "dmlc/timer.h"
 #include "base/minibatch_iter.h"
 #include "base/arg_parser.h"

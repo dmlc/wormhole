@@ -10,6 +10,7 @@
 #include "data/parser.h"
 #include "data/libsvm_parser.h"
 #include "base/criteo_parser.h"
+#include "base/criteo_rec_parser.h"
 #include "base/utils.h"
 namespace dmlc {
 namespace data {
@@ -26,11 +27,15 @@ class MinibatchIter {
                 const char* type, unsigned minibatch_size)
       : mb_size_(minibatch_size), start_(0), end_(0) {
     // create parser
-    InputSplit* input = InputSplit::Create(uri, part_index, num_parts, "text");
     if (!strcmp(type, "libsvm")) {
-      parser_ = new LibSVMParser<IndexType>(input, 1);
+      parser_ = new LibSVMParser<IndexType>(
+          InputSplit::Create(uri, part_index, num_parts, "text"), 1);
+    } else if (!strcmp(type, "criteo_rec")) {
+      parser_ = new CriteoRecParser<IndexType>(
+          InputSplit::Create(uri, part_index, num_parts, "recordio"));
     } else if (!strcmp(type, "criteo")) {
-      parser_ = new CriteoParser<IndexType>(input);
+      parser_ = new CriteoParser<IndexType>(
+          InputSplit::Create(uri, part_index, num_parts, "text"));
     } else {
       LOG(FATAL) << "unknown datatype " << type;
     }

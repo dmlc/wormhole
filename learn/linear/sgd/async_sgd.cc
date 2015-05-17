@@ -1,15 +1,14 @@
 #include "ps.h"
 #include "sgd/async_sgd.h"
 
-DEFINE_string(conf, "", "config file");
 namespace ps {
 App* App::Create(int argc, char *argv[]) {
   using namespace dmlc;
   using namespace dmlc::linear;
-
+  CHECK_GE(argc, 2);
   ArgParser parser;
-  if (!FLAGS_conf.empty()) parser.ReadFile(FLAGS_conf.c_str());
-  parser.ReadArgs(argc-1, argv+1);
+  parser.ReadFile(argv[1]);
+  parser.ReadArgs(argc-2, argv+2);
   linear::Config conf; parser.ParseToProto(&conf);
 
   if (IsWorkerNode()) {

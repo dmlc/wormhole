@@ -1,7 +1,5 @@
-/**
- * @file   sys.proto
- * @brief  used by system
- */
+/// @file   workload.proto
+/// @brief  A proto wrapper of a file, which is passed between machines
 package dmlc.linear;
 
 message File {

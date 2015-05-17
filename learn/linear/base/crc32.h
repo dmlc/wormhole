@@ -1,5 +1,6 @@
 #ifndef DMLC_DATA_CRC32_H_
 #define DMLC_DATA_CRC32_H_
+#include <nmmintrin.h>
 #include <stddef.h>
 #include <stdint.h>
 namespace dmlc {
@@ -8,6 +9,23 @@ namespace data {
 /**
  * \brief A faster version of crc32 using sse4.2
  */
+// inline uint32_t CRC32HW(char *str, uint32_t len) {
+//   uint32_t q = len / sizeof(uint32_t),
+//            r = len % sizeof(uint32_t),
+//           *p = (uint32_t*)str,
+//          crc = 0;
+//   while (q--) {
+//     crc = _mm_crc32_u32(crc, *p);
+//     ++ p;
+//   }
+//   str = (char*) p;
+//   while (r--) {
+//     crc = _mm_crc32_u8(crc, *str);
+//     ++ str;
+//   }
+//   return crc;
+// };
+
 inline uint32_t CRC32HW(char *str, uint32_t len) {
   uint32_t q = len / sizeof(uint32_t),
            r = len % sizeof(uint32_t),
