@@ -1,8 +1,9 @@
 # Train the Criteo CTR dataset on AWS
 
 This is a step-by-step guide on how to train a linear model on the
-[Criteo Terabyte CTR dataset](http://labs.criteo.com/downloads/download-terabyte-click-logs/)
-by using [AWS EC2](http://aws.amazon.com/ec2/).
+public [Criteo Terabyte CTR dataset](http://labs.criteo.com/downloads/download-terabyte-click-logs/)
+by using [AWS EC2](http://aws.amazon.com/ec2/). This dataset contains around 4
+billions examples and 800 million unique features.
 
 ## Prepare dataset
 
