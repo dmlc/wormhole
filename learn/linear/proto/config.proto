@@ -1,13 +1,12 @@
-//  @file   config.proto
-//  @brief  configuration for linear method
-//
+///  @file   config.proto
+///  @brief  configuration for linear method
+
 package dmlc.linear;
-// import "../../repo/ps-lite/src/proto/filter.proto";
 
 message Config {
-  //
-  // data
-  //
+  ///
+  /// data
+  ///
   optional string train_data = 1;
   optional string val_data = 2;
   optional string test_data = 3;
@@ -16,11 +15,11 @@ message Config {
   // partition a file into npart
   optional int32 num_parts_per_file = 5 [default = 1];
   // limit the number of files send to a worker
-  optional int32 num_files_per_worker = 6 [default = 0];
+  // optional int32 num_files_per_worker = 6 [default = 0];
 
-  //
-  // model
-  //
+  ///
+  /// model
+  ///
   optional string model_in = 10;
   optional string model_out = 11;
 
@@ -40,9 +39,9 @@ message Config {
   optional Penalty penalty = 21 [default = L1];
   repeated float lambda = 22;
 
-  //
-  // optimization methods
-  //
+  ///
+  /// optimization methods
+  ///
   enum Algo {
     // (minibatch) online methods
     SGD = 1;  // standard sgd
@@ -79,9 +78,9 @@ message Config {
   optional float lr_eta = 41;
   optional float lr_beta = 42;
 
-  //
-  // to reduce sync cost
-  //
+  ///
+  /// to reduce sync cost
+  ///
 
   // maximal allowed delay during synchronization
   optional int32 max_delay = 50 [default = 0];
@@ -99,30 +98,29 @@ message Config {
   //
   // optional Darlin darlin = 100;
 
-  // debug options
-
+  /// debug options
   optional bool test_io = 80 [default = false];
 }
 
-message Darlin {
-  // Divide a feature group into feature_block_ratio x nnz_feature_per_example
-  // blocks
-  optional float feature_block_ratio = 1 [default = 4];
-  // Use a random order to updating feature block.  Turn it off to elimiate the
-  // randomness (often for debuging), but may affects the convergence rate.
-  optional bool random_feature_block_order = 2 [default = true];
-  // Updating important feature group at the beginning to get a good initial
-  // start point.
-  repeated int32 prior_fea_group = 14;
-  optional int32 num_iter_for_prior_fea_group = 13 [default = 5];
-  optional int32 max_num_parallel_groups_in_preprocessing = 9 [default = 1000];
-  // Used by the trust region method. All changes of parameters will be bounded
-  // by *delta*. *delta* is updated according to the convergence,  whose intial
-  // value is *delta_init_value* and maximal value is *delta_max_value*
-  optional double delta_init_value = 101 [default = 1];
-  optional double delta_max_value = 102 [default = 5];
-  // kkt_filter_threshold = max_gradient_violation / num_examples *
-  // kkt_filter_threshold_ratio. increasing this number reduces the effect of
-  // kkt filter.
-  optional double kkt_filter_threshold_ratio = 103 [default = 10];
-}
+// message Darlin {
+//   // Divide a feature group into feature_block_ratio x nnz_feature_per_example
+//   // blocks
+//   optional float feature_block_ratio = 1 [default = 4];
+//   // Use a random order to updating feature block.  Turn it off to elimiate the
+//   // randomness (often for debuging), but may affects the convergence rate.
+//   optional bool random_feature_block_order = 2 [default = true];
+//   // Updating important feature group at the beginning to get a good initial
+//   // start point.
+//   repeated int32 prior_fea_group = 14;
+//   optional int32 num_iter_for_prior_fea_group = 13 [default = 5];
+//   optional int32 max_num_parallel_groups_in_preprocessing = 9 [default = 1000];
+//   // Used by the trust region method. All changes of parameters will be bounded
+//   // by *delta*. *delta* is updated according to the convergence,  whose intial
+//   // value is *delta_init_value* and maximal value is *delta_max_value*
+//   optional double delta_init_value = 101 [default = 1];
+//   optional double delta_max_value = 102 [default = 5];
+//   // kkt_filter_threshold = max_gradient_violation / num_examples *
+//   // kkt_filter_threshold_ratio. increasing this number reduces the effect of
+//   // kkt filter.
+//   optional double kkt_filter_threshold_ratio = 103 [default = 10];
+// }

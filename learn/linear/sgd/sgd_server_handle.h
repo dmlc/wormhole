@@ -7,44 +7,6 @@
 namespace dmlc {
 namespace linear {
 
-// /**
-//  * @brief Track the progress
-//  */
-// struct OnlineModelTracker {
-//  public:
-//   inline void Send() {
-//   //   if (!reporter) return;
-//   //   reporter->Report(prog);
-//   //   prog.fvec[3] = 0;
-//   //   prog.fvec[4] = 0;
-//   }
-//   // ivec[1] : nnz(w), fvec[3] : |w|^2_2, fvec[4] : |delta_w|^2_2
-//   template<typename V>
-//   inline void Update(V cur, V old) {
-//     if (cur == 0) {
-//       if (old == 0) {
-//         return;
-//       } else {
-//         -- prog.ivec[1];
-//         prog.fvec[4] += old * old;
-//       }
-//     } else {
-//       V cc = cur * cur;
-//       prog.fvec[3] += cc;
-//       if (old == 0) {
-//         ++ prog.ivec[1];
-//         prog.fvec[4] += cc;
-//       } else {
-//         V delta = cur - old;
-//         prog.fvec[4] += delta * delta;
-//       }
-//     }
-//   }
-
-//   Progress prog;
-//   // MonitorSlaver<Progress>* reporter = nullptr;
-// };
-
 /**
  * \brief FTRL updater
  *
@@ -117,3 +79,41 @@ struct FTRLHandle {
 };
 }  // namespace linear
 }  // namespace dmlc
+
+// /**
+//  * @brief Track the progress
+//  */
+// struct OnlineModelTracker {
+//  public:
+//   inline void Send() {
+//   //   if (!reporter) return;
+//   //   reporter->Report(prog);
+//   //   prog.fvec[3] = 0;
+//   //   prog.fvec[4] = 0;
+//   }
+//   // ivec[1] : nnz(w), fvec[3] : |w|^2_2, fvec[4] : |delta_w|^2_2
+//   template<typename V>
+//   inline void Update(V cur, V old) {
+//     if (cur == 0) {
+//       if (old == 0) {
+//         return;
+//       } else {
+//         -- prog.ivec[1];
+//         prog.fvec[4] += old * old;
+//       }
+//     } else {
+//       V cc = cur * cur;
+//       prog.fvec[3] += cc;
+//       if (old == 0) {
+//         ++ prog.ivec[1];
+//         prog.fvec[4] += cc;
+//       } else {
+//         V delta = cur - old;
+//         prog.fvec[4] += delta * delta;
+//       }
+//     }
+//   }
+
+//   Progress prog;
+//   // MonitorSlaver<Progress>* reporter = nullptr;
+// };

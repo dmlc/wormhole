@@ -30,8 +30,9 @@ In the default configuration, it disables HDFS (`USE_HDFS=0`) and S3
 `hdfs.h` in `dmlc-core/include`, see this
 [issue](https://github.com/dmlc/dmlc-core/issues/10) for more details.)
 
-## Related links
+## Links
 
+- []()
 - [Step-by-step tutorial](./criteo.md) on training sparse logistic regression on the Criteo
   Terabytes CTR dataset on EC2.
 - Use a block coordinate descent solver

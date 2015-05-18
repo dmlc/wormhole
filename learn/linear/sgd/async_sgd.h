@@ -19,7 +19,6 @@
 
 namespace dmlc {
 namespace linear {
-#define LL LOG(ERROR)
 
 using FeaID = ps::Key;
 using Real = float;
@@ -27,130 +26,6 @@ using Real = float;
 // commands
 static const int kProcess = 1;
 static const int kSaveModel = 2;
-
-
-/***************************************
- * \brief The scheduler node
- **************************************/
-class AsyncSGDScheduler : public ps::App {
- public:
-  AsyncSGDScheduler(const Config& conf) : conf_(conf) { }
-  virtual ~AsyncSGDScheduler() { }
-
-  virtual void ProcessResponse(ps::Message* response) {
-    if (response->task.cmd() == kProcess) {
-      auto id = response->sender;
-      if (!response->task.msg().empty()) {
-        Progress p;
-        p.Parse(response->task.msg());
-        prog_.Merge(p);
-      }
-      pool_.Finish(id);
-      Workload wl; pool_.Get(id, &wl);
-      if (wl.file_size() > 0) SendWorkload(id, wl);
-    }
-  }
-
-  virtual void Run() {
-    printf("waiting %d workers and %d servers are connected\n",
-           ps::NumWorkers(), ps::NumServers());
-    // wait nodes are ready
-    ps::App::Run();
-
-    CHECK(conf_.has_train_data());
-    double t = GetTime();
-    size_t num_ex = 0;
-    int64_t nnz_w = 0;
-    for (int i = 0; i < conf_.max_data_pass(); ++i) {
-      printf("training #iter = %d\n", i);
-      // train
-      pool_.Clear();
-      pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
-      Workload wl; SendWorkload(ps::kWorkerGroup, wl);
-
-      printf("time(sec)  #example  delta #ex    |w|_1     %s\n", prog_.HeadStr().c_str());
-      sleep(1);
-      while (!pool_.IsFinished()) {
-        sleep((int) conf_.disp_itv());
-        Progress prog; monitor_.Get(0, &prog);
-        monitor_.Clear(0);
-        if (prog.Empty()) continue;
-        num_ex += prog.num_ex();
-        nnz_w += prog.nnz_w();
-        printf("%7.0lf  %10.5g  %8ld  %9ld  %s\n",
-               GetTime() - t, (double)num_ex, prog.num_ex(), nnz_w,
-               prog.PrintStr().c_str());
-      }
-
-      // val
-      if (!conf_.has_val_data()) continue;
-      printf("validation #iter = %d\n", i);
-      pool_.Clear();
-      pool_.Add(conf_.val_data(), conf_.num_parts_per_file(), 0, Workload::VAL);
-      SendWorkload(ps::kWorkerGroup, wl);
-
-      while (!pool_.IsFinished()) { sleep(1); }
-
-      printf("%7.1lf sec, #val %.3g, %s\n",
-             GetTime() - t, (double)prog_.num_ex(), prog_.PrintStr().c_str());
-      prog_.Clear();
-    }
-
-    printf("saving model\n");
-    ps::Task task; task.set_cmd(kSaveModel);
-    Wait(Submit(task, ps::kServerGroup));
-  }
- private:
-  void SendWorkload(const std::string id, const Workload& wl) {
-    std::string wl_str; wl.SerializeToString(&wl_str);
-    ps::Task task; task.set_msg(wl_str);
-    task.set_cmd(kProcess);
-    Submit(task, id);
-  }
-
-  Config conf_;
-  WorkloadPool pool_;
-  bool done_ = false;
-  Progress prog_;
-  ps::MonitorMaster<Progress> monitor_;
-};
-
-/***************************************
- * \brief A server node
- **************************************/
-class AsyncSGDServer : public ps::App {
- public:
-  AsyncSGDServer(const Config& conf) : conf_(conf), monitor_(conf_.disp_itv())  {
-    Init();
-  }
-  virtual ~AsyncSGDServer() { }
-
-  virtual void ProcessRequest(ps::Message* request) {
-    if (request->task.cmd() == kSaveModel) {
-      // TODO
-    }
-  }
-
- private:
-  void Init() {
-    auto algo = conf_.algo();
-    if (algo == Config::FTRL) {
-      ps::KVServer<Real, FTRLHandle<FeaID, Real>, 3> ftrl;
-      ftrl.set_sync_val_len(1);
-      auto& updt = ftrl.handle();
-      if (conf_.has_lr_eta()) updt.alpha = conf_.lr_eta();
-      if (conf_.has_lr_beta()) updt.beta = conf_.lr_beta();
-      if (conf_.lambda_size() > 0) updt.lambda1 = conf_.lambda(0);
-      if (conf_.lambda_size() > 1) updt.lambda2 = conf_.lambda(1);
-      updt.tracker = &monitor_;
-      ftrl.Run();
-    } else {
-      LOG(FATAL) << "unknown algo: " << algo;
-    }
-  }
-  Config conf_;
-  DistModelMonitor monitor_;
-};
 
 /***************************************
  * \brief A worker node
@@ -244,7 +119,6 @@ class AsyncSGDWorker : public ps::App {
       ++ num_mb_fly_;
       mb_cond_.wait(lk, [this, max_delay] {return max_delay >= num_mb_fly_;});
       LOG(INFO) << num_mb_fly_;
-      // LL << num_mb_fly_;
     }
 
     // wait untill all are done
@@ -270,7 +144,129 @@ class AsyncSGDWorker : public ps::App {
   int num_mb_done_;
   std::mutex mb_mu_;
   std::condition_variable mb_cond_;
+};
 
+/***************************************
+ * \brief A server node
+ **************************************/
+class AsyncSGDServer : public ps::App {
+ public:
+  AsyncSGDServer(const Config& conf) : conf_(conf), monitor_(conf_.disp_itv())  {
+    Init();
+  }
+  virtual ~AsyncSGDServer() { }
+
+  virtual void ProcessRequest(ps::Message* request) {
+    if (request->task.cmd() == kSaveModel) {
+      // TODO
+    }
+  }
+
+ private:
+  void Init() {
+    auto algo = conf_.algo();
+    if (algo == Config::FTRL) {
+      ps::KVServer<Real, FTRLHandle<FeaID, Real>, 3> ftrl;
+      ftrl.set_sync_val_len(1);
+      auto& updt = ftrl.handle();
+      if (conf_.has_lr_eta()) updt.alpha = conf_.lr_eta();
+      if (conf_.has_lr_beta()) updt.beta = conf_.lr_beta();
+      if (conf_.lambda_size() > 0) updt.lambda1 = conf_.lambda(0);
+      if (conf_.lambda_size() > 1) updt.lambda2 = conf_.lambda(1);
+      updt.tracker = &monitor_;
+      ftrl.Run();
+    } else {
+      LOG(FATAL) << "unknown algo: " << algo;
+    }
+  }
+  Config conf_;
+  DistModelMonitor monitor_;
+};
+
+/***************************************
+ * \brief The scheduler node
+ **************************************/
+class AsyncSGDScheduler : public ps::App {
+ public:
+  AsyncSGDScheduler(const Config& conf) : conf_(conf) { }
+  virtual ~AsyncSGDScheduler() { }
+
+  virtual void ProcessResponse(ps::Message* response) {
+    if (response->task.cmd() == kProcess) {
+      auto id = response->sender;
+      if (!response->task.msg().empty()) {
+        Progress p;
+        p.Parse(response->task.msg());
+        prog_.Merge(p);
+      }
+      pool_.Finish(id);
+      Workload wl; pool_.Get(id, &wl);
+      if (wl.file_size() > 0) SendWorkload(id, wl);
+    }
+  }
+
+  virtual void Run() {
+    printf("waiting %d workers and %d servers are connected\n",
+           ps::NumWorkers(), ps::NumServers());
+    // wait nodes are ready
+    ps::App::Run();
+
+    CHECK(conf_.has_train_data());
+    double t = GetTime();
+    size_t num_ex = 0;
+    int64_t nnz_w = 0;
+    for (int i = 0; i < conf_.max_data_pass(); ++i) {
+      printf("training #iter = %d\n", i);
+      // train
+      pool_.Clear();
+      pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
+      Workload wl; SendWorkload(ps::kWorkerGroup, wl);
+
+      printf("time(sec)  #example  delta #ex    |w|_1     %s\n", prog_.HeadStr().c_str());
+      sleep(1);
+      while (!pool_.IsFinished()) {
+        sleep((int) conf_.disp_itv());
+        Progress prog; monitor_.Get(0, &prog);
+        monitor_.Clear(0);
+        if (prog.Empty()) continue;
+        num_ex += prog.num_ex();
+        nnz_w += prog.nnz_w();
+        printf("%7.0lf  %10.5g  %8ld  %9ld  %s\n",
+               GetTime() - t, (double)num_ex, prog.num_ex(), nnz_w,
+               prog.PrintStr().c_str());
+      }
+
+      // val
+      if (!conf_.has_val_data()) continue;
+      printf("validation #iter = %d\n", i);
+      pool_.Clear();
+      pool_.Add(conf_.val_data(), conf_.num_parts_per_file(), 0, Workload::VAL);
+      SendWorkload(ps::kWorkerGroup, wl);
+
+      while (!pool_.IsFinished()) { sleep(1); }
+
+      printf("%7.1lf sec, #val %.3g, %s\n",
+             GetTime() - t, (double)prog_.num_ex(), prog_.PrintStr().c_str());
+      prog_.Clear();
+    }
+
+    printf("saving model\n");
+    ps::Task task; task.set_cmd(kSaveModel);
+    Wait(Submit(task, ps::kServerGroup));
+  }
+ private:
+  void SendWorkload(const std::string id, const Workload& wl) {
+    std::string wl_str; wl.SerializeToString(&wl_str);
+    ps::Task task; task.set_msg(wl_str);
+    task.set_cmd(kProcess);
+    Submit(task, id);
+  }
+
+  Config conf_;
+  WorkloadPool pool_;
+  bool done_ = false;
+  Progress prog_;
+  ps::MonitorMaster<Progress> monitor_;
 };
 
 
