@@ -2,14 +2,14 @@
 
 This is a step-by-step guide on how to train a linear model on the
 [Criteo Terabyte CTR dataset](http://labs.criteo.com/downloads/download-terabyte-click-logs/)
-on [AWS EC2](http://aws.amazon.com/ec2/).
+by using [AWS EC2](http://aws.amazon.com/ec2/).
 
 ## Prepare dataset
 
 We first save the dataset on [S3](http://aws.amazon.com/s3/). Assume
 [S3cmd](http://s3tools.org/s3cmd) has been installed in `s3cmd_path` and the
-destination path on S3 is `s3_path`. The following script will download the
-data, uncompress, and then upload. Each file will takes ~45GB space.
+destination path on S3 is `s3_path`. The following script will download,
+uncompress, and then upload the data. Each file will take ~45GB space.
 
 ```bash
 s3cmd_path=~/s3cmd-1.5.2
@@ -38,13 +38,13 @@ done
 
 ## Setup EC2 instance
 
-Here we give a quick solution which launches wormhole via `ssh`. (However, a
-cluster resource manager such as `Yarn` is much better if sharing the cluster
-among several users, though it needs a little bit more effects to set it up.)
+Here we give a quick solution based on `NFS` and `mpirun`. However, a cluster
+resource manager such as `Yarn` is much better if the cluster is shared among
+several users.
 
 ### Setup the master node
 
-Create an ubuntu 14.04 instance as the master node.
+Launch an Ubuntu 14.04 instance as the master node, and install `gcc`.
 
 ```bash
 sudo apt-get update && sudo apt-get install -y build-essential git libcurl4-openssl-dev
@@ -74,7 +74,7 @@ make -j8
 (try `make` again if there no `build/async_sgd`)
 
 Now we can test wormhole the by using `demo_local.sh` or the examples in next
-section without the hostfile.
+section without the hostfile (namely no `-H ./hosts`).
 
 Then we setup
 [NFS](https://help.ubuntu.com/lts/serverguide/network-file-system.html) to
@@ -86,13 +86,13 @@ echo "/home/ubuntu/  *(rw,sync,no_subtree_check)" | sudo tee /etc/exports
 sudo service nfs-kernel-server start
 ```
 
-Finally copy the `pem` file used to access machine to `~/.ssh/id_rsa` so that
-this master machine can ssh to all slaves machines.
+Finally copy the `pem` file used to access this machine to `~/.ssh/id_rsa` so that
+it can ssh to all slaves machines.
 
 
 ### Setup the slave nodes
 
-The slaves nodes are used for the actual computations. After create them using the
+The slaves nodes are used for the actual computations. After creating them using the
 same key pair used for the master node, save their private IPs in a file, such
 as
 
@@ -105,7 +105,7 @@ as
 172.30.0.168
 ```
 
-Setup NFS and `mpirun` on them. Assume the master node has private IP `172.30.0.221`
+Setup `NFS` and `mpirun` on them. Assume the master node has private IP `172.30.0.221`
 
 ```bash
 while read h; do
@@ -118,7 +118,7 @@ ENDSSH
 done <hosts
 ```
 
-Now we can lunch jobs via `mpirun`
+Now we can lunch jobs via `mpirun`. For example,
 
 ```bash
 ~/wormhole/learn/linear/guide $ mpirun -hostfile hosts pwd
@@ -129,7 +129,7 @@ Now we can lunch jobs via `mpirun`
 /home/ubuntu/wormhole/learn/linear/guide
 ```
 
-Finally install gcc on all master nodes
+Finally install `gcc` on all master nodes
 ```bash
 mpirun -hostfile hosts sudo apt-get install -y build-essential libcurl4-openssl-dev
 ```
@@ -154,13 +154,14 @@ train_data = "s3://ctr-data/criteo/day_.*.rec"
 data_format = "criteo_rec"
 ```
 
-
 Link the tracker
 ```
 ln -s ../../../dmlc-core/tracker/dmlc_mpi.py .
 ```
 
-Now we can luanch the job. For example, using 100 workers and 100 servers
+Now we can launch the job. For example, using 100 workers and 100 servers to
+train a sparse logistic regression using asynchronous SGD.
+
 ```bash
 ~/wormhole/learn/linear/guide $ ./dmlc_mpi.py -s 100 -n 100 -H hosts ../build/async_sgd criteo_s3.conf
 2015-05-18 21:17:35,928 INFO start listen on 172.30.0.221:9091
@@ -180,5 +181,6 @@ time(sec)  #example  delta #ex    |w|_1       objv       AUC    accuracy
 ## Performance
 
 Using 5 EC2 c4.8x machines with 100 workers, 100 servers and the default
-`criteo_s3.conf`, it processes 0.95 million examples per second, and one pass of
-the data can be finished  around 7 minutes.
+`criteo_s3.conf` (minibatch size = 100K and max delay = 4), it processes 0.95
+million examples per second. One pass of the data (which is good enough) costs
+around 7 minutes.
