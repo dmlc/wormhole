@@ -181,6 +181,6 @@ time(sec)  #example  delta #ex    |w|_1       objv       AUC    accuracy
 ## Performance
 
 Using 5 EC2 c4.8x machines with 100 workers, 100 servers and the default
-`criteo_s3.conf` (minibatch size = 100K and max delay = 4), it processes 0.95
+`criteo_s3.conf` (minibatch size = 100K and max delay = 4), it processes 9.5
 million examples per second. One pass of the data (which is good enough) costs
 around 7 minutes.
