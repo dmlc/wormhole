@@ -15,8 +15,8 @@ DEPS_PATH = $(PS_PATH)/deps
 endif
 
 INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
-CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC)
-LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) #-lunwind #-pthread -lm
+CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC) $(EXTRA_CFLAGS)
+LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
 
 all: core ps bin tool # test
 
@@ -39,7 +39,7 @@ build/%.o: %.cc
 	${DEPS_PATH}/bin/protoc --cpp_out=. --proto_path=. $<
 
 test: build/localizer_test build/spmv_test build/minibatch_iter_test \
-build/arg_parser\
+build/arg_parser build/ftrl\
 
 ROOTDIR = $(CURDIR)
 core:
@@ -60,11 +60,11 @@ build/text2rec_criteo: build/proto/criteo.pb.o build/tool/text2rec_criteo.o
 build/print_crite_rec: build/proto/criteo.pb.o build/tool/print_criteo_rec.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-# build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/sgd/ftrl.o
-# 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
 build/%: build/test/%.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 -include build/*/*.d
 -include build/*/*/*.d
+
+build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/test/ftrl.o
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
