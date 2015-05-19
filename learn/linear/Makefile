@@ -18,15 +18,10 @@ INC=-I./ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PAT
 CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC) $(EXTRA_CFLAGS)
 LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
 
-all: core ps bin tool # test
+all: ps core bin tool # test
 
 clean:
 	rm -rf build/*
-
-clean_core:
-	make -C $(CORE_PATH) clean
-clean_ps:
-	make -C $(PS_PATH) clean
 
 bin: build/async_sgd
 
@@ -44,14 +39,18 @@ build/arg_parser build/ftrl\
 ROOTDIR = $(CURDIR)
 core:
 	make -C $(CORE_PATH) -j4 config=$(ROOTDIR)/$(config)
-
+clean_core:
+	make -C $(CORE_PATH) clean
 ps:
 	make -C $(PS_PATH) -j4 ps config=$(ROOTDIR)/$(config)
+clean_ps:
+	make -C $(PS_PATH) clean
+
 
 
 build/async_sgd: build/proto/config.pb.o build/proto/workload.pb.o build/proto/criteo.pb.o \
 build/sgd/async_sgd.o
-	$(CXX) $(CFLAGS) $^ $(PS_PATH)/build/libps.a $(LDFLAGS) -o $@
+	$(CXX) $(CFLAGS) $(filter %.o %.a, $^) $(PS_PATH)/build/libps.a $(LDFLAGS) -o $@
 
 tool: build/text2rec_criteo build/print_crite_rec
 build/text2rec_criteo: build/proto/criteo.pb.o build/tool/text2rec_criteo.o
