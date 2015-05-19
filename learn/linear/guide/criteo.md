@@ -7,9 +7,10 @@ billions examples and 800 million unique features.
 
 ## Prepare dataset
 
-We first save the dataset on [S3](http://aws.amazon.com/s3/). Assume
-[S3cmd](http://s3tools.org/s3cmd) has been installed in `s3cmd_path` and the
-destination path on S3 is `s3_path`. The following script will download,
+We first put the dataset into [S3](http://aws.amazon.com/s3/). (It is similar to
+put data into HDFS by changing `s3cmd put` to `hadoop fs -put`.)
+Assume [S3cmd](http://s3tools.org/s3cmd) has been installed in `s3cmd_path` and
+the destination path on S3 is `s3_path`. The following script will download,
 uncompress, and then upload the data. Each file will take ~45GB space.
 
 ```bash
@@ -39,9 +40,11 @@ done
 
 ## Setup EC2 instance
 
-Here we give a quick solution based on `NFS` and `mpirun`. However, a cluster
-resource manager such as `Yarn` is much better if the cluster is shared among
-several users.
+We need a EC2 cluster to run the job. If the cluster has already been created
+and setup with any resource manager such as `Yarn`, `Sun Grid Engine` or simply
+`mpirun`, we can skip most of the content of this section except for building
+`wormhole`. Otherwise, we will give a quick tutorial on how to starting a
+cluster from scratch.
 
 ### Setup the master node
 
@@ -69,7 +72,7 @@ USE_HDFS = 0
 USE_S3 = 1
 USE_KEY32 = 1" >config.mk
 cd learn/linear
-make -j8
+make
 ```
 
 (try `make` again if there no `build/async_sgd`)
@@ -79,7 +82,7 @@ section without the hostfile (namely no `-H ./hosts`).
 
 Then we setup
 [NFS](https://help.ubuntu.com/lts/serverguide/network-file-system.html) to
-distribute the binary file and configure file, and `mpirun` to launch the jobs.
+distribute the binary file and configure file, and use `mpirun` to launch the jobs.
 
 ```bash
 sudo apt-get install nfs-kernel-server mpich2
@@ -155,12 +158,15 @@ train_data = "s3://ctr-data/criteo/day_.*.rec"
 data_format = "criteo_rec"
 ```
 
+If the cluster has been setup with `mpirun`, we can use `dmlc_mpi.py` to launch
+the job. Otherwise use other trackers such as `dmlc_yarn.py` in [dmlc-core](https://github.com/dmlc/dmlc-core/tree/master/tracker)
+
 Link the tracker
 ```
 ln -s ../../../dmlc-core/tracker/dmlc_mpi.py .
 ```
 
-Now we can launch the job. For example, using 100 workers and 100 servers to
+Here is the example to launch 100 workers and 100 servers to
 train a sparse logistic regression using asynchronous SGD.
 
 ```bash
