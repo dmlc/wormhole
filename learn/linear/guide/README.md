@@ -1,10 +1,8 @@
 # Tutorial to run linear method
 
-In this tutorial we show how to solve the following linear method
-
+`wormhole/linear` solves the following linear method
 ```tex
 min_w sum_i loss(y_i, <w, x_i>) + penalty(w)
-```
 
 where `(x_i, y_i)` is a data pair and vector `w` is the model we will
 learn.

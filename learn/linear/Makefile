@@ -50,9 +50,8 @@ ps:
 
 
 build/async_sgd: build/proto/config.pb.o build/proto/workload.pb.o build/proto/criteo.pb.o \
-build/sgd/async_sgd.o \
-$(PS_PATH)/build/libps.a
-	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+build/sgd/async_sgd.o
+	$(CXX) $(CFLAGS) $^ $(PS_PATH)/build/libps.a $(LDFLAGS) -o $@
 
 tool: build/text2rec_criteo build/print_crite_rec
 build/text2rec_criteo: build/proto/criteo.pb.o build/tool/text2rec_criteo.o

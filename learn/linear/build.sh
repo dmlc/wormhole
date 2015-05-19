@@ -22,4 +22,4 @@ USE_KEY32 = 1" >config.mk
 cat config.mk
 cd learn/linear
 
-make -j4
+make

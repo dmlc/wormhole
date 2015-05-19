@@ -13,7 +13,6 @@ namespace linear {
  * my_val is a length-3 vector, 0: weight, 1: z, 2: square rooted cumulatived
  * gradient
  */
-
 template <typename K, typename V>
 struct FTRLHandle {
  public:

@@ -27,14 +27,17 @@ using Real = float;
 static const int kProcess = 1;
 static const int kSaveModel = 2;
 
-/***************************************
- * \brief A worker node
- **************************************/
+/*****************************************************************************
+ * \brief A worker node, which takes a part of training data and calculate the
+ * gradients
+ *****************************************************************************/
+
 class AsyncSGDWorker : public ps::App {
  public:
   AsyncSGDWorker(const Config& conf) : conf_(conf), reporter_(conf_.disp_itv()) { }
   virtual ~AsyncSGDWorker() { }
 
+  // process request from the scheduler node
   virtual void ProcessRequest(ps::Message* request) {
     int cmd = request->task.cmd();
     if (cmd == kProcess) {
@@ -68,47 +71,54 @@ class AsyncSGDWorker : public ps::App {
       using std::shared_ptr;
       using Minibatch = dmlc::data::RowBlockContainer<unsigned>;
 
+      // used for debug IO performance
       if (conf_.test_io()) {
-        // debug performance
         monitor_.prog.num_ex() += reader.Value().size;
         reporter_.Report(0, &monitor_.prog);
         continue;
       }
 
-      // localize the minibatch
+      // find all feature id in this minibatch, and convert it to a more compact format
       auto global = reader.Value();
       Minibatch* local = new Minibatch();
       shared_ptr<vector<FeaID> > feaid(new vector<FeaID>());
       Localizer<FeaID> lc; lc.Localize(global, local, feaid.get());
 
-      // pull the weight
+      // pull the weight from the servers
       vector<Real>* buf = new vector<Real>(feaid.get()->size());
       ps::SyncOpts opts;
+
+      // this callback will be called when the weight has been actually pulled back
       opts.callback = [this, local, feaid, buf, type]() {
-        // eval
+        // eval the progress
         auto loss = CreateLoss<real_t>(conf_.loss());
         loss->Init(local->GetBlock(), *buf);
         monitor_.Update(local->label.size(), loss);
 
         if (type == Workload::TRAIN) {
-          // continous reporting
+          // reporting from time to time
           reporter_.Report(0, &monitor_.prog);
 
-          // calc and push grad
+          // calculate and push the gradients
           loss->CalcGrad(buf);
           ps::SyncOpts opts;
+          // this callback will be called when the gradients have been actually pushed
           opts.callback = [this]() { FinishMinibatch(); };
+          // filters to reduce network traffic
           opts.AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(1);
           opts.AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(true);
           opts.AddFilter(ps::Filter::COMPRESSING);
           server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
         } else {
+          // don't need to cal grad for evaluation task
           FinishMinibatch();
           delete buf;
         }
         delete local;
         delete loss;
       };
+
+      // filters to reduce network traffic
       opts.AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(1);
       opts.AddFilter(ps::Filter::KEY_CACHING);
       opts.AddFilter(ps::Filter::COMPRESSING);
@@ -146,19 +156,23 @@ class AsyncSGDWorker : public ps::App {
   std::condition_variable mb_cond_;
 };
 
-/***************************************
- * \brief A server node
- **************************************/
+/**************************************************************************
+ * \brief A server node, which maintains a part of the model, and update the
+ * model once received gradients from workers
+ **************************************************************************/
 class AsyncSGDServer : public ps::App {
  public:
-  AsyncSGDServer(const Config& conf) : conf_(conf), monitor_(conf_.disp_itv())  {
+  AsyncSGDServer(const Config& conf)
+      : model_(NULL), conf_(conf), monitor_(conf_.disp_itv())  {
     Init();
   }
   virtual ~AsyncSGDServer() { }
 
   virtual void ProcessRequest(ps::Message* request) {
     if (request->task.cmd() == kSaveModel) {
-      // TODO
+      if (conf_.has_model_out()) {
+        model_->SaveModel(conf_.model_out());
+      }
     }
   }
 
@@ -174,18 +188,20 @@ class AsyncSGDServer : public ps::App {
       if (conf_.lambda_size() > 0) updt.lambda1 = conf_.lambda(0);
       if (conf_.lambda_size() > 1) updt.lambda2 = conf_.lambda(1);
       updt.tracker = &monitor_;
-      ftrl.Run();
+      model_ = ftrl.Run();
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }
   }
+  ps::KVStore* model_;
   Config conf_;
   DistModelMonitor monitor_;
 };
 
-/***************************************
- * \brief The scheduler node
- **************************************/
+/**************************************************************************
+ * \brief The scheduler node, which issues workloads to workers/servers, in
+ * charge of fault tolerance, and also print the progress
+ **************************************************************************/
 class AsyncSGDScheduler : public ps::App {
  public:
   AsyncSGDScheduler(const Config& conf) : conf_(conf) { }
@@ -222,7 +238,7 @@ class AsyncSGDScheduler : public ps::App {
       pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
       Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
-      printf("time(sec)  #example  delta #ex    |w|_1     %s\n", prog_.HeadStr().c_str());
+      printf("time(sec)  #example  delta #ex    |w|_1   %s\n", prog_.HeadStr().c_str());
       sleep(1);
       while (!pool_.IsFinished()) {
         sleep((int) conf_.disp_itv());
