@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$#" -lt 3 ];
+if [ "$#" -lt 2 ];
 then
 	echo "Usage: <nworkers> <path_in_HDFS> [param=val]"
 	exit -1
