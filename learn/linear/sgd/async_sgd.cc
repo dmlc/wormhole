@@ -12,7 +12,6 @@ App* App::Create(int argc, char *argv[]) {
   }
   parser.ReadArgs(argc-2, argv+2);
   linear::Config conf; parser.ParseToProto(&conf);
-  LL << conf.ShortDebugString();
 
   if (IsWorkerNode()) {
     return new AsyncSGDWorker(conf);
