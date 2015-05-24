@@ -41,16 +41,22 @@ class WorkloadPool {
     // store all matached files
     std::regex pattern;
     try {
-      pattern = std::regex(files);
+      std::string file = pos == std::string::npos ? files : files.substr(pos+1);
+      file = ".*" + file;
+      LOG(INFO) << "match files by: " << file;
+      pattern = std::regex(".*"+file);
     } catch (const std::regex_error& e) {
       LOG(FATAL) << files << " is not valid regex, or unsupported regex"
                  << ". you may try gcc>=4.9 or llvm>=3.4";
     }
+
+    LOG(INFO) << "found " << info.size() << " files";
     for (size_t i = 0; i < info.size(); ++i) {
       std::string file = info[i].path.str();
-      if (!std::regex_match(file, pattern)) continue;
-
-      LOG(INFO) << "found file: " << file;
+      if (!std::regex_match(file, pattern)) {
+        continue;
+      }
+      LOG(INFO) << "matched file: " << file;
       for (int j = 0; j < npart; ++j) {
         File f;
         f.set_file(file);

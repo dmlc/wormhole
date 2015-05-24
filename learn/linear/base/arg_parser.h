@@ -40,7 +40,7 @@ class ArgParser {
     }
     if (!args_.empty()) {
       CHECK(google::protobuf::TextFormat::MergeFromString(
-          ReplaceStr(args_), proto));
+          ReplaceStr(args_), proto)) << ReplaceStr(args_);
     }
   }
  private:

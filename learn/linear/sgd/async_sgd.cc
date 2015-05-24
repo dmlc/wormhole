@@ -7,9 +7,12 @@ App* App::Create(int argc, char *argv[]) {
   using namespace dmlc::linear;
   CHECK_GE(argc, 2);
   ArgParser parser;
-  parser.ReadFile(argv[1]);
+  if (strcmp(argv[1], "none")) {
+    parser.ReadFile(argv[1]);
+  }
   parser.ReadArgs(argc-2, argv+2);
   linear::Config conf; parser.ParseToProto(&conf);
+  LL << conf.ShortDebugString();
 
   if (IsWorkerNode()) {
     return new AsyncSGDWorker(conf);
