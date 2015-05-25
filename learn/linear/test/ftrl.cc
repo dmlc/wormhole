@@ -22,8 +22,8 @@ class LocalServer {
   LocalServer(const Config& conf) : conf_(conf) {
     if (conf_.has_lr_eta()) handle_.alpha = conf_.lr_eta();
     if (conf_.has_lr_beta()) handle_.beta = conf_.lr_beta();
-    if (conf_.lambda_size() > 0) handle_.lambda1 = conf_.lambda(0);
-    if (conf_.lambda_size() > 1) handle_.lambda2 = conf_.lambda(1);
+    if (conf_.lambda_size() > 0) handle_.penalty.set_lambda1(conf_.lambda(0));
+    if (conf_.lambda_size() > 1) handle_.penalty.set_lambda2(conf_.lambda(1));
     handle_.tracker = &tracker;
   }
 

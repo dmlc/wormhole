@@ -3,7 +3,7 @@
 
 int main(int argc, char *argv[]) {
   if (argc < 6) {
-    printf("Usage: <libsvm> partid npart format minibatch\n");
+    printf("Usage: data partid npart format minibatch\n");
     return 0;
   }
 

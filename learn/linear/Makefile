@@ -58,11 +58,13 @@ build/text2rec_criteo: build/proto/criteo.pb.o build/tool/text2rec_criteo.o
 build/print_crite_rec: build/proto/criteo.pb.o build/tool/print_criteo_rec.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-build/%: build/test/%.o
+# build/minibatch_iter_test:
+
+build/%: build/test/%.o build/proto/criteo.pb.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 -include build/*/*.d
 -include build/*/*/*.d
 
-build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/test/ftrl.o
+build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/test/ftrl.o build/proto/criteo.pb.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
