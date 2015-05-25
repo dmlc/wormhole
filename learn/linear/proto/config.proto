@@ -48,15 +48,20 @@ message Config {
     ADAGRAD = 2;  // adaptive gradient descent
     FTRL = 3;
 
-    // delay tolerant
-    DT_SGD = 10;
-
     // batch methdos
     LBFGS = 4;
 
     // stochastic (block) coordinate descent
     DARLIN = 5;
 
+    // delay tolerant, experimental
+    DT_SGD = 10;
+    DT_ADAGRAD = 11;
+    DT_FTRL = 12;
+
+    DT2_SGD = 20;
+    DT2_ADAGRAD = 21;
+    DT2_FTRL = 22;
   }
   optional Algo algo = 30 [default = FTRL];
 
@@ -104,6 +109,7 @@ message Config {
 
   /// debug options
   optional bool test_io = 80 [default = false];
+  optional float rnd_delay = 81 [default = 0];
 }
 
 // message Darlin {

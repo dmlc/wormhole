@@ -7,7 +7,7 @@
 #include "data/row_block.h"
 #include "data/parser.h"
 #include "data/strtonum.h"
-#include "proto/criteo.pb.h"
+#include "proto/data_format.pb.h"
 #include "dmlc/recordio.h"
 namespace dmlc {
 namespace data {

@@ -48,23 +48,21 @@ clean_ps:
 
 
 
-build/async_sgd: build/proto/config.pb.o build/proto/workload.pb.o build/proto/criteo.pb.o \
+build/async_sgd: build/proto/config.pb.o build/proto/workload.pb.o build/proto/data_format.pb.o \
 build/sgd/async_sgd.o
 	$(CXX) $(CFLAGS) $(filter %.o %.a, $^) $(PS_PATH)/build/libps.a $(LDFLAGS) -o $@
 
-tool: build/text2rec_criteo build/print_crite_rec
-build/text2rec_criteo: build/proto/criteo.pb.o build/tool/text2rec_criteo.o
-	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
-build/print_crite_rec: build/proto/criteo.pb.o build/tool/print_criteo_rec.o
-	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+tool: build/text2rec build/print_rec
 
 # build/minibatch_iter_test:
+build/%: build/tool/%.o build/proto/data_format.pb.o
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-build/%: build/test/%.o build/proto/criteo.pb.o
+build/%: build/test/%.o build/proto/data_format.pb.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 -include build/*/*.d
 -include build/*/*/*.d
 
-build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/test/ftrl.o build/proto/criteo.pb.o
+build/ftrl: build/proto/config.pb.o build/proto/sys.pb.o build/test/ftrl.o build/proto/data_format.pb.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@

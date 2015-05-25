@@ -33,7 +33,7 @@ wormhole_path=~/wormhole
 
 for i in {0..23}; do
     curl http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_${i}.gz | \
-        gzip -d | ${wormhole_path}/learn/linear/build/text2rec_criteo stdin stdout | \
+        gzip -d | ${wormhole_path}/learn/linear/build/text2rec stdin stdout criteo | \
         ${s3cmd_path}/s3cmd put - ${s3_path}/day_${i}
 done
 ```
