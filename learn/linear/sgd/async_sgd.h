@@ -177,20 +177,37 @@ class AsyncSGDServer : public ps::App {
   }
 
  private:
-  void Init() {
-    auto algo = conf_.algo();
+  template <typename Handle>
+  void InitHandle(Handle* h) {
+    // penalty
     L1L2<Real> l1l2;
     if (conf_.lambda_size() > 0) l1l2.set_lambda1(conf_.lambda(0));
     if (conf_.lambda_size() > 1) l1l2.set_lambda2(conf_.lambda(1));
+    h->penalty = l1l2;
 
-    if (algo == Config::FTRL) {
+    // lr
+    if (conf_.has_lr_eta()) h->alpha = conf_.lr_eta();
+    if (conf_.has_lr_beta()) h->beta = conf_.lr_beta();
+
+    h->tracker = &monitor_;
+  }
+
+  void Init() {
+    auto algo = conf_.algo();
+
+    if (algo == Config::SGD) {
+      ps::KVServer<Real, SGDHandle<FeaID, Real>, 1> sgd;
+      InitHandle(&sgd.handle());
+      model_ = sgd.Run();
+    } else if (algo == Config::ADAGRAD) {
+      ps::KVServer<Real, AdaGradHandle<FeaID, Real>, 2> adagrad;
+      adagrad.set_sync_val_len(1);
+      InitHandle(&adagrad.handle());
+      model_ = adagrad.Run();
+    } else if (algo == Config::FTRL) {
       ps::KVServer<Real, FTRLHandle<FeaID, Real>, 3> ftrl;
       ftrl.set_sync_val_len(1);
-      auto& updt = ftrl.handle();
-      if (conf_.has_lr_eta()) updt.alpha = conf_.lr_eta();
-      if (conf_.has_lr_beta()) updt.beta = conf_.lr_beta();
-      updt.penalty = l1l2;
-      updt.tracker = &monitor_;
+      InitHandle(&ftrl.handle());
       model_ = ftrl.Run();
     } else {
       LOG(FATAL) << "unknown algo: " << algo;

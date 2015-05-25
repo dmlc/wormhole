@@ -25,6 +25,8 @@ class L1L2 {
    * \f$ \argmin_x 0.5 * \beta * (x - z / \beta )^2 + h(x)\f$
    * where h denotes this penatly.
    *
+   * No virtual function for performance consideration.
+   *
    * \param z In proximal gradient descent, we have z = eta * w - grad
    * \param eta an estimation of the second order gradient, or the inverse of
    * the learning rate. It is often
