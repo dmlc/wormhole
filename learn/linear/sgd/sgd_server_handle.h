@@ -4,14 +4,19 @@
  */
 #include "base/monitor.h"
 #include "ps/blob.h"
+#include "base/penalty.h"
 namespace dmlc {
 namespace linear {
+
+
 
 /**
  * \brief FTRL updater
  *
- * my_val is a length-3 vector, 0: weight, 1: z, 2: square rooted cumulatived
- * gradient
+ * my_val is a length-3 vector,
+ * val[0]: weight
+ * val[1]: z, the smoothed version of - eta * w + grad
+ * val[2]: sqrt(sum_t grad_t^2)
  */
 template <typename K, typename V>
 struct FTRLHandle {
@@ -33,13 +38,7 @@ struct FTRLHandle {
     val[1] += grad  - sigma * w;
 
     // update w
-    V z = val[1];
-    if (z <= lambda1 && z >= -lambda1) {
-      val[0] = 0;
-    } else {
-      val[0] = - (z - (z > 0 ? 1 : -1) * lambda1) /
-               ((beta + val[2]) / alpha + lambda2);
-    }
+    val[0] = penalty.Solve(-val[1], (beta + val[2]) / alpha);
 
     // update monitor
     DCHECK(tracker);
@@ -67,52 +66,14 @@ struct FTRLHandle {
   V alpha = 0.1, beta = 1;
 
   // penalty, lambda1 * |w|_1 + lambda2 * ||w||_2^2
-  V lambda1 = 1, lambda2 = .1;
+  L1L2<V> penalty;
 
   ModelMonitor* tracker = nullptr;
 
   // empty funcs
   inline void SetCaller(void *obj) { }
-  inline void Start(bool push, int timestamp, const std::string& worker) { }
+  inline void Start(bool push, int timestamp, void* msg) { }
 
 };
 }  // namespace linear
 }  // namespace dmlc
-
-// /**
-//  * @brief Track the progress
-//  */
-// struct OnlineModelTracker {
-//  public:
-//   inline void Send() {
-//   //   if (!reporter) return;
-//   //   reporter->Report(prog);
-//   //   prog.fvec[3] = 0;
-//   //   prog.fvec[4] = 0;
-//   }
-//   // ivec[1] : nnz(w), fvec[3] : |w|^2_2, fvec[4] : |delta_w|^2_2
-//   template<typename V>
-//   inline void Update(V cur, V old) {
-//     if (cur == 0) {
-//       if (old == 0) {
-//         return;
-//       } else {
-//         -- prog.ivec[1];
-//         prog.fvec[4] += old * old;
-//       }
-//     } else {
-//       V cc = cur * cur;
-//       prog.fvec[3] += cc;
-//       if (old == 0) {
-//         ++ prog.ivec[1];
-//         prog.fvec[4] += cc;
-//       } else {
-//         V delta = cur - old;
-//         prog.fvec[4] += delta * delta;
-//       }
-//     }
-//   }
-
-//   Progress prog;
-//   // MonitorSlaver<Progress>* reporter = nullptr;
-// };

@@ -179,14 +179,17 @@ class AsyncSGDServer : public ps::App {
  private:
   void Init() {
     auto algo = conf_.algo();
+    L1L2<Real> l1l2;
+    if (conf_.lambda_size() > 0) l1l2.set_lambda1(conf_.lambda(0));
+    if (conf_.lambda_size() > 1) l1l2.set_lambda2(conf_.lambda(1));
+
     if (algo == Config::FTRL) {
       ps::KVServer<Real, FTRLHandle<FeaID, Real>, 3> ftrl;
       ftrl.set_sync_val_len(1);
       auto& updt = ftrl.handle();
       if (conf_.has_lr_eta()) updt.alpha = conf_.lr_eta();
       if (conf_.has_lr_beta()) updt.beta = conf_.lr_beta();
-      if (conf_.lambda_size() > 0) updt.lambda1 = conf_.lambda(0);
-      if (conf_.lambda_size() > 1) updt.lambda2 = conf_.lambda(1);
+      updt.penalty = l1l2;
       updt.tracker = &monitor_;
       model_ = ftrl.Run();
     } else {
