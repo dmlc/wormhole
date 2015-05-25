@@ -2,8 +2,9 @@
  * @file   sgd_server_handle.h
  * @brief  server handles for sgd.
  *
- * No class inheritance and virtual function for better performance
+ * No virtual function for better performance
  */
+#pragma once
 #include "base/monitor.h"
 #include "base/penalty.h"
 #include "ps/blob.h"
@@ -11,11 +12,34 @@ namespace dmlc {
 namespace linear {
 
 /**
- * \brief The basic SGD handle.
+ * \brief the base handle class
+ */
+template <typename K, typename V>
+struct ISGDHandle {
+ public:
+  inline void Pull(ps::Blob<const K> recv_key,
+                   ps::Blob<const V> my_val,
+                   ps::Blob<V> send_val) {
+    send_val[0] = my_val[0];
+  }
+
+  inline void Start(bool push, int timestamp, void* msg) { }
+  inline void Finish() { tracker->Report(); }
+  inline void SetCaller(void *obj) { }
+
+  ModelMonitor* tracker = nullptr;
+  L1L2<V> penalty;
+
+  // learning rate
+  V alpha = 0.1, beta = 1;
+};
+
+/**
+ * \brief The standard SGD handle.
  * use alpha / ( beta + sqrt(t)) as the learning rate
  */
 template <typename K, typename V>
-struct SGDHandle {
+struct SGDHandle : public ISGDHandle<K,V> {
  public:
   template <typename T> using Blob = ps::Blob<T>;
 
@@ -25,34 +49,19 @@ struct SGDHandle {
 
   inline void Start(bool push, int timestamp, void* msg) {
     if (push) {
+      eta = (this->beta + sqrt(t)) / this->alpha;
       t += 1;
-      eta = (beta + sqrt(t)) / alpha;
     }
   }
 
   inline void Push(
       Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
-    my_val[0] = penalty.Solve(eta * my_val[0] - recv_val[0], eta);
+    my_val[0] = this->penalty.Solve(eta * my_val[0] - recv_val[0], eta);
   }
 
-  inline void Pull(
-      Blob<const K> recv_key, Blob<const V> my_val, Blob<V> send_val) {
-    send_val[0] = my_val[0];
-  }
-
-
-  inline void Finish() { tracker->Report(); }
-
-  ModelMonitor* tracker = nullptr;
-  L1L2<V> penalty;
-  // learning rate
-  V alpha = 0.1, beta = 1;
   // iteration count
-  V t = 0;
+  V t = 1;
   V eta = 0;
-
-  // empty funcs
-  inline void SetCaller(void *obj) { }
 };
 
 
@@ -65,7 +74,7 @@ struct SGDHandle {
  * val[1]: sqrt(sum_t grad_t^2)
  */
 template <typename K, typename V>
-struct AdaGradHandle {
+struct AdaGradHandle : public ISGDHandle<K, V>{
   template <typename T> using Blob = ps::Blob<T>;
 
   inline void Init(Blob<const K> key, Blob<V> val) {
@@ -77,27 +86,13 @@ struct AdaGradHandle {
       Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
     V grad = recv_val[0];
     V* val = my_val.data;
-    V sqrt_n = val[2];
-    val[2] = sqrt(sqrt_n * sqrt_n + grad * grad);
-    V eta = (val[2] + beta) / alpha;
-    my_val[0] = penalty.Solve(eta * my_val[0] - grad, eta);
+    V sqrt_n = val[1];
+    val[1] = sqrt(sqrt_n * sqrt_n + grad * grad);
+    V eta = (val[1] + this->beta) / this->alpha;
+    V w = my_val[0];
+    my_val[0] = this->penalty.Solve(eta * w - grad, eta);
+    this->tracker->Update(my_val[0], w);
   }
-
-  inline void Pull(
-      Blob<const K> recv_key, Blob<const V> my_val, Blob<V> send_val) {
-    send_val[0] = my_val[0];
-  }
-
-  inline void Finish() { tracker->Report(); }
-
-  ModelMonitor* tracker = nullptr;
-  L1L2<V> penalty;
-  // learning rate
-  V alpha = 0.1, beta = 1;
-
-  // empty funcs
-  inline void Start(bool push, int timestamp, void* msg) { }
-  inline void SetCaller(void *obj) { }
 };
 
 
@@ -110,7 +105,7 @@ struct AdaGradHandle {
  * val[2]: sqrt(sum_t grad_t^2)
  */
 template <typename K, typename V>
-struct FTRLHandle {
+struct FTRLHandle : public ISGDHandle<K, V> {
  public:
   template <typename T> using Blob = ps::Blob<T>;
 
@@ -131,39 +126,15 @@ struct FTRLHandle {
 
     // update z
     V w = val[0];
-    V sigma = (val[2] - sqrt_n) / alpha;
+    V sigma = (val[2] - sqrt_n) / this->alpha;
     val[1] += grad  - sigma * w;
 
     // update w
-    val[0] = penalty.Solve(-val[1], (beta + val[2]) / alpha);
+    val[0] = this->penalty.Solve(-val[1], (this->beta + val[2]) / this->alpha);
 
     // update monitor
-    DCHECK(tracker);
-    tracker->Update(val[0], w);
+    this->tracker->Update(val[0], w);
   }
-
-  inline void Pull(
-      Blob<const K> recv_key, Blob<const V> my_val, Blob<V> send_val) {
-    send_val[0] = my_val[0];
-  }
-
-  inline void Finish() {
-    // LOG(ERROR) << tracker->prog.PrintStr();
-    tracker->Report();
-  }
-
-
-  // learning rate
-  V alpha = 0.1, beta = 1;
-
-  L1L2<V> penalty;
-
-  ModelMonitor* tracker = nullptr;
-
-  // empty funcs
-  inline void SetCaller(void *obj) { }
-  inline void Start(bool push, int timestamp, void* msg) { }
-
 };
 }  // namespace linear
 }  // namespace dmlc

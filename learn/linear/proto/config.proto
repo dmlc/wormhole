@@ -48,11 +48,15 @@ message Config {
     ADAGRAD = 2;  // adaptive gradient descent
     FTRL = 3;
 
+    // delay tolerant
+    DT_SGD = 10;
+
     // batch methdos
     LBFGS = 4;
 
     // stochastic (block) coordinate descent
     DARLIN = 5;
+
   }
   optional Algo algo = 30 [default = FTRL];
 

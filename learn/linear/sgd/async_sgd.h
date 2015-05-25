@@ -10,6 +10,7 @@
 #include "base/localizer.h"
 #include "base/loss.h"
 #include "sgd/sgd_server_handle.h"
+#include "sgd/delay_tol_handle.h"
 #include "base/dist_monitor.h"
 #include "base/workload_pool.h"
 
@@ -179,13 +180,11 @@ class AsyncSGDServer : public ps::App {
  private:
   template <typename Handle>
   void InitHandle(Handle* h) {
-    // penalty
     L1L2<Real> l1l2;
     if (conf_.lambda_size() > 0) l1l2.set_lambda1(conf_.lambda(0));
     if (conf_.lambda_size() > 1) l1l2.set_lambda2(conf_.lambda(1));
     h->penalty = l1l2;
 
-    // lr
     if (conf_.has_lr_eta()) h->alpha = conf_.lr_eta();
     if (conf_.has_lr_beta()) h->beta = conf_.lr_beta();
 
@@ -194,7 +193,6 @@ class AsyncSGDServer : public ps::App {
 
   void Init() {
     auto algo = conf_.algo();
-
     if (algo == Config::SGD) {
       ps::KVServer<Real, SGDHandle<FeaID, Real>, 1> sgd;
       InitHandle(&sgd.handle());
@@ -209,6 +207,10 @@ class AsyncSGDServer : public ps::App {
       ftrl.set_sync_val_len(1);
       InitHandle(&ftrl.handle());
       model_ = ftrl.Run();
+    } else if (algo == Config::DT_SGD) {
+      ps::KVServer<Real, DTSGDHandle<FeaID, Real>, 1> sgd;
+      InitHandle(&sgd.handle());
+      model_ = sgd.Run();
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }
