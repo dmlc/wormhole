@@ -224,7 +224,11 @@ class AsyncSGDServer : public ps::App {
  **************************************************************************/
 class AsyncSGDScheduler : public ps::App {
  public:
-  AsyncSGDScheduler(const Config& conf) : conf_(conf) { }
+  AsyncSGDScheduler(const Config& conf) : conf_(conf) {
+    sys_.manager().AddNodeFailureHandler([this](const std::string& id) {
+        pool_.Reset(id);
+      });
+  }
   virtual ~AsyncSGDScheduler() { }
 
   virtual void ProcessResponse(ps::Message* response) {
@@ -301,6 +305,7 @@ class AsyncSGDScheduler : public ps::App {
       ps::Task task; task.set_cmd(kSaveModel);
       Wait(Submit(task, ps::kServerGroup));
     }
+    LOG(INFO) << "async_sgd done";
   }
 
  private:

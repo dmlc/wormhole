@@ -56,6 +56,7 @@ V Evaluation::AUC(const V* const label, const V* const predict, size_t n) {
       area += cum_tp;
     }
   }
+  if (cum_tp == 0 || cum_tp == n) return 1;
   area /= cum_tp * (n - cum_tp);
   return area < 0.5 ? 1 - area : area;
 }
