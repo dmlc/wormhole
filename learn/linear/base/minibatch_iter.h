@@ -10,6 +10,7 @@
 #include "data/parser.h"
 #include "data/libsvm_parser.h"
 #include "base/adfea_parser.h"
+#include "base/adfea_rec_parser.h"
 #include "base/criteo_parser.h"
 #include "base/criteo_rec_parser.h"
 #include "base/utils.h"
@@ -37,6 +38,9 @@ class MinibatchIter {
     } else if (!strcmp(type, "criteo")) {
       parser_ = new CriteoParser<IndexType>(
           InputSplit::Create(uri, part_index, num_parts, "text"));
+    } else if (!strcmp(type, "adfea_rec")) {
+      parser_ = new AdfeaRecParser<IndexType>(
+          InputSplit::Create(uri, part_index, num_parts, "recordio"));
     } else if (!strcmp(type, "adfea")) {
       parser_ = new AdfeaParser<IndexType>(
           InputSplit::Create(uri, part_index, num_parts, "text"));

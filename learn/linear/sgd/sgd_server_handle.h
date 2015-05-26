@@ -49,7 +49,7 @@ struct SGDHandle : public ISGDHandle<K,V> {
 
   inline void Start(bool push, int timestamp, void* msg) {
     if (push) {
-      eta = (this->beta + sqrt(t)) / this->alpha;
+      eta = (this->beta + sqrt((V)t)) / this->alpha;
       t += 1;
     }
   }
@@ -60,7 +60,7 @@ struct SGDHandle : public ISGDHandle<K,V> {
   }
 
   // iteration count
-  V t = 1;
+  int t = 1;
   V eta = 0;
 };
 

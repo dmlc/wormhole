@@ -75,28 +75,30 @@ message Config {
   optional float disp_itv = 33 [default = 1];
 
   // convergance critiria. stop if the relative objective <= epsilon
-  optional double epsilon = 34 [default = 1e-4];
+  optional float epsilon = 34 [default = 1e-4];
 
-  // learning rate
-  enum LearningRate {
-    CONSTANT = 1; // = lr_eta
-    DECAY = 2;    // = lr_eta / (lr_beta + x), where x is user-defined, such as
-                  // sqrt(iter), or the cumulative gradient on adagrad
-  }
-  optional LearningRate lr = 40;
+  // stop training if the current objective value >= max_objv. often used in
+  // searching hyper-parameters
+  optional float max_objv = 35;
+
+  // learning rate, often in the format lr_eta / (lr_beta + x), where x is
+  // user-defined, such as sqrt(iter), or the cumulative gradient on adagrad
   optional float lr_eta = 41;
   optional float lr_beta = 42;
 
   ///
   /// to reduce sync cost
   ///
-
   // maximal allowed delay during synchronization
   optional int32 max_delay = 50 [default = 0];
 
   // features which occurs <= *tail_feature_freq* will be filtered. it save both
   // memory and bandwidth.
   optional int32 tail_feature_freq = 51 [default = 0];
+
+  /// debug options
+}
+
 
   // filters to reduce communication costs
   // repeated ps.FilterConfig push_filter = 42;
@@ -106,11 +108,6 @@ message Config {
   // method specific options
   //
   // optional Darlin darlin = 100;
-
-  /// debug options
-  optional bool test_io = 80 [default = false];
-  optional float rnd_delay = 81 [default = 0];
-}
 
 // message Darlin {
 //   // Divide a feature group into feature_block_ratio x nnz_feature_per_example

@@ -32,7 +32,6 @@ static const int kSaveModel = 2;
  * \brief A worker node, which takes a part of training data and calculate the
  * gradients
  *****************************************************************************/
-
 class AsyncSGDWorker : public ps::App {
  public:
   AsyncSGDWorker(const Config& conf) : conf_(conf), reporter_(conf_.disp_itv()) { }
@@ -71,13 +70,6 @@ class AsyncSGDWorker : public ps::App {
       using std::vector;
       using std::shared_ptr;
       using Minibatch = dmlc::data::RowBlockContainer<unsigned>;
-
-      // used for debug IO performance
-      if (conf_.test_io()) {
-        monitor_.prog.num_ex() += reader.Value().size;
-        reporter_.Report(0, &monitor_.prog);
-        continue;
-      }
 
       // find all feature id in this minibatch, and convert it to a more compact format
       auto global = reader.Value();
@@ -129,7 +121,7 @@ class AsyncSGDWorker : public ps::App {
       std::unique_lock<std::mutex> lk(mb_mu_);
       ++ num_mb_fly_;
       mb_cond_.wait(lk, [this, max_delay] {return max_delay >= num_mb_fly_;});
-      LOG(INFO) << num_mb_fly_;
+      LOG(INFO) << "#minibatches on processing: " << num_mb_fly_;
     }
 
     // wait untill all are done
@@ -146,6 +138,7 @@ class AsyncSGDWorker : public ps::App {
     mb_mu_.unlock();
     mb_cond_.notify_one();
   }
+
   Config conf_;
   ps::KVWorker<Real> server_;
   WorkerMonitor monitor_;
@@ -211,6 +204,11 @@ class AsyncSGDServer : public ps::App {
       ps::KVServer<Real, DTSGDHandle<FeaID, Real>, 1> sgd;
       InitHandle(&sgd.handle());
       model_ = sgd.Run();
+    } else if (algo == Config::DT_ADAGRAD) {
+      ps::KVServer<Real, DTAdaGradHandle<FeaID, Real>, 2> adagrad;
+      adagrad.set_sync_val_len(1);
+      InitHandle(&adagrad.handle());
+      model_ = adagrad.Run();
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }
@@ -253,6 +251,7 @@ class AsyncSGDScheduler : public ps::App {
     double t = GetTime();
     size_t num_ex = 0;
     int64_t nnz_w = 0;
+    bool exit = false;
     for (int i = 0; i < conf_.max_data_pass(); ++i) {
       printf("training #iter = %d\n", i);
       // train
@@ -272,6 +271,15 @@ class AsyncSGDScheduler : public ps::App {
         printf("%7.0lf  %10.5g  %8ld  %9ld  %s\n",
                GetTime() - t, (double)num_ex, prog.num_ex(), nnz_w,
                prog.PrintStr().c_str());
+        if (conf_.has_max_objv() && prog.objv()/prog.num_ex() > conf_.max_objv()) {
+          pool_.ClearRemain();
+          exit = true;
+        }
+      }
+      if (exit) {
+        printf("current objv > the max allowed value %g. stop training.\n",
+               conf_.max_objv());
+        break;
       }
 
       // val
@@ -288,10 +296,13 @@ class AsyncSGDScheduler : public ps::App {
       prog_.Clear();
     }
 
-    printf("saving model\n");
-    ps::Task task; task.set_cmd(kSaveModel);
-    Wait(Submit(task, ps::kServerGroup));
+    if (conf_.has_model_out() && !exit) {
+      printf("saving model to %s\n", conf_.model_out().c_str());;
+      ps::Task task; task.set_cmd(kSaveModel);
+      Wait(Submit(task, ps::kServerGroup));
+    }
   }
+
  private:
   void SendWorkload(const std::string id, const Workload& wl) {
     std::string wl_str; wl.SerializeToString(&wl_str);

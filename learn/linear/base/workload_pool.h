@@ -77,6 +77,11 @@ class WorkloadPool {
     num_ = 0;
   }
 
+  void ClearRemain() {
+    std::lock_guard<std::mutex> lk(mu_);
+    remain_.clear();
+  }
+
   // get one to id when nconsumer == 0
   // divide the workload into nconsumer part, give one to id
   void Get(const std::string& id, Workload* wl) {
@@ -116,11 +121,13 @@ class WorkloadPool {
         }
         it = assigned_.erase(it);
 
+        std::string nd;
         int k = 0;
         for (const auto& it2 : assigned_) {
           if (++k > 5) break;
-          LOG(INFO) << assigned_.size() << " remain " << it2.first;
+          nd += ", " + it2.first;
         }
+        LOG(INFO) << assigned_.size() << " files are on processing by " << nd << "...";
       } else {
         ++ it;
       }
