@@ -56,7 +56,9 @@ struct SGDHandle : public ISGDHandle<K,V> {
 
   inline void Push(
       Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
-    my_val[0] = this->penalty.Solve(eta * my_val[0] - recv_val[0], eta);
+    V w = my_val[0];
+    my_val[0] = this->penalty.Solve(eta * w - recv_val[0], eta);
+    this->tracker->Update(my_val[0], w);
   }
 
   // iteration count

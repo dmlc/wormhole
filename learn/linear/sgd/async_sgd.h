@@ -271,7 +271,7 @@ class AsyncSGDScheduler : public ps::App {
       pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
       Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
-      printf("time(sec)  #example  delta #ex    |w|_1   %s\n", prog_.HeadStr().c_str());
+      printf("time(sec)  #example  delta #ex    |w|_0   %s\n", prog_.HeadStr().c_str());
       sleep(1);
       while (!pool_.IsFinished()) {
         sleep((int) conf_.disp_itv());
