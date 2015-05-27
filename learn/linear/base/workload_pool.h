@@ -13,11 +13,21 @@ namespace linear {
  */
 class WorkloadPool {
  public:
-  WorkloadPool() { }
-  ~WorkloadPool() { }
+  WorkloadPool() {
+    straggler_killer_ = new std::thread([this]() {
+        while (!IsFinished()) {
+          RemoveStraggler();
+          sleep(1);
+        }
+      });
+  }
+  ~WorkloadPool() {
+    straggler_killer_->join();
+    delete straggler_killer_;
+  }
 
   /**
-   * @brief init the workload
+   * @brief add the workload
    *
    * @param files s3://my_path/part-.*
    * @param npart divide one file into npart
@@ -112,12 +122,15 @@ class WorkloadPool {
     std::lock_guard<std::mutex> lk(mu_);
     auto it = assigned_.begin();
     while (it != assigned_.end()) {
-      if (it->first == id) {
+      if (it->node == id) {
         if (!del) {
-          LOG(INFO) << id << " failed to finish workload " << it->second.ShortDebugString();
-          remain_.push_front(it->second);
+          LOG(INFO) << id << " failed to finish workload " << it->file.ShortDebugString();
+          remain_.push_front(it->file);
         } else {
-          LOG(INFO) << id << " finished " << it->second.ShortDebugString();
+          double time = GetTime() - it->start_time;
+          LOG(INFO) << id << " finished " << it->file.ShortDebugString()
+                    << " in " << time << " sec.";
+          time_.push_back(time);
         }
         it = assigned_.erase(it);
 
@@ -125,32 +138,67 @@ class WorkloadPool {
         int k = 0;
         for (const auto& it2 : assigned_) {
           if (++k > 5) break;
-          nd += ", " + it2.first;
+          nd += ", " + it2.node;
         }
         LOG(INFO) << assigned_.size() << " files are on processing by " << nd << "...";
       } else {
         ++ it;
       }
     }
-
   }
 
   void GetOne(const std::string& id, Workload* wl) {
     if (remain_.empty()) return;
     wl->add_file()->CopyFrom(remain_.front());
     wl->set_type(type_);
-    assigned_.push_back(std::make_pair(id, remain_.front()));
+    ActiveTask task;
+    task.node = id;
+    task.file = remain_.front();
+    task.start_time = GetTime();
+    assigned_.push_back(task);
     LOG(INFO) << "assign " << id << " workload "
               << remain_.front().ShortDebugString();
     remain_.pop_front();
   }
 
+  void RemoveStraggler() {
+    std::lock_guard<std::mutex> lk(mu_);
+    if (time_.size() < 10); return;
+    double mean = 0;
+    for (double t : time_) mean += t;
+    mean /= time_.size();
+    double cur_t = GetTime();
+    auto it = assigned_.begin();
+    while (it != assigned_.end()) {
+      double t = cur_t - it->start_time;
+      if (t > mean * 3) {
+        LOG(INFO) << it->node << " is processing "
+                  << it->file.ShortDebugString() << " for " << t
+                  << " sec, which is much longer than the average time "
+                  << mean << " sec. reassign this workload to other nodes";
+        remain_.push_front(it->file);
+        it = assigned_.erase(it);
+      } else {
+        ++ it;
+      }
+    }
+  }
+
   Workload::Type type_;
   int num_;
-  // std::vector<File> files_;
+
   std::list<File> remain_;
-  std::list<std::pair<std::string, File>> assigned_;
+  struct ActiveTask {
+    std::string node;
+    File file;
+    double start_time;
+  };
+  std::list<ActiveTask> assigned_;
+
+  // process time
+  std::vector<double> time_;
   std::mutex mu_;
+  std::thread* straggler_killer_;
 };
 
 }  // namespace linear
