@@ -253,11 +253,11 @@ class AsyncSGDScheduler : public ps::App {
     }
   }
 
-  virtual void Run() {
+  virtual bool Run() {
     printf("waiting %d workers and %d servers are connected\n",
            ps::NumWorkers(), ps::NumServers());
     // wait nodes are ready
-    ps::App::Run();
+    if (!ps::App::Run()) return false;
 
     CHECK(conf_.has_train_data());
     double t = GetTime();
@@ -313,7 +313,8 @@ class AsyncSGDScheduler : public ps::App {
       ps::Task task; task.set_cmd(kSaveModel);
       Wait(Submit(task, ps::kServerGroup));
     }
-    LOG(INFO) << "async_sgd done";
+    printf("async_sgd done\n");
+    return true;
   }
 
  private:
