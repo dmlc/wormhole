@@ -217,6 +217,11 @@ class AsyncSGDServer : public ps::App {
       adagrad.set_sync_val_len(1);
       InitHandle(&adagrad.handle());
       model_ = adagrad.Run();
+    } else if (algo == Config::DT2_ADAGRAD) {
+      ps::KVServer<Real, DTAdaGradHandle2<FeaID, Real>, 3> adagrad;
+      adagrad.set_sync_val_len(1);
+      InitHandle(&adagrad.handle());
+      model_ = adagrad.Run();
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }

@@ -10,6 +10,7 @@
 #include "filter/filter.h"
 #include "sgd/sgd_server_handle.h"
 #include <city.h>
+#include "base/utils.h"
 namespace dmlc {
 namespace linear {
 
@@ -27,6 +28,82 @@ inline uint64_t Signature(ps::Message* msg) {
 }
 
 /// Version 1, use grad^bak
+
+template <typename K, typename V>
+class GradDelay {
+ public:
+  V& NextGrad() {
+    CHECK_LT(cur_i_, cur_grad_->size());
+    return (*cur_grad_)[cur_i_ ++];
+  }
+
+  void Init(bool push, ps::Message* msg) {
+    push_ = push;
+    auto sig = std::make_pair(msg->sender, Signature(msg));
+    size_t len = msg->key.size() / sizeof(K);
+    cur_grad_ = &grads_[sig];
+    cur_i_ = 0;
+    if (push) {
+      CHECK_EQ(cur_grad_->size(), len);
+    } else {
+      cur_grad_->resize(len);
+    }
+  }
+
+  void Done() {
+    if (push_) cur_grad_->clear();
+  }
+ private:
+  size_t cur_i_ = 0;
+  std::vector<V>* cur_grad_ = NULL;
+
+  bool push_ = false;
+  // store delayed gradient
+  std::map<std::pair<std::string, uint64_t>, std::vector<V>> grads_;
+};
+
+template <typename K, typename V>
+struct DTAdaGradHandle2 : public AdaGradHandle<K, V> {
+  inline void Start(bool push, int timestamp, void* msg) {
+    delay.Init(push, (Message*) msg);
+  }
+
+  inline void Finish() {
+    this->tracker->Report();
+    delay.Done();
+  }
+
+  inline void Init(ps::Blob<const K> key, ps::Blob<V> val) {
+    val[0] = 0;
+    val[1] = 0;
+    val[2] = 0;
+  }
+
+  inline void Push(
+      ps::Blob<const K> recv_key, ps::Blob<const V> recv_val, ps::Blob<V> my_val) {
+    V grad = recv_val[0];
+    V* val = my_val.data;
+    V sqrt_n = val[1];
+    V delta = grad * grad + 2 * grad * (val[2] - delay.NextGrad());
+    if (delta > 0) {
+      val[1] = sqrt(sqrt_n * sqrt_n + delta);
+    }
+    val[2] += grad;
+    V eta = (val[1] + this->beta) / this->alpha;
+    V w = val[0];
+    val[0] = this->penalty.Solve(eta * w - grad, eta);
+    this->tracker->Update(val[0], w);
+  }
+
+  inline void Pull(ps::Blob<const K> recv_key,
+                   ps::Blob<const V> my_val,
+                   ps::Blob<V> send_val) {
+    send_val[0] = my_val[0];
+    delay.NextGrad() = my_val[2];
+  }
+
+  GradDelay<K,V> delay;
+};
 
 /// Version 2, use sqrt(t + tau(t)) in learning rate
 
