@@ -9,6 +9,7 @@
 #include "system/message.h"
 #include "filter/filter.h"
 #include "sgd/sgd_server_handle.h"
+#include <city.h>
 namespace dmlc {
 namespace linear {
 
@@ -16,14 +17,16 @@ using ps::Message;
 
 // find the signature of the keys list
 inline uint64_t Signature(ps::Message* msg) {
-  ps::Filter* f = CHECK_NOTNULL(
-      ps::IFilter::Find(ps::Filter::KEY_CACHING, msg));
-  CHECK(f->has_signature());
-  return f->signature();
+  ps::Filter* f = ps::IFilter::Find(ps::Filter::KEY_CACHING, msg);
+  if (f) {
+    CHECK(f->has_signature());
+    return f->signature();
+  } else {
+    return CityHash64(msg->key.data(), msg->key.size());
+  }
 }
 
 /// Version 1, use grad^bak
-
 
 /// Version 2, use sqrt(t + tau(t)) in learning rate
 
@@ -38,7 +41,7 @@ class TimeDelay {
     auto sig = std::make_pair(msg->sender, Signature(msg));
     auto it = vc_.find(sig);
     CHECK(it != vc_.end()) << sig.first << ", " << sig.second;
-    vc_.erase(it);
+    // vc_.erase(it);
     return it->second;
   }
  private:
@@ -58,7 +61,7 @@ struct DTSGDHandle : public SGDHandle<K,V> {
   inline void Start(bool push, int timestamp, void* msg) {
     Message* m = (Message*) msg;
     if (push) {
-      int tau = this->t - delay.Fetch(m);
+      int tau = std::max(this->t - delay.Fetch(m), 0);
       LOG(INFO) << m->sender << " " << this->t << " " << tau;
       this->eta = (this->beta + sqrt(this->t + tau)) / this->alpha;
       this->t += 1;
@@ -76,7 +79,7 @@ struct DTAdaGradHandle : public AdaGradHandle<K, V> {
   inline void Start(bool push, int timestamp, void* msg) {
     Message* m = (Message*) msg;
     if (push) {
-      int tau = t - delay.Fetch(m);
+      int tau = std::max(t - delay.Fetch(m), 0);
       LOG(INFO) << m->sender << " " << t << " " << tau;
       adjust = sqrt(t + tau) / sqrt((V)t);
       t += 1;
