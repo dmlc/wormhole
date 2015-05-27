@@ -91,15 +91,20 @@ message Config {
   ///
   // maximal allowed delay during synchronization
   optional int32 max_delay = 50 [default = 0];
+  // communication filters
+  optional bool key_cache = 51 [default = true];
+  optional bool msg_compression = 52 [default = true];
+  // 0 means no fixing
+  optional int32 fixed_bytes = 53 [default = 1];
 
   // features which occurs <= *tail_feature_freq* will be filtered. it save both
   // memory and bandwidth.
-  optional int32 tail_feature_freq = 51 [default = 0];
+  optional int32 tail_feature_freq = 55 [default = 0];
 
-  /// debug options
 }
 
 
+  /// debug options
   // filters to reduce communication costs
   // repeated ps.FilterConfig push_filter = 42;
   // repeated ps.FilterConfig pull_filter = 43;

@@ -98,9 +98,7 @@ class AsyncSGDWorker : public ps::App {
           // this callback will be called when the gradients have been actually pushed
           opts.callback = [this]() { FinishMinibatch(); };
           // filters to reduce network traffic
-          opts.AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(1);
-          opts.AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(true);
-          opts.AddFilter(ps::Filter::COMPRESSING);
+          SetFilters(true, &opts);
           server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
         } else {
           // don't need to cal grad for evaluation task
@@ -112,9 +110,7 @@ class AsyncSGDWorker : public ps::App {
       };
 
       // filters to reduce network traffic
-      opts.AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(1);
-      opts.AddFilter(ps::Filter::KEY_CACHING);
-      opts.AddFilter(ps::Filter::COMPRESSING);
+      SetFilters(false, &opts);
       server_.ZPull(feaid, buf, opts);
 
       // wait for data consistency
@@ -137,6 +133,18 @@ class AsyncSGDWorker : public ps::App {
     ++ num_mb_done_;
     mb_mu_.unlock();
     mb_cond_.notify_one();
+  }
+
+  void SetFilters(bool push, ps::SyncOpts* opts) {
+    if (conf_.fixed_bytes() > 0) {
+      opts->AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(conf_.fixed_bytes());
+    }
+    if (conf_.key_cache()) {
+      opts->AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(push);
+    }
+    if (conf_.msg_compression()) {
+      opts->AddFilter(ps::Filter::COMPRESSING);
+    }
   }
 
   Config conf_;

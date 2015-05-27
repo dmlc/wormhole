@@ -3,6 +3,11 @@
 #include "dmlc/data.h"
 #include "data/row_block.h"
 #include "base/parallel_sort.h"
+
+namespace ps {
+DECLARE_uint64(max_key);
+}  // namespace ps
+
 namespace dmlc {
 
 /**
@@ -79,10 +84,23 @@ void Localizer<I>:: CountUniqIndex(
   CHECK_LT(idx_size, static_cast<size_t>(std::numeric_limits<unsigned>::max()))
       << "you need to change Pair.i from unsigned to uint64";
   pair_.resize(idx_size);
-  for (size_t i = 0; i < idx_size; ++i) {
-    pair_[i].k = blk.index[i];
-    pair_[i].i = i;
+
+  I max_index = std::numeric_limits<I>::max();
+  if (ps::FLAGS_max_key < (uint64_t)max_index) {
+    // hash kernel
+    max_index = (I) ps::FLAGS_max_key;
+    for (size_t i = 0; i < idx_size; ++i) {
+      // TODO rehash?
+      pair_[i].k = blk.index[i] % max_index;
+      pair_[i].i = i;
+    }
+  } else {
+    for (size_t i = 0; i < idx_size; ++i) {
+      pair_[i].k = blk.index[i];
+      pair_[i].i = i;
+    }
   }
+
   ParallelSort(&pair_, nthreads,
                [](const Pair& a, const Pair& b) {return a.k < b.k; });
 
