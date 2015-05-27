@@ -271,7 +271,7 @@ class AsyncSGDScheduler : public ps::App {
       pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
       Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
-      printf("time(sec)  #example  delta #ex    |w|_0   %s\n", prog_.HeadStr().c_str());
+      printf(" sec  #example delta #ex    |w|_0     %s\n", prog_.HeadStr().c_str());
       sleep(1);
       while (!pool_.IsFinished()) {
         sleep((int) conf_.disp_itv());
@@ -280,8 +280,8 @@ class AsyncSGDScheduler : public ps::App {
         if (prog.Empty()) continue;
         num_ex += prog.num_ex();
         nnz_w += prog.nnz_w();
-        printf("%7.0lf  %10.5g  %8ld  %9ld  %s\n",
-               GetTime() - t, (double)num_ex, prog.num_ex(), nnz_w,
+        printf("%5.0lf  %7.2g  %7.2g  %11.6g  %s\n",
+               GetTime() - t, (double)num_ex, (double)prog.num_ex(), (double)nnz_w,
                prog.PrintStr().c_str());
         if (conf_.has_max_objv() && prog.objv()/prog.num_ex() > conf_.max_objv()) {
           pool_.ClearRemain();
@@ -313,7 +313,7 @@ class AsyncSGDScheduler : public ps::App {
       ps::Task task; task.set_cmd(kSaveModel);
       Wait(Submit(task, ps::kServerGroup));
     }
-    printf("async_sgd done\n");
+    printf("async_sgd done!\n");
     return true;
   }
 
