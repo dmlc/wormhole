@@ -218,7 +218,7 @@ class AsyncSGDServer : public ps::App {
       InitHandle(&adagrad.handle());
       model_ = adagrad.Run();
     } else if (algo == Config::DT2_ADAGRAD) {
-      ps::KVServer<Real, DTAdaGradHandle2<FeaID, Real>, 3> adagrad;
+      ps::KVServer<Real, DTAdaGradHandle2<FeaID, Real>, 4> adagrad;
       adagrad.set_sync_val_len(1);
       InitHandle(&adagrad.handle());
       model_ = adagrad.Run();
@@ -259,10 +259,6 @@ class AsyncSGDScheduler : public ps::App {
   }
 
   virtual bool Run() {
-    printf("waiting %d workers and %d servers are connected\n",
-           ps::NumWorkers(), ps::NumServers());
-    // wait nodes are ready
-    if (!ps::App::Run()) return false;
 
     CHECK(conf_.has_train_data());
     double t = GetTime();

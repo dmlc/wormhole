@@ -91,9 +91,9 @@ struct AdaGradHandle : public ISGDHandle<K, V>{
     V sqrt_n = val[1];
     val[1] = sqrt(sqrt_n * sqrt_n + grad * grad);
     V eta = (val[1] + this->beta) / this->alpha;
-    V w = my_val[0];
-    my_val[0] = this->penalty.Solve(eta * w - grad, eta);
-    this->tracker->Update(my_val[0], w);
+    V w = val[0];
+    val[0] = this->penalty.Solve(eta * w - grad, eta);
+    this->tracker->Update(val[0], w);
   }
 };
 
