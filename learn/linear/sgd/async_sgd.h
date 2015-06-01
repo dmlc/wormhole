@@ -77,6 +77,9 @@ class AsyncSGDWorker : public ps::App {
       shared_ptr<vector<FeaID> > feaid(new vector<FeaID>());
       Localizer<FeaID> lc; lc.Localize(global, local, feaid.get());
 
+      // wait for data consistency
+      WaitMinibatch(max_delay);
+
       // pull the weight from the servers
       vector<Real>* buf = new vector<Real>(feaid.get()->size());
       ps::SyncOpts opts;
@@ -113,20 +116,23 @@ class AsyncSGDWorker : public ps::App {
       SetFilters(false, &opts);
       server_.ZPull(feaid, buf, opts);
 
-      // wait for data consistency
-      std::unique_lock<std::mutex> lk(mb_mu_);
-      ++ num_mb_fly_;
-      mb_cond_.wait(lk, [this, max_delay] {return max_delay >= num_mb_fly_;});
+      mb_mu_.lock(); ++ num_mb_fly_; mb_mu_.unlock();
+
       LOG(INFO) << "#minibatches on processing: " << num_mb_fly_;
     }
 
     // wait untill all are done
-    std::unique_lock<std::mutex> lk(mb_mu_);
-    mb_cond_.wait(lk, [this] {return num_mb_fly_ <= 0;});
+    WaitMinibatch(0);
     LOG(INFO) << ps::MyNodeID() << ": finished";
   }
 
-  void FinishMinibatch() {
+  // wait if the currenta number of on processing minibatch > num
+  inline void WaitMinibatch(int num) {
+    std::unique_lock<std::mutex> lk(mb_mu_);
+    mb_cond_.wait(lk, [this, num] {return num_mb_fly_ <= num;});
+  }
+
+  inline void FinishMinibatch() {
     // wake the main thread
     mb_mu_.lock();
     -- num_mb_fly_;
@@ -187,6 +193,7 @@ class AsyncSGDServer : public ps::App {
     h->penalty = l1l2;
 
     if (conf_.has_lr_eta()) h->alpha = conf_.lr_eta();
+    if (conf_.has_lr_theta()) h->theta = conf_.lr_theta();
     if (conf_.has_lr_beta()) h->beta = conf_.lr_beta();
 
     h->tracker = &monitor_;
@@ -253,8 +260,30 @@ class AsyncSGDScheduler : public ps::App {
         prog_.Merge(p);
       }
       pool_.Finish(id);
+
       Workload wl; pool_.Get(id, &wl);
       if (wl.file_size() > 0) SendWorkload(id, wl);
+
+      // Workload wl;
+      // if (pool_.num_finished() < conf_.init_workload()) {
+      //   if (pool_.num_assigned() >= conf_.init_num_worker()) {
+      //     request_ids_.push_back(id);
+      //     return;
+      //   } else {
+      //     pool_.Get(id, &wl);
+      //     if (wl.file_size() > 0) SendWorkload(id, wl);
+      //   }
+      // } else {
+      //   pool_.Get(id, &wl);
+      //   if (wl.file_size() > 0) SendWorkload(id, wl);
+      //   if (!request_ids_.empty()) {
+      //     for (auto id : request_ids_) {
+      //       pool_.Get(id, &wl);
+      //       if (wl.file_size() > 0) SendWorkload(id, wl);
+      //     }
+      //     request_ids_.clear();
+      //   }
+      // }
     }
   }
 
@@ -331,6 +360,8 @@ class AsyncSGDScheduler : public ps::App {
   bool done_ = false;
   Progress prog_;
   ps::MonitorMaster<Progress> monitor_;
+
+  // std::vector<std::string> request_ids_;
 };
 
 

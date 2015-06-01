@@ -85,6 +85,7 @@ class WorkloadPool {
     remain_.clear();
     assigned_.clear();
     num_ = 0;
+    num_finished_ = 0;
   }
 
   void ClearRemain() {
@@ -117,6 +118,9 @@ class WorkloadPool {
     return remain_.empty() && assigned_.empty();
   }
 
+  int num_finished() { return num_finished_; }
+  int num_assigned() { return assigned_.size(); }
+
  private:
   void Set(const std::string& id, bool del) {
     std::lock_guard<std::mutex> lk(mu_);
@@ -131,6 +135,7 @@ class WorkloadPool {
           LOG(INFO) << id << " finished " << it->file.ShortDebugString()
                     << " in " << time << " sec.";
           time_.push_back(time);
+          ++ num_finished_;
         }
         it = assigned_.erase(it);
 
@@ -187,6 +192,7 @@ class WorkloadPool {
   Workload::Type type_;
   int num_;
 
+  int num_finished_ = 0;
   std::list<File> remain_;
   struct ActiveTask {
     std::string node;

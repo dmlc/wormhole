@@ -32,6 +32,7 @@ struct ISGDHandle {
 
   // learning rate
   V alpha = 0.1, beta = 1;
+  V theta = 1;
 };
 
 /**
