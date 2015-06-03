@@ -132,20 +132,7 @@ inline size_t GetCluster(const Matrix &centroids,
     *out_dist = dmin;
   return imin;
 }
-class timer{
-	int start_;
-public:
-	timer(){
-		start();
-	}	
-	double gettick() {
-		return clock() - start_;
-	}
-	void start(){
-		start_ = clock();
-	}
-	
-};
+
 int main(int argc, char *argv[]) {
   if (argc < 5) {
     // intialize rabit engine
