@@ -7,15 +7,15 @@ ifndef config
 endif
 
 include $(config)
-include ../../dmlc-core/make/dmlc.mk
+#include ../../dmlc-core/make/dmlc.mk
 
 export LDFLAGS= -L../../lib -pthread -lm -lrt $(DMLC_LDFLAGS)
-export CFLAGS = -Wall  -msse2  -Wno-unknown-pragmas -fPIC -I../../repo/rabit/include  -I../../dmlc-core/include -std=c++11
+export CFLAGS = -Wall  -msse2  -Wno-unknown-pragmas -fPIC -I../../../rabit/include  -I../../dmlc-core/include -std=c++11
 
 BIN = kmeans.dmlc
 OBJ =
 
-kmeans.dmlc : kmeans.cc ../../dmlc-core/libdmlc.a ../../repo/rabit/lib/librabit.a
+kmeans.dmlc : kmeans.cc ../../dmlc-core/libdmlc.a ../../../rabit/lib/librabit.a
 
 all: $(BIN) 
 
