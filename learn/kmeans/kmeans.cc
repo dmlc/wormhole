@@ -218,11 +218,6 @@ int main(int argc, char *argv[]) {
             cid[i] = k;
           }
         }
-        //group instance by cluster_id
-        std::vector<std::vector<int> > instances_cid;
-        instances_cid.resize(num_cluster);
-        for (size_t i=0; i<batch_size; i++) 
-          instances_cid[cid[i]].push_back(i);
         /*
         for (int i=0; i<num_cluster; i++)
           std::cout << instances_cid[i].size() << " ";
@@ -234,9 +229,10 @@ int main(int argc, char *argv[]) {
         for (int k = 0; k < num_cluster; k++) {
           if (k >= num_cluster)
             continue;
-          for (size_t idx = 0; idx < instances_cid[k].size(); idx++) {
-            int i = instances_cid[k][idx];
-            auto v = batch[i];
+          for (size_t idx = 0; idx < batch_size; idx++) {
+            if (cid[idx] != k)
+              continue;
+            auto v = batch[idx];
             // temp[k] += v
             for (size_t j = 0; j < v.length; ++j) {
               temp[k][v.index[j]] += v.get_value(j);
