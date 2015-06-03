@@ -3,6 +3,7 @@
  * \brief kmeans using rabit allreduce
  */
 #define OMP_DBG
+#define DMLC_USE_CXX11 1
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -204,14 +205,14 @@ int main(int argc, char *argv[]) {
       data->BeforeFirst();
       while (data->Next()) {
         const auto &batch = data->Value();
-        size_t batch_size = batch.size;
+        size_t batch_size = static_cast<int>(batch.size);
         cid.resize(batch_size);
 
         // get cluster_id for each instance, write to vector cid
         #pragma omp parallel num_threads(omp_num) 
         {
           #pragma omp for
-          for (size_t i = 0; i < batch_size; ++i) {
+          for (int i = 0; i < batch_size; ++i) {
             if (i >= batch_size)
               continue;
             int k = GetCluster(model.centroids, batch[i]);
@@ -273,7 +274,7 @@ int main(int argc, char *argv[]) {
 
   // output the model file to somewhere
   if (rabit::GetRank() == 0) {
-    auto *fo = Stream::Create(argv[4], "w");
+    dmlc::Stream *fo = dmlc::Stream::Create(argv[4], "w");
     model.centroids.Print(fo);
     delete fo;
     rabit::TrackerPrintf("All iteration finished, centroids saved to %s\n", argv[4]);
