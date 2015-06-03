@@ -1,5 +1,6 @@
 nbr_node=$1
 datan=rcv1_test.binary
+#datan=agaricus.txt.train
 datap=../data/$datan
 nomp=$2
 make
