@@ -90,9 +90,9 @@ struct DTAdaGradHandle2 : public AdaGradHandle<K, V> {
     V* val = my_val.data;
     V grad_bck = val[1] - delay.NextGrad();
     val[2] += grad * grad + 2 * grad * grad_bck;
-    V eta_old = (sqrt(val[3]) + this->beta) / this->alpha;
+    V eta_old = (sqrt(val[3] + this->beta)) / this->alpha;
     if (val[2] > val[3]) val[3] = val[2];
-    V eta = (sqrt(val[3]) + this->beta) / this->alpha;
+    V eta = (sqrt(val[3] + this->beta)) / this->alpha;
 
     val[1] += grad;
     V w = val[0];
@@ -165,7 +165,9 @@ struct DTAdaGradHandle : public AdaGradHandle<K, V> {
     if (push) {
       int tau = std::max(t - delay.Fetch(m), 0);
       LOG(INFO) << m->sender << " " << t << " " << tau;
-      adjust = sqrt(t + tau) / sqrt((V)t);
+      // adjust = pow(1 + (V)tau / (V)t, this->theta);
+      adjust = pow((V)(t+tau)/(V)t, this->theta);
+      // adjust = 1 + pow(); // + tau) / sqrt((V)t);
       t += 1;
     } else {
       delay.Store(t, m);
@@ -177,7 +179,9 @@ struct DTAdaGradHandle : public AdaGradHandle<K, V> {
     V grad = recv_val[0];
     V* val = my_val.data;
     V sqrt_n = val[1];
-    val[1] = sqrt(sqrt_n * sqrt_n + grad * grad);
+    // val[1] = sqrt(sqrt_n * sqrt_n + adjust * grad * grad);
+    // val[1] = sqrt(sqrt_n * sqrt_n + grad * grad);
+    val[1] = sqrt(sqrt_n * sqrt_n + grad * grad / adjust / adjust);
     V eta = (val[1] * adjust + this->beta) / this->alpha;
     V w = my_val[0];
     my_val[0] = this->penalty.Solve(eta * w - grad, eta);
