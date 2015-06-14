@@ -2,6 +2,8 @@
  * \file kmeans.cc
  * \brief kmeans using rabit allreduce
  */
+#define OMP_DBG
+#define DMLC_USE_CXX11 1
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -9,6 +11,7 @@
 #include <dmlc/io.h>
 #include <dmlc/data.h>
 #include <dmlc/logging.h>
+#include <omp.h>
 
 using namespace rabit;
 using namespace dmlc;
@@ -117,7 +120,7 @@ inline double Cos(const float *row,
 }
 // get cluster of a certain vector
 inline size_t GetCluster(const Matrix &centroids,
-                         const Row<unsigned> &v) {
+                         const Row<unsigned> &v, double* out_dist = NULL) {
   size_t imin = 0;
   double dmin = Cos(centroids[0], v);
   for (size_t k = 1; k < centroids.nrow; ++k) {
@@ -126,9 +129,11 @@ inline size_t GetCluster(const Matrix &centroids,
       dmin = dist; imin = k;
     }
   }
+  if (out_dist)
+    *out_dist = dmin;
   return imin;
 }
-             
+
 int main(int argc, char *argv[]) {
   if (argc < 5) {
     // intialize rabit engine
@@ -143,6 +148,7 @@ int main(int argc, char *argv[]) {
   // set the parameters
   int num_cluster = atoi(argv[2]);
   int max_iter = atoi(argv[3]);
+  int omp_num = atoi(argv[5]);
   // intialize rabit engine
   rabit::Init(argc, argv);
   
@@ -172,12 +178,15 @@ int main(int argc, char *argv[]) {
     {
       // lambda function used to calculate the data if necessary
       // this function may not be called when the result can be directly recovered
+      double dist_sum = 0;
+      double dist_tmp;
       data->BeforeFirst();
       while (data->Next()) {
         const auto &batch = data->Value();
         for (size_t i = 0; i < batch.size; ++i) {
           auto v = batch[i];
-          size_t k = GetCluster(model.centroids, v);
+          size_t k = GetCluster(model.centroids, v, &dist_tmp);
+          dist_sum += dist_tmp;
           // temp[k] += v
           for (size_t j = 0; j < v.length; ++j) {
             temp[k][v.index[j]] += v.get_value(j);
@@ -186,8 +195,59 @@ int main(int argc, char *argv[]) {
           temp[k][num_feat] += 1.0f;
         }
       }
+      printf("total dist = %lf\n", dist_sum);
     };
-    rabit::Allreduce<op::Sum>(&temp.data[0], temp.data.size(), lazy_get_centroid);
+    auto omp_get_centroid = [&]()
+    {
+      // lambda function used to calculate the data if necessary
+      // this function may not be called when the result can be directly recovered
+      std::vector<int> cid;
+      data->BeforeFirst();
+      while (data->Next()) {
+        const auto &batch = data->Value();
+        size_t batch_size = static_cast<int>(batch.size);
+        cid.resize(batch_size);
+
+        // get cluster_id for each instance, write to vector cid
+        #pragma omp parallel num_threads(omp_num) 
+        {
+          #pragma omp for
+          for (int i = 0; i < batch_size; ++i) {
+            if (i >= batch_size)
+              continue;
+            int k = GetCluster(model.centroids, batch[i]);
+            cid[i] = k;
+          }
+        }
+        /*
+        for (int i=0; i<num_cluster; i++)
+          std::cout << instances_cid[i].size() << " ";
+        std::cout <<"\n";
+        */
+
+        // compute centroid for each cluster
+        #pragma omp parallel for num_threads(omp_num) schedule(dynamic)
+        for (int k = 0; k < num_cluster; k++) {
+          if (k >= num_cluster)
+            continue;
+          for (size_t idx = 0; idx < batch_size; idx++) {
+            if (cid[idx] != k)
+              continue;
+            auto v = batch[idx];
+            // temp[k] += v
+            for (size_t j = 0; j < v.length; ++j) {
+              temp[k][v.index[j]] += v.get_value(j);
+            }
+            // use last column to record counts
+            temp[k][num_feat] += 1.0f;
+          }
+        }
+      }
+      //printf("total dist = %lf\n", dist_sum);
+    };
+    auto get_centroid = omp_get_centroid;
+    rabit::Allreduce<op::Sum>(&temp.data[0], temp.data.size(), get_centroid);
+    //printf("num_cluster = %d\n", num_cluster);
     // set number
     for (int k = 0; k < num_cluster; ++k) {
       float cnt = temp[k][num_feat];
@@ -210,7 +270,7 @@ int main(int argc, char *argv[]) {
 
   // output the model file to somewhere
   if (rabit::GetRank() == 0) {
-    auto *fo = Stream::Create(argv[4], "w");
+    dmlc::Stream *fo = dmlc::Stream::Create(argv[4], "w");
     model.centroids.Print(fo);
     delete fo;
     rabit::TrackerPrintf("All iteration finished, centroids saved to %s\n", argv[4]);

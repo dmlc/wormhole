@@ -31,6 +31,14 @@
 dmlc-core
 *.txt
 *.model
-
 # User-specific config
 config.mk
+
+# VC 
+*.pdb
+*.tlog
+*.opensdf
+*.sdf
+*.log
+**/ipch/
+
