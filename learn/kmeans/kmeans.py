@@ -64,7 +64,8 @@ def main():
         spmat = data_iter.ValueCSR()
         nbrline += spmat.shape[0]
         num_row = spmat.shape[0]
-        vnorm = np.sqrt(spmat.multiply(spmat).sum(axis = 1))
+        
+        vnorm = np.sqrt(spmat.multiply(spmat).sum(axis = 1)) 
         dotp = spmat.dot(model.centroid.T)
         dist = dotp / vnorm
         max_id = np.argmax(dist, axis = 1)
