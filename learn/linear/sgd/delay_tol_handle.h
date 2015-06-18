@@ -20,13 +20,17 @@ using ps::Message;
 inline uint64_t Signature(ps::Message* msg) {
   ps::Filter* f = ps::IFilter::Find(ps::Filter::KEY_CACHING, msg);
   if (f) {
-    CHECK(f->has_signature());
+    if (!f->has_signature()) {
+      CHECK(msg->key.empty());
+      return 0;
+    }
     return f->signature();
   } else {
     return CityHash64(msg->key.data(), msg->key.size());
   }
 }
 
+//////////////////////////////////////////////////////////////////////
 /// Version 1, use grad^bak
 
 template <typename K, typename V>
@@ -77,21 +81,22 @@ struct DTAdaGradHandle2 : public AdaGradHandle<K, V> {
     val[0] = 0;
     val[1] = 0;
     val[2] = 0;
+    val[3] = 0;
   }
 
   inline void Push(
       ps::Blob<const K> recv_key, ps::Blob<const V> recv_val, ps::Blob<V> my_val) {
     V grad = recv_val[0];
     V* val = my_val.data;
-    V sqrt_n = val[1];
-    V delta = grad * grad + 2 * grad * (val[2] - delay.NextGrad());
-    if (delta > 0) {
-      val[1] = sqrt(sqrt_n * sqrt_n + delta);
-    }
-    val[2] += grad;
-    V eta = (val[1] + this->beta) / this->alpha;
+    V grad_bck = val[1] - delay.NextGrad();
+    val[2] += grad * grad + 2 * grad * grad_bck;
+    V eta_old = (sqrt(val[3] + this->beta)) / this->alpha;
+    if (val[2] > val[3]) val[3] = val[2];
+    V eta = (sqrt(val[3] + this->beta)) / this->alpha;
+
+    val[1] += grad;
     V w = val[0];
-    val[0] = this->penalty.Solve(eta * w - grad, eta);
+    val[0] = this->penalty.Solve(eta * w - grad + grad_bck * (eta / eta_old - 1), eta);
     this->tracker->Update(val[0], w);
   }
 
@@ -99,11 +104,13 @@ struct DTAdaGradHandle2 : public AdaGradHandle<K, V> {
                    ps::Blob<const V> my_val,
                    ps::Blob<V> send_val) {
     send_val[0] = my_val[0];
-    delay.NextGrad() = my_val[2];
+    delay.NextGrad() = my_val[1];
   }
 
   GradDelay<K,V> delay;
 };
+
+////////////////////////////////////////////////////////////////////////////
 
 /// Version 2, use sqrt(t + tau(t)) in learning rate
 
@@ -158,7 +165,9 @@ struct DTAdaGradHandle : public AdaGradHandle<K, V> {
     if (push) {
       int tau = std::max(t - delay.Fetch(m), 0);
       LOG(INFO) << m->sender << " " << t << " " << tau;
-      adjust = sqrt(t + tau) / sqrt((V)t);
+      // adjust = pow(1 + (V)tau / (V)t, this->theta);
+      adjust = pow((V)(t+tau)/(V)t, this->theta);
+      // adjust = 1 + pow(); // + tau) / sqrt((V)t);
       t += 1;
     } else {
       delay.Store(t, m);
@@ -170,7 +179,9 @@ struct DTAdaGradHandle : public AdaGradHandle<K, V> {
     V grad = recv_val[0];
     V* val = my_val.data;
     V sqrt_n = val[1];
-    val[1] = sqrt(sqrt_n * sqrt_n + grad * grad);
+    // val[1] = sqrt(sqrt_n * sqrt_n + adjust * grad * grad);
+    // val[1] = sqrt(sqrt_n * sqrt_n + grad * grad);
+    val[1] = sqrt(sqrt_n * sqrt_n + grad * grad / adjust / adjust);
     V eta = (val[1] * adjust + this->beta) / this->alpha;
     V w = my_val[0];
     my_val[0] = this->penalty.Solve(eta * w - grad, eta);

@@ -86,6 +86,9 @@ message Config {
   optional float lr_eta = 41;
   optional float lr_beta = 42;
 
+  // experimetnal
+  optional float lr_theta = 43;
+
   ///
   /// to reduce sync cost
   ///
@@ -100,6 +103,9 @@ message Config {
   // features which occurs <= *tail_feature_freq* will be filtered. it save both
   // memory and bandwidth.
   optional int32 tail_feature_freq = 55 [default = 0];
+
+  optional int32 init_workload = 80 [default = 0];
+  optional int32 init_num_worker = 81 [default = 1];
 
 }
 
