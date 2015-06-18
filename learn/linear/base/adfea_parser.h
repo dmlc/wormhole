@@ -8,6 +8,8 @@
 #include "data/parser.h"
 #include "data/strtonum.h"
 #include "base/crc32.h"
+#include "proto/data_format.pb.h"
+#include "dmlc/recordio.h"
 namespace dmlc {
 namespace data {
 
@@ -18,7 +20,7 @@ namespace data {
  *  <categorical feature 1> ... <categorical feature 26>
  */
 template <typename IndexType>
-class AdfeaParser : public Parser<IndexType> {
+class AdfeaParser : public ParserImpl<IndexType> {
  public:
   explicit AdfeaParser(InputSplit *source)
       : bytes_read_(0), source_(source) { }
@@ -72,6 +74,54 @@ class AdfeaParser : public Parser<IndexType> {
       while (isspace(*p) && p != end) ++p;
     }
     if (blk.label.size() != 0) {
+      blk.offset.push_back(blk.index.size());
+    }
+    return true;
+  }
+
+ private:
+  // number of bytes readed
+  size_t bytes_read_;
+  // source split that provides the data
+  InputSplit *source_;
+};
+
+template <typename IndexType>
+class AdfeaRecParser : public ParserImpl<IndexType> {
+ public:
+  AdfeaRecParser(InputSplit *source)
+      : bytes_read_(0), source_(source) { }
+  virtual ~AdfeaRecParser() {
+    delete source_;
+  }
+
+  virtual void BeforeFirst(void) {
+    source_->BeforeFirst();
+  }
+  virtual size_t BytesRead(void) const {
+    return bytes_read_;
+  }
+
+  virtual bool ParseNext(std::vector<RowBlockContainer<IndexType> > *data) {
+    InputSplit::Blob chunk;
+    if (!source_->NextChunk(&chunk)) return false;
+    CHECK(chunk.size != 0);
+    bytes_read_ += chunk.size;
+
+    data->resize(1);
+    RowBlockContainer<IndexType>& blk = (*data)[0];
+    blk.Clear();
+
+    std::string str;
+    linear::Adfea pb;
+    InputSplit::Blob rec;
+    RecordIOChunkReader reader(chunk);
+    while (reader.NextRecord(&rec)) {
+      CHECK(pb.ParseFromArray(rec.dptr, rec.size));
+      blk.label.push_back(pb.label());
+      for (int i = 0; i < pb.feaid_size(); ++i) {
+        blk.index.push_back(pb.feaid(i));
+      }
       blk.offset.push_back(blk.index.size());
     }
     return true;

@@ -10,9 +10,7 @@
 #include "data/parser.h"
 #include "data/libsvm_parser.h"
 #include "base/adfea_parser.h"
-#include "base/adfea_rec_parser.h"
 #include "base/criteo_parser.h"
-#include "base/criteo_rec_parser.h"
 #include "base/utils.h"
 namespace dmlc {
 namespace data {
@@ -88,6 +86,7 @@ class MinibatchIter {
     if (!len) return;
     CHECK_LE(pos + len, in_blk_.size);
     RowBlock<IndexType> slice;
+    slice.weight = NULL;
     slice.size = len;
     slice.offset  = in_blk_.offset + pos;
     slice.label   = in_blk_.label  + pos;
@@ -102,7 +101,7 @@ class MinibatchIter {
   }
 
   unsigned mb_size_;
-  Parser<IndexType> *parser_;
+  ParserImpl<IndexType> *parser_;
 
   size_t start_, end_;
   RowBlock<IndexType> in_blk_;
