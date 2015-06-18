@@ -34,3 +34,5 @@ dmlc-core
 
 # User-specific config
 config.mk
+
+*.pb.*

@@ -1,0 +1,24 @@
+/// @file   data.proto
+/// @brief  data format in protobuf
+package dmlc;
+
+// Adfea message
+message Adfea {
+  required int32 label = 5;
+  repeated uint64 feaid = 1 [packed = true];
+  repeated uint32 groupid = 2 [packed = true];
+}
+
+// criteo message
+message Criteo {
+  // label fields
+  required int32 label = 5;
+  // bitmask for missing value in integer
+  required uint32 miss_int = 4;
+  // bitmask for missing value in categorical features
+  required uint32 miss_cat = 3;
+  // integer features
+  repeated uint32 dint = 2 [packed = true];
+  // categorical features
+  repeated uint32 dcat = 1 [packed = true];
+}

@@ -1,0 +1,8 @@
+train_data = "x\"xxx"
+
+model_in = "yyy"
+
+k = 1
+k = 2
+
+lr_eta = 1.0

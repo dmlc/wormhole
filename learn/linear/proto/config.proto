@@ -71,7 +71,7 @@ message Config {
   // the maximal number of data passes
   optional int32 max_data_pass = 32 [default = 10];
 
-  // print the progress every *show_prog* sec
+  // print the progress every n sec
   optional float disp_itv = 33 [default = 1];
 
   // convergance critiria. stop if the relative objective <= epsilon
