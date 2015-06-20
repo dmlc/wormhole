@@ -10,7 +10,7 @@
 #include "base/localizer.h"
 #include "base/loss.h"
 #include "sgd/sgd_server_handle.h"
-#include "sgd/delay_tol_handle.h"
+// #include "sgd/delay_tol_handle.h"
 #include "base/dist_monitor.h"
 #include "base/workload_pool.h"
 
@@ -21,8 +21,6 @@
 namespace dmlc {
 namespace linear {
 
-using FeaID = ps::Key;
-using Real = float;
 
 // commands
 static const int kProcess = 1;
@@ -185,50 +183,33 @@ class AsyncSGDServer : public ps::App {
   }
 
  private:
-  template <typename Handle>
-  void InitHandle(Handle* h) {
+  template <typename Entry, typename Handle>
+  void CreateServer() {
     L1L2<Real> l1l2;
     if (conf_.lambda_size() > 0) l1l2.set_lambda1(conf_.lambda(0));
     if (conf_.lambda_size() > 1) l1l2.set_lambda2(conf_.lambda(1));
-    h->penalty = l1l2;
 
-    if (conf_.has_lr_eta()) h->alpha = conf_.lr_eta();
-    if (conf_.has_lr_theta()) h->theta = conf_.lr_theta();
-    if (conf_.has_lr_beta()) h->beta = conf_.lr_beta();
+    Handle h;
+    h.penalty = l1l2;
 
-    h->tracker = &monitor_;
+    if (conf_.has_lr_eta()) h.alpha = conf_.lr_eta();
+    if (conf_.has_lr_theta()) h.theta = conf_.lr_theta();
+    if (conf_.has_lr_beta()) h.beta = conf_.lr_beta();
+
+    h.tracker = &monitor_;
+
+    ps::OnlineServer<Entry, Real, Handle> s(h);
+    model_ = s.server();
   }
 
   void Init() {
     auto algo = conf_.algo();
     if (algo == Config::SGD) {
-      ps::KVServer<Real, SGDHandle<FeaID, Real>, 1> sgd;
-      InitHandle(&sgd.handle());
-      model_ = sgd.Run();
+      CreateServer<Real, SGDHandle>();
     } else if (algo == Config::ADAGRAD) {
-      ps::KVServer<Real, AdaGradHandle<FeaID, Real>, 2> adagrad;
-      adagrad.set_sync_val_len(1);
-      InitHandle(&adagrad.handle());
-      model_ = adagrad.Run();
+      CreateServer<AdaGradEntry, AdaGradHandle>();
     } else if (algo == Config::FTRL) {
-      ps::KVServer<Real, FTRLHandle<FeaID, Real>, 3> ftrl;
-      ftrl.set_sync_val_len(1);
-      InitHandle(&ftrl.handle());
-      model_ = ftrl.Run();
-    } else if (algo == Config::DT_SGD) {
-      ps::KVServer<Real, DTSGDHandle<FeaID, Real>, 1> sgd;
-      InitHandle(&sgd.handle());
-      model_ = sgd.Run();
-    } else if (algo == Config::DT_ADAGRAD) {
-      ps::KVServer<Real, DTAdaGradHandle<FeaID, Real>, 2> adagrad;
-      adagrad.set_sync_val_len(1);
-      InitHandle(&adagrad.handle());
-      model_ = adagrad.Run();
-    } else if (algo == Config::DT2_ADAGRAD) {
-      ps::KVServer<Real, DTAdaGradHandle2<FeaID, Real>, 4> adagrad;
-      adagrad.set_sync_val_len(1);
-      InitHandle(&adagrad.handle());
-      model_ = adagrad.Run();
+      CreateServer<FTRLEntry, FTRLHandle>();
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }

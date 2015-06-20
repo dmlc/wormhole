@@ -11,132 +11,124 @@
 namespace dmlc {
 namespace linear {
 
-/**
+using FeaID = ps::Key;
+using Real = float;
+template <typename T> using Blob = ps::Blob<T>;
+
+/*********************************************************************
  * \brief the base handle class
- */
-template <typename K, typename V>
+ *********************************************************************/
 struct ISGDHandle {
  public:
-  inline void Pull(ps::Blob<const K> recv_key,
-                   ps::Blob<const V> my_val,
-                   ps::Blob<V> send_val) {
-    send_val[0] = my_val[0];
-  }
-
-  inline void Start(bool push, int timestamp, void* msg) { }
+  inline void Start(bool push, int timestamp, int cmd, void* msg) { }
   inline void Finish() { tracker->Report(); }
   inline void SetCaller(void *obj) { }
 
   ModelMonitor* tracker = nullptr;
-  L1L2<V> penalty;
+  L1L2<Real> penalty;
 
   // learning rate
-  V alpha = 0.1, beta = 1;
-  V theta = 1;
+  Real alpha = 0.1, beta = 1;
+  Real theta = 1;
 };
 
-/**
- * \brief The standard SGD handle.
+/*********************************************************************
+ * \brief Standard SGD
  * use alpha / ( beta + sqrt(t)) as the learning rate
- */
-template <typename K, typename V>
-struct SGDHandle : public ISGDHandle<K,V> {
+ *********************************************************************/
+struct SGDHandle : public ISGDHandle {
  public:
-  template <typename T> using Blob = ps::Blob<T>;
+  inline void Init(FeaID key,  Real& val) { val = 0; }
 
-  inline void Init(Blob<const K> key, Blob<V> val) {
-    val[0] = 0;
-  }
-
-  inline void Start(bool push, int timestamp, void* msg) {
+  inline void Start(bool push, int timestamp, int cmd, void* msg) {
     if (push) {
-      eta = (this->beta + sqrt((V)t)) / this->alpha;
+      eta = (this->beta + sqrt((Real)t)) / this->alpha;
       t += 1;
     }
   }
 
-  inline void Push(
-      Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
-    V w = my_val[0];
-    my_val[0] = this->penalty.Solve(eta * w - recv_val[0], eta);
-    this->tracker->Update(my_val[0], w);
+  inline void Push(FeaID key, Blob<const Real> grad, Real& w) {
+    Real old_w = w;
+    w = this->penalty.Solve(eta * w - grad[0], eta);
+    this->tracker->Update(w, old_w);
+  }
+
+  inline void Pull(FeaID key, const Real& w, Blob<Real>& send) {
+    send[0] = w;
   }
 
   // iteration count
   int t = 1;
-  V eta = 0;
+  Real eta = 0;
 };
 
 
-/**
+/*********************************************************************
  * \brief AdaGrad SGD handle.
  * use alpha / ( beta + sqrt(sum_t grad_t^2)) as the learning rate
- *
- * my_val is a length-2 vector,
- * val[0]: weight
- * val[1]: sqrt(sum_t grad_t^2)
- */
-template <typename K, typename V>
-struct AdaGradHandle : public ISGDHandle<K, V>{
-  template <typename T> using Blob = ps::Blob<T>;
+ *********************************************************************/
 
-  inline void Init(Blob<const K> key, Blob<V> val) {
-    val[0] = 0;
-    val[1] = 0;
+struct AdaGradEntry { Real w = 0; Real sq_cum_grad = 0; };
+
+struct AdaGradHandle : public ISGDHandle {
+  inline void Init(FeaID key,  AdaGradEntry& val) { }
+
+  inline void Push(FeaID key, Blob<const Real> grad, AdaGradEntry& val) {
+    // update cum grad
+    Real g = grad[0];
+    Real sqrt_n = val.sq_cum_grad;
+    val.sq_cum_grad = sqrt(sqrt_n * sqrt_n + g * g);
+
+    // update w
+    Real eta = (val.sq_cum_grad + this->beta) / this->alpha;
+    Real old_w = val.w;
+    val.w = this->penalty.Solve(eta * old_w - g, eta);
+
+    // update monitor
+    this->tracker->Update(val.w, old_w);
   }
 
-  inline void Push(
-      Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
-    V grad = recv_val[0];
-    V* val = my_val.data;
-    V sqrt_n = val[1];
-    val[1] = sqrt(sqrt_n * sqrt_n + grad * grad);
-    V eta = (val[1] + this->beta) / this->alpha;
-    V w = val[0];
-    val[0] = this->penalty.Solve(eta * w - grad, eta);
-    this->tracker->Update(val[0], w);
+  inline void Pull(FeaID key, const AdaGradEntry& val, Blob<Real>& send) {
+    send[0] = val.w;
   }
 };
 
 
-/**
+/*********************************************************************
  * \brief FTRL updater, use a smoothed weight for better spasity
  *
  * my_val is a length-3 vector,
- * val[0]: weight
- * val[1]: z, the smoothed version of - eta * w + grad
- * val[2]: sqrt(sum_t grad_t^2)
- */
-template <typename K, typename V>
-struct FTRLHandle : public ISGDHandle<K, V> {
+ * w : weight
+ * z : the smoothed version of - eta * w + grad
+ * sq_cum_grad: sqrt(sum_t grad_t^2)
+ *********************************************************************/
+
+struct FTRLEntry { Real w = 0; Real z = 0; Real sq_cum_grad = 0; };
+
+struct FTRLHandle : public ISGDHandle {
  public:
-  template <typename T> using Blob = ps::Blob<T>;
+  inline void Init(FeaID key,  FTRLEntry& val) { }
 
-  inline void Init(Blob<const K> key, Blob<V> val) {
-    val[0] = 0;
-    val[1] = 0;
-    val[2] = 0;
-  }
-
-  inline void Push(
-      Blob<const K> recv_key, Blob<const V> recv_val, Blob<V> my_val) {
-    V* val = my_val.data;
-
+  inline void Push(FeaID key, Blob<const Real> grad, FTRLEntry& val) {
     // update cum grad
-    V grad = recv_val[0];
-    V sqrt_n = val[2];
-    val[2] = sqrt(sqrt_n * sqrt_n + grad * grad);
+    Real g = grad[0];
+    Real sqrt_n = val.sq_cum_grad;
+    val.sq_cum_grad = sqrt(sqrt_n * sqrt_n + g * g);
 
     // update z
-    V w = val[0];
-    V sigma = (val[2] - sqrt_n) / this->alpha;
-    val[1] += grad  - sigma * w;
+    Real old_w = val.w;
+    Real sigma = (val.sq_cum_grad - sqrt_n) / this->alpha;
+    val.z += g - sigma * old_w;
 
     // update w
-    val[0] = this->penalty.Solve(-val[1], (this->beta + val[2]) / this->alpha);
+    val.w = this->penalty.Solve(-val.z, (this->beta + val.sq_cum_grad) / this->alpha);
 
     // update monitor
-    this->tracker->Update(val[0], w);
+    this->tracker->Update(val.w, old_w);
+  }
+
+  inline void Pull(FeaID key, const FTRLEntry& val, Blob<Real>& send) {
+    send[0] = val.w;
   }
 };
 }  // namespace linear
