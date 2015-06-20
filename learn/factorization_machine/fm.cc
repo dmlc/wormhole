@@ -1,4 +1,5 @@
 #include "ps.h"
+#include "fm.h"
 #include "base/arg2proto.h"
 #include "proto/config.pb.h"
 #include "dmlc/config.h"

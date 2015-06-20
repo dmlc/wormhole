@@ -66,6 +66,8 @@ struct SGDHandle : public ISGDHandle {
 /*********************************************************************
  * \brief AdaGrad SGD handle.
  * use alpha / ( beta + sqrt(sum_t grad_t^2)) as the learning rate
+ *
+ * sq_cum_grad: sqrt(sum_t grad_t^2)
  *********************************************************************/
 
 struct AdaGradEntry { Real w = 0; Real sq_cum_grad = 0; };
@@ -97,7 +99,6 @@ struct AdaGradHandle : public ISGDHandle {
 /*********************************************************************
  * \brief FTRL updater, use a smoothed weight for better spasity
  *
- * my_val is a length-3 vector,
  * w : weight
  * z : the smoothed version of - eta * w + grad
  * sq_cum_grad: sqrt(sum_t grad_t^2)

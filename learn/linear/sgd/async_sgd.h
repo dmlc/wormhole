@@ -21,7 +21,6 @@
 namespace dmlc {
 namespace linear {
 
-
 // commands
 static const int kProcess = 1;
 static const int kSaveModel = 2;

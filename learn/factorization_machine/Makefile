@@ -51,14 +51,6 @@ base:
 build/fm.dmlc: build/proto/config.pb.o build/fm.o ../base/base.a $(PS_PATH)/build/libps.a
 	$(CXX) $(CFLAGS) $(filter %.o %.a, $^) $(LDFLAGS) -o $@
 
-# tool: build/text2rec build/print_rec
-
-# build/minibatch_iter_test:
-# build/%: build/tool/%.o build/proto/data_format.pb.o
-# 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
-
-# build/%: build/test/%.o build/proto/data_format.pb.o
-# 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 -include build/*/*.d
 -include build/*/*/*.d
