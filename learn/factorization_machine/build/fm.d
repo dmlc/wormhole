@@ -43,7 +43,8 @@ build/fm.o: fm.cc ../../repo/ps-lite/src/ps.h \
  ../../dmlc-core/src/data/strtonum.h ../base/crc32.h \
  ../base/proto/data_format.pb.h ../../dmlc-core/include/dmlc/recordio.h \
  ../base/criteo_parser.h ../base/utils.h ../solver/async_sgd.h \
- ../base/progress.h ../base/dist_monitor.h ../base/workload_pool.h \
- ../../dmlc-core/src/io/filesys.h ../../dmlc-core/include/dmlc/timer.h \
- ../base/workload.h proto/config.pb.h ../base/arg2proto.h \
+ ../base/progress.h ../base/dist_monitor.h ../base/string_stream.h \
+ ../base/workload_pool.h ../../dmlc-core/src/io/filesys.h \
+ ../../dmlc-core/include/dmlc/timer.h ../base/workload.h config.pb.h \
+ fm_server.h fm_worker.h ../base/arg2proto.h \
  ../../dmlc-core/include/dmlc/config.h

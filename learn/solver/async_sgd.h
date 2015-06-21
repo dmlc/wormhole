@@ -80,10 +80,10 @@ class AsyncSGDScheduler : public ps::App {
     bool stop = false;
     pool_.Clear();
     if (is_train) {
-      if (train_data_.empty()) return;
+      if (train_data_.empty()) return stop;
       pool_.Add(train_data_, data_format_, num_part_per_file_,  Workload::TRAIN);
     } else {
-      if (val_data_.empty()) return;
+      if (val_data_.empty()) return stop;
         pool_.Add(val_data_, data_format_, num_part_per_file_, Workload::VAL);
     }
     Workload wl; SendWorkload(ps::kWorkerGroup, wl);
@@ -96,7 +96,7 @@ class AsyncSGDScheduler : public ps::App {
         // continous print
         monitor_.Get(&cur); monitor_.Clear();
         if (cur.Empty()) continue;
-        printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_));
+        printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_).c_str());
         if (Stop(cur, prog_)) {
           stop = true;
           pool_.ClearRemain();
@@ -108,9 +108,10 @@ class AsyncSGDScheduler : public ps::App {
     if (!is_train) {
       // get cur
       monitor_.Get(&cur); monitor_.Clear();
-      printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_));
+      printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_).c_str());
       prog_.Merge(&cur);
     }
+    return stop;
   }
 
   void SendWorkload(const std::string id, const Workload& wl) {
@@ -141,11 +142,8 @@ class AsyncSGDServer : public ps::App {
     reporter_.Report(prog);
   }
 
-  int report_itv_ = 1;
  public:
-  AsyncSGDServer() {
-    reporter_.set_report_itv(report_itv_);
-  }
+  AsyncSGDServer() {}
   virtual ~AsyncSGDServer() { }
 
   virtual void ProcessRequest(ps::Message* request) {
@@ -194,8 +192,6 @@ class AsyncSGDWorker : public ps::App {
   // for validation test
   int val_minibatch_size_ = 1000000;
   int val_max_delay_ = 10;
-
-  int report_itv_ = 1;
 
   /// implement system APIs
  public:
