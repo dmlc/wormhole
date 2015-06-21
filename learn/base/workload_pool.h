@@ -29,10 +29,11 @@ class WorkloadPool {
    * @brief add the workload
    *
    * @param files s3://my_path/part-.*
+   * @param format libsvm, criteo, ...
    * @param npart divide one file into npart
    * @param nconsumer
    */
-  void Add(const std::string& files, int npart,
+  void Add(const std::string& files, const std::string& format, int npart,
            int nconsumer = 0, Workload::Type type = Workload::TRAIN) {
     std::lock_guard<std::mutex> lk(mu_);
     // get the path
@@ -77,6 +78,7 @@ class WorkloadPool {
 
     type_ = type;
     num_ = nconsumer == 0 ? 0 : remain_.size() / nconsumer;
+    format_ = format;
   }
 
   void Clear() {
@@ -155,6 +157,7 @@ class WorkloadPool {
     if (remain_.empty()) return;
     wl->add_file()->CopyFrom(remain_.front());
     wl->set_type(type_);
+    wl->set_format(format_);
     ActiveTask task;
     task.node = id;
     task.file = remain_.front();
@@ -188,6 +191,7 @@ class WorkloadPool {
     }
   }
 
+  std::string format_;
   Workload::Type type_;
   int num_;
 

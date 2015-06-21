@@ -6,6 +6,7 @@ message File {
   optional string file = 1;
   optional int32 n = 2 [default = 1];
   optional int32 k = 3 [default = 0];
+  optional string format = 4;
 }
 
 message Workload {
