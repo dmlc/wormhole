@@ -1,7 +1,8 @@
 #pragma once
-#include "proto/workload.pb.h"
 #include "io/filesys.h"
 #include "dmlc/logging.h"
+#include "dmlc/timer.h"
+#include "base/workload.h"
 #include <vector>
 #include <list>
 #include <regex>
@@ -12,13 +13,17 @@ namespace dmlc {
  */
 class WorkloadPool {
  public:
-  WorkloadPool() {
+  /**
+   * @param size uses 0 for online algorithm, #workers for batch algorithms
+   */
+  WorkloadPool(int size = 0) {
     straggler_killer_ = new std::thread([this]() {
         while (!IsFinished()) {
           RemoveStraggler();
           sleep(1);
         }
       });
+    num_consumers_ = size;
   }
   ~WorkloadPool() {
     straggler_killer_->join();
@@ -31,11 +36,13 @@ class WorkloadPool {
    * @param files s3://my_path/part-.*
    * @param format libsvm, criteo, ...
    * @param npart divide one file into npart
-   * @param nconsumer
    */
-  void Add(const std::string& files, const std::string& format, int npart,
-           int nconsumer = 0, Workload::Type type = Workload::TRAIN) {
+  void Add(const std::string& files,
+           const std::string& format,
+           int npart,
+           Workload::Type type = Workload::TRAIN) {
     std::lock_guard<std::mutex> lk(mu_);
+
     // get the path
     size_t pos = files.find_last_of("/\\");
     std::string path = "./";
@@ -68,24 +75,23 @@ class WorkloadPool {
       }
       LOG(INFO) << "matched file: " << file;
       for (int j = 0; j < npart; ++j) {
-        File f;
-        f.set_file(file);
-        f.set_n(npart);
-        f.set_k(j);
+        Workload::File f;
+        f.filename = file;
+        f.format = format;
+        f.n = npart;
+        f.k = j;
         remain_.push_back(f);
       }
     }
 
     type_ = type;
-    num_ = nconsumer == 0 ? 0 : remain_.size() / nconsumer;
-    format_ = format;
+    num_ = num_consumers_ == 0 ? 1 : remain_.size() / num_consumers_;
   }
 
   void Clear() {
     std::lock_guard<std::mutex> lk(mu_);
     remain_.clear();
     assigned_.clear();
-    num_ = 0;
     num_finished_ = 0;
   }
 
@@ -94,17 +100,13 @@ class WorkloadPool {
     remain_.clear();
   }
 
-  // get one to id when nconsumer == 0
-  // divide the workload into nconsumer part, give one to id
+  // get one to id when size == 0
+  // divide the workload into size part, give one part to id
   void Get(const std::string& id, Workload* wl) {
     std::lock_guard<std::mutex> lk(mu_);
-    wl->Clear();
-    if (num_ == 0) {
+    wl->file.clear();
+    for (int i = 0; i < num_; ++i) {
       GetOne(id, wl);
-    } else {
-      for (int i = 0; i < num_; ++i) {
-        GetOne(id, wl);
-      }
     }
   }
 
@@ -155,9 +157,9 @@ class WorkloadPool {
 
   void GetOne(const std::string& id, Workload* wl) {
     if (remain_.empty()) return;
-    wl->add_file()->CopyFrom(remain_.front());
-    wl->set_type(type_);
-    wl->set_format(format_);
+    wl->type = type_;
+    wl->file.push_back(remain_.front());
+
     ActiveTask task;
     task.node = id;
     task.file = remain_.front();
@@ -194,12 +196,13 @@ class WorkloadPool {
   std::string format_;
   Workload::Type type_;
   int num_;
+  int num_consumers_;
 
   int num_finished_ = 0;
-  std::list<File> remain_;
+  std::list<Workload::File> remain_;
   struct ActiveTask {
     std::string node;
-    File file;
+    Workload::File file;
     double start_time;
   };
   std::list<ActiveTask> assigned_;

@@ -125,7 +125,7 @@ class CriteoRecParser : public ParserImpl<IndexType> {
 
     IndexType itv = std::numeric_limits<IndexType>::max() / 13 + 1;
     std::string str;
-    linear::Criteo pb;
+    data::Criteo pb;
     InputSplit::Blob rec;
     RecordIOChunkReader reader(chunk);
     while (reader.NextRecord(&rec)) {

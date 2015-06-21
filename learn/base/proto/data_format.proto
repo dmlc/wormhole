@@ -1,6 +1,6 @@
 /// @file   data.proto
 /// @brief  data format in protobuf
-package dmlc;
+package dmlc.data;
 
 // Adfea message
 message Adfea {

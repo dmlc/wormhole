@@ -3,11 +3,11 @@
  * @brief  Parse the arg to a proto
  */
 #pragma once
-
 #include "dmlc/logging.h"
 #include "dmlc/config.h"
 #include "google/protobuf/message.h"
 #include "google/protobuf/text_format.h"
+
 namespace dmlc {
 
 inline void Arg2Proto(int argc, char *argv[], google::protobuf::Message* proto) {

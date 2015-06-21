@@ -12,7 +12,7 @@ all: base.a
 clean:
 	rm -rf base.a proto/*.pb.*
 
-base.a: proto/data_format.pb.o proto/workload.pb.o
+base.a: proto/data_format.pb.o
 	ar crv $@ $(filter %.o, $?)
 
 %.o: %.cc

@@ -113,7 +113,7 @@ class AdfeaRecParser : public ParserImpl<IndexType> {
     blk.Clear();
 
     std::string str;
-    linear::Adfea pb;
+    data::Adfea pb;
     InputSplit::Blob rec;
     RecordIOChunkReader reader(chunk);
     while (reader.NextRecord(&rec)) {

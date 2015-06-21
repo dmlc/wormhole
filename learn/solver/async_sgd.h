@@ -5,6 +5,8 @@
 #include "ps.h"
 #include "ps/app.h"
 #include "base/progress.h"
+#include "base/dist_monitor.h"
+#include "base/workload_pool.h"
 
 namespace dmlc {
 namespace solver {
@@ -23,12 +25,12 @@ class AsyncSGDScheduler : public ps::App {
   std::string train_data_;
   std::string val_data_;
   std::string data_format_;
-  int save_model = 0;
+  int save_model_ = 0;
 
   int num_part_per_file_ = 10;
   int max_data_pass_ = 1;
+  int cur_data_pass_ = 0;
   int disp_itv_ = 1;
-
 
   virtual bool Stop(const Progress& cur, const Progress& prev) {
     return false;
@@ -47,13 +49,14 @@ class AsyncSGDScheduler : public ps::App {
       auto id = response->sender;
       pool_.Finish(id);
       Workload wl; pool_.Get(id, &wl);
-      if (wl.file_size() > 0) SendWorkload(id, wl);
+      if (wl.file.size() > 0) SendWorkload(id, wl);
     }
   }
 
   virtual bool Run() {
     double t = GetTime();
     for (int i = 0; i < max_data_pass_; ++i) {
+      cur_data_pass_ = i;
       printf("training #iter = %d\n", i);
       bool exit = !Iterate(true, t);
 
@@ -77,11 +80,11 @@ class AsyncSGDScheduler : public ps::App {
     bool stop = false;
     pool_.Clear();
     if (is_train) {
-      if (train_data.empty()) return;
-      pool_.Add(train_data_, data_format_, num_part_per_file_, 0, Workload::TRAIN);
+      if (train_data_.empty()) return;
+      pool_.Add(train_data_, data_format_, num_part_per_file_,  Workload::TRAIN);
     } else {
-      if (val_data.empty()) return;
-        pool_.Add(val_data_, data_format_, num_part_per_file_ , 0, Workload::VAL);
+      if (val_data_.empty()) return;
+        pool_.Add(val_data_, data_format_, num_part_per_file_, Workload::VAL);
     }
     Workload wl; SendWorkload(ps::kWorkerGroup, wl);
     printf(" sec %s\n", prog_.HeadStr().c_str());
@@ -91,8 +94,7 @@ class AsyncSGDScheduler : public ps::App {
       sleep(disp_itv_);
       if (is_train) {
         // continous print
-        // monitor_.Get(0, &prog);
-        // monitor_.Clear(0);
+        monitor_.Get(&cur); monitor_.Clear();
         if (cur.Empty()) continue;
         printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_));
         if (Stop(cur, prog_)) {
@@ -105,13 +107,14 @@ class AsyncSGDScheduler : public ps::App {
 
     if (!is_train) {
       // get cur
+      monitor_.Get(&cur); monitor_.Clear();
       printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_));
       prog_.Merge(&cur);
     }
   }
 
   void SendWorkload(const std::string id, const Workload& wl) {
-    std::string wl_str; wl.SerializeToString(&wl_str);
+    std::string wl_str; // TODO wl.SerializeToString(&wl_str);
     ps::Task task; task.set_msg(wl_str);
     task.set_cmd(kProcess);
     Submit(task, id);
@@ -120,24 +123,57 @@ class AsyncSGDScheduler : public ps::App {
   WorkloadPool pool_;
   bool done_ = false;
   Progress prog_;
-  ps::MonitorMaster<Progress> monitor_;
+  ProgressMonitor<Progress> monitor_;
+};
 
+/**************************************************************************
+ * \brief A server node, which maintains a part of the model, and update the
+ * model once received gradients from workers
+ **************************************************************************/
+class AsyncSGDServer : public ps::App {
+ protected:
+  virtual void SaveModel() = 0;
+
+  /**
+   * \brief Report the progress to the scheduler
+   */
+  void Report(const IProgress* const prog) {
+    reporter_.Report(prog);
+  }
+
+  int report_itv_ = 1;
+ public:
+  AsyncSGDServer() {
+    reporter_.set_report_itv(report_itv_);
+  }
+  virtual ~AsyncSGDServer() { }
+
+  virtual void ProcessRequest(ps::Message* request) {
+    if (request->task.cmd() == kSaveModel) {
+      SaveModel();
+    }
+  }
+
+ private:
+  ProgressReporter reporter_;
 };
 
 /*****************************************************************************
  * \brief A worker node, which takes a part of training data and calculate the
  * gradients
  *****************************************************************************/
-template <typename Progress>
 class AsyncSGDWorker : public ps::App {
   /// for applications
  protected:
   // feature id type
   using FeaID = ps::Key;
   // a minibatch data
-  using Minibatch = dmlc::data::RowBlockContainer<FeaID>;
+  using Minibatch = dmlc::RowBlock<FeaID>;
 
-  virtual void ProcessMinibatch(const Minibatch& mb, Progress* prog) = 0;
+  /**
+   * \brief Process one minibatch
+   */
+  virtual void ProcessMinibatch(const Minibatch& mb) = 0;
 
   /**
    * \brief Mark one minibatch is finished
@@ -148,7 +184,9 @@ class AsyncSGDWorker : public ps::App {
   /**
    * \brief Report the progress to the scheduler
    */
-  void Report(IProgress const* prog);
+  void Report(const IProgress *const prog) {
+    reporter_.Report(prog);
+  }
 
   int minibatch_size_ = 10000;
   int max_delay_ = 4;
@@ -156,6 +194,8 @@ class AsyncSGDWorker : public ps::App {
   // for validation test
   int val_minibatch_size_ = 1000000;
   int val_max_delay_ = 10;
+
+  int report_itv_ = 1;
 
   /// implement system APIs
  public:
@@ -166,27 +206,21 @@ class AsyncSGDWorker : public ps::App {
   virtual void ProcessRequest(ps::Message* request) {
     int cmd = request->task.cmd();
     if (cmd == kProcess) {
-      Workload wl; CHECK(wl.ParseFromString(request->task.msg()));
-      if (wl.file_size() < 1) return;
-      Process(wl.file(0), wl.type());
-      if (wl.type() != Workload::TRAIN) {
-        // return the progress
-        std::string prog_str; monitor_.prog.Serialize(&prog_str);
-        ps::Task res; res.set_msg(prog_str);
-        Reply(request, res);
-      }
+      Workload wl; // CHECK(wl.ParseFromString(request->task.msg()));
+      if (wl.file.size() < 1) return;
+      Process(wl.file[0], wl.type);
     }
   }
 
  private:
-  void Process(const File& file, Workload::Type type) {
+  void Process(const Workload::File& file, Workload::Type type) {
     LOG(INFO) << ps::MyNodeID() << ": start to process " << file.ShortDebugString();
 
     int mb_size = type == Workload::TRAIN ? minibatch_size_ : val_minibatch_size_;
     int max_delay = type == Workload::TRAIN ? max_delay_ : val_max_delay_;
 
     dmlc::data::MinibatchIter<FeaID> reader(
-        file.file().c_str(), file.k(), file.n(), file.format().c_str(), mb_size);
+        file.filename.c_str(), file.k, file.n, file.format.c_str(), mb_size);
     reader.BeforeFirst();
     while (reader.Next()) {
       // wait for data consistency
@@ -211,6 +245,7 @@ class AsyncSGDWorker : public ps::App {
   std::mutex mb_mu_;
   std::condition_variable mb_cond_;
 
+  ProgressReporter reporter_;
 };
 
 void AsyncSGDWorker::FinishMinibatch() {
@@ -223,34 +258,6 @@ void AsyncSGDWorker::FinishMinibatch() {
 }
 
 
-
-
-/**************************************************************************
- * \brief A server node, which maintains a part of the model, and update the
- * model once received gradients from workers
- **************************************************************************/
-class AsyncSGDServer : public ps::App {
- protected:
-  virtual SaveModel() = 0;
-
-  /**
-   * \brief Report the progress to the scheduler
-   */
-  void Report(IProgress const* prog);
-
- public:
-  AsyncSGDServer() { }
-  virtual ~AsyncSGDServer() { }
-
-  virtual void ProcessRequest(ps::Message* request) {
-    if (request->task.cmd() == kSaveModel) {
-      SaveModel();
-    }
-  }
-
- private:
-
-};
 
 }  // namespace solver
 }  // namespace dmlc
