@@ -26,7 +26,7 @@ class Localizer {
   template<typename C = unsigned>
   void Localize(const RowBlock<I>& blk,
                 data::RowBlockContainer<unsigned> *localized,
-                std::vector<I>* uniq_idx = NULL
+                std::vector<I>* uniq_idx = NULL,
                 std::vector<C>* idx_frq = NULL) {
     std::vector<I>* uidx = uniq_idx == NULL ? new std::vector<I>() : uniq_idx;
     CountUniqIndex<C>(blk, 4, uidx, idx_frq);

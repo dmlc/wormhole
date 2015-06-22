@@ -171,7 +171,7 @@ class AsyncSGDWorker : public ps::App {
   /**
    * \brief Process one minibatch
    */
-  virtual void ProcessMinibatch(const Minibatch& mb) = 0;
+  virtual void ProcessMinibatch(const Minibatch& mb, bool train) = 0;
 
   /**
    * \brief Mark one minibatch is finished
@@ -210,10 +210,11 @@ class AsyncSGDWorker : public ps::App {
 
  private:
   void Process(const Workload::File& file, Workload::Type type) {
+    bool train = type == Workload::TRAIN;
     LOG(INFO) << ps::MyNodeID() << ": start to process " << file.ShortDebugString();
 
-    int mb_size = type == Workload::TRAIN ? minibatch_size_ : val_minibatch_size_;
-    int max_delay = type == Workload::TRAIN ? max_delay_ : val_max_delay_;
+    int mb_size = train ? minibatch_size_ : val_minibatch_size_;
+    int max_delay = train ? max_delay_ : val_max_delay_;
 
     dmlc::data::MinibatchIter<FeaID> reader(
         file.filename.c_str(), file.k, file.n, file.format.c_str(), mb_size);
@@ -222,7 +223,7 @@ class AsyncSGDWorker : public ps::App {
       // wait for data consistency
       WaitMinibatch(max_delay);
 
-      ProcessMinibatch(reader.Value());
+      ProcessMinibatch(reader.Value(), train);
 
       mb_mu_.lock(); ++ num_mb_fly_; mb_mu_.unlock();
 

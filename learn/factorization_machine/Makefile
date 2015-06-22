@@ -48,9 +48,9 @@ clean_ps:
 base:
 	make -C ../base -j4 all config=$(ROOTDIR)/$(config)
 
-build/fm.dmlc: build/config.pb.o build/fm.o fm.h ../base/base.a $(PS_PATH)/build/libps.a
+build/fm.dmlc: build/config.pb.o build/fm.o ../base/base.a $(PS_PATH)/build/libps.a
 	$(CXX) $(CFLAGS) $(filter %.o %.a, $^) $(LDFLAGS) -o $@
 
 
+-include build/*.d
 -include build/*/*.d
--include build/*/*/*.d
