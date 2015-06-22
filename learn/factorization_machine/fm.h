@@ -33,6 +33,19 @@ class Progress : public VectorProgress {
   virtual std::string PrintStr(const IProgress* const prev) {
     return "";
   }
+
+
+  // mutator
+  double& objv() { return fvec_[0]; }
+  double& acc() { return fvec_[1]; }
+  double& auc() { return fvec_[2]; }
+  double& weight2() { return fvec_[3]; }
+  double& wdelta2() { return fvec_[4]; }
+
+  int64_t& count() { return ivec_[0]; }
+  int64_t& num_ex() { return ivec_[1]; }
+  int64_t& nnz_w() { return ivec_[2]; }
+
 };
 
 class FMScheduler : public solver::AsyncSGDScheduler<Progress> {
