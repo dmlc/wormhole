@@ -73,9 +73,10 @@ class BinClassEval {
   }
 
  private:
-  V* label_, predict_;
-  int nt_;
+  V const* label_;
+  V const* predict_;
   size_t size_;
+  int nt_;
 };
 
 

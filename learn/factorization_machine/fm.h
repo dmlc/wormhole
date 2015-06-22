@@ -17,7 +17,7 @@ static const int kPushFeaCnt = 1;
 
 class Progress : public VectorProgress {
  public:
-  Progress() : VectorProgress(4,4) {}
+  Progress() : VectorProgress(6, 3) {}
   virtual ~Progress() { }
 
   virtual void Merge(const IProgress* const other) {
@@ -39,13 +39,13 @@ class Progress : public VectorProgress {
   double& objv() { return fvec_[0]; }
   double& acc() { return fvec_[1]; }
   double& auc() { return fvec_[2]; }
-  double& weight2() { return fvec_[3]; }
-  double& wdelta2() { return fvec_[4]; }
+  double& logloss() { return fvec_[3]; }
+  double& weight2() { return fvec_[4]; }
+  double& wdelta2() { return fvec_[5]; }
 
-  int64_t& count() { return ivec_[0]; }
-  int64_t& num_ex() { return ivec_[1]; }
-  int64_t& nnz_w() { return ivec_[2]; }
-
+  size_t& count() { return ivec_[0]; }
+  size_t& num_ex() { return ivec_[1]; }
+  size_t& nnz_w() { return ivec_[2]; }
 };
 
 class FMScheduler : public solver::AsyncSGDScheduler<Progress> {

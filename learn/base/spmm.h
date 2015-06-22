@@ -8,14 +8,8 @@
 #include "dmlc/omp.h"
 #include "base/spmv.h"  // for Range
 
-// /**
-//  * \brief Row major dense matrix
-//  */
-// template<typename V>
-// struct RMat {
-//   int num_cols = 0;
-//   std::vector<V*> row;
-// };
+namespace dmlc {
+
 /**
  * \brief multi-thread sparse matrix dense matrix multiplication
  */
@@ -48,6 +42,7 @@ class SpMM {
   static void TransTimes(const SpMat& D, const std::vector<V>& x,
                          V p, const std::vector<V>& z,
                          std::vector<V>* y, int nt = kDefaultNT) {
+    if (x.empty()) return;
     int dim = (int)(x.size() / D.size);
     if (z.size() == y->size() && p != 0) {
       TransTimes<V>(D, x.data(), z.data(), p, y->data(), y->size(), dim, nt);
@@ -60,7 +55,6 @@ class SpMM {
   template<typename V>
   static void Times(const SpMat& D, const V* const x,
                     V* y, int dim, int nt = kDefaultNT) {
-    if (x.empty()) return;
 
 #pragma omp parallel num_threads(nt)
     {
@@ -97,7 +91,7 @@ class SpMM {
       memset(y, 0, y_size*sizeof(V));
     }
 
-#pragma omp parallel num_threads(nthreads)
+#pragma omp parallel num_threads(nt)
     {
       Range rg = Range(0, y_size).Segment(
           omp_get_thread_num(), omp_get_num_threads());
@@ -110,7 +104,7 @@ class SpMM {
             unsigned e = D.index[j];
             if (rg.Has(e)) {
               V v = D.value[j];
-              y_j = y + e * dim;
+              V* y_j = y + e * dim;
               for (int k = 0; k < dim; ++k) y_j[k] += x_i[k] * v;
             }
           }
@@ -118,7 +112,7 @@ class SpMM {
           for (size_t j = D.offset[i]; j < D.offset[i+1]; ++j) {
             unsigned e = D.index[j];
             if (rg.Has(e)) {
-              y_j = y + e * dim;
+              V* y_j = y + e * dim;
               for (int k = 0; k < dim; ++k) y_j[k] += x_i[k];
             }
           }
@@ -127,3 +121,5 @@ class SpMM {
     }
   }
 };
+
+}  // namespace dmlc
