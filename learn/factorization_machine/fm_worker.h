@@ -39,6 +39,7 @@ class Objective {
   void Evaluate(Progress* prog) {
     // py = X * w
     auto& d = data_[0];
+
     py_.resize(d.X.size);
     SpMV::Times(d.X, d.w, &py_, nt_);
 
@@ -52,6 +53,7 @@ class Objective {
       for (auto& u : uu) u *= u;
 
       std::vector<Real> tmp(d.X.size * d.dim);
+      CHECK_EQ(uu.size(), d.pos.size()*d.dim);
       SpMM::Times(d.XX, uu, &tmp, nt_);
 
       // x*u
@@ -110,6 +112,7 @@ class Objective {
       SpMM::TransTimes(d.XX, py_, &xxp, nt_);
 
       // bsxfun(@times, (x.*x)'*p, u)
+      CHECK_EQ(d.w.size(), dim * m);
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < m; ++i) {
         Real* u = d.w.data() + i * dim;
@@ -118,10 +121,11 @@ class Objective {
 
       // bsxfun(@times, p, x*u)
       size_t n = py_.size();
+      CHECK_EQ(d.xw.size(), n * dim);
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < n; ++i) {
         Real* y = d.xw.data() + i * dim;
-        for (int j = 0; j < dim; ++j) y[i] *= py_[i];
+        for (int j = 0; j < dim; ++j) y[j] *= py_[i];
       }
 
       // += x' * bsxfun(@times, p, x*u)
@@ -180,7 +184,9 @@ class Objective {
         os.push_back(0);
         for (size_t i = 0; i < data.size; ++i) {
           for (size_t j = data.offset[i]; j < data.offset[i+1]; ++j) {
-            unsigned k = col_map[data.index[j]];
+            unsigned d = data.index[j];
+            CHECK_LT(d, col_map.size());
+            unsigned k = col_map[d];
             if (k > 0) {
               idx.push_back(k-1);
               if (data.value) val.push_back(data.value[j]);
@@ -202,11 +208,13 @@ class Objective {
         XX.value = BeginPtr(val2);
       }
 
-      if (dim > 1) LL << pos.size();
+      // if (dim > 1) LL << dim << " " << pos.size();
     }
 
     void Save(std::vector<Real>* grad) const {
       if (w.empty()) return;
+      CHECK_EQ(w.size(), pos.size()*dim);
+      CHECK_GE(grad->size(), pos.back() + dim);
       for (size_t i = 0; i < pos.size(); ++i) {
         memcpy(grad->data() + pos[i], w.data() + i*dim, dim * sizeof(Real));
       }
@@ -224,8 +232,6 @@ class Objective {
     std::vector<Real> val, val2;
     std::vector<size_t> os;
     std::vector<unsigned> idx;
-
-    // RowBlockContainer<unsigned> dat;
   };
   std::vector<Data> data_;
 
