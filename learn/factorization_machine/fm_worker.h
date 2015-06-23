@@ -3,7 +3,6 @@
 #include "base/spmm.h"
 #include "base/localizer.h"
 #include "base/binary_class_evaluation.h"
-
 namespace dmlc {
 namespace fm {
 
@@ -155,8 +154,8 @@ class Objective {
         col_map.resize(model_siz.size());
         unsigned k = 0, p = 0;
         for (size_t i = 0; i < model_siz.size(); ++i) {
-          if (model_siz[i] == dim) {
-            pos.push_back(p);
+          if (model_siz[i] == dim + 1) {
+            pos.push_back(p+1);  // skip the first dim
             col_map[i] = ++ k;
           }
           p += model_siz[i];
@@ -235,7 +234,16 @@ class Objective {
 
 class FMWorker : public solver::AsyncSGDWorker {
  public:
-  FMWorker(const Config& conf) : conf_(conf) { }
+  FMWorker(const Config& conf) : conf_(conf) {
+    minibatch_size_ = conf_.minibatch();
+    max_delay_      = conf_.max_delay();
+    nt_             = conf_.num_threads();
+    dims_.push_back(1);
+    for (int i = 0; i < conf_.embedding_size(); ++i) {
+      dims_.push_back(conf_.embedding[i].dim());
+      CHECK_GT(dims_[i], dims_[i-1]);
+    }
+  }
   virtual ~FMWorker() { }
 
  protected:
@@ -253,10 +261,11 @@ class FMWorker : public solver::AsyncSGDWorker {
 
     if (train) {
       // push the feature count to the servers
-      ps::SyncOpts push_cnt_opts;
-      SetFilters(true, &push_cnt_opts);
-      int t = server_.ZPush(feaid, feacnt, push_cnt_opts);
-      pull_w_opts.deps.push_back(t);
+      ps::SyncOpts cnt_opt;
+      SetFilters(true, &cnt_opt);
+      cnt_opt.cmd = kPushFeaCnt;
+      int t = server_.ZPush(feaid, feacnt, cnt_opt);
+      pull_w_opt.deps.push_back(t);
     }
 
     // pull the weight from the servers
@@ -264,7 +273,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     auto val_siz = new std::vector<int>();
 
     // this callback will be called when the weight has been actually pulled back
-    pull_w_opts.callback = [this, data, feaid, val, val_siz, train]() {
+    pull_w_opt.callback = [this, data, feaid, val, val_siz, train]() {
       // eval the objective, and report progress to the scheduler
       Objective obj(data->GetBlock(), *val, *val_siz, dims_, nt_);
       Progress prog;
@@ -277,15 +286,15 @@ class FMWorker : public solver::AsyncSGDWorker {
         // calculate and push the gradients
         obj.CalcGrad(val);
 
-        ps::SyncOpts push_grad_opts;
+        ps::SyncOpts push_grad_opt;
         // filters to reduce network traffic
-        SetFilters(true, &push_grad_opts);
+        SetFilters(true, &push_grad_opt);
         // this callback will be called when the gradients have been actually pushed
-        push_grad_opts.callback = [this]() { FinishMinibatch(); };
+        push_grad_opt.callback = [this]() { FinishMinibatch(); };
         server_.ZVPush(feaid,
                        std::shared_ptr<std::vector<Real>>(val),
                        std::shared_ptr<std::vector<int>>(val_siz),
-                       push_grad_opts);
+                       push_grad_opt);
       } else {
         FinishMinibatch();
         delete val;
@@ -295,8 +304,8 @@ class FMWorker : public solver::AsyncSGDWorker {
     };
 
     // filters to reduce network traffic
-    SetFilters(false, &pull_w_opts);
-    server_.ZVPull(feaid, val, val_siz, pull_w_opts);
+    SetFilters(false, &pull_w_opt);
+    server_.ZVPull(feaid, val, val_siz, pull_w_opt);
   }
 
  private:

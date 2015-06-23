@@ -49,7 +49,22 @@ class VectorProgress : public IProgress {
     return true;
   }
 
-  virtual void Clear() { Resize(0, 0); }
+  virtual void Merge(const IProgress* const other) {
+    const VectorProgress* const o = (VectorProgress const*) other;
+    CHECK_EQ(fvec_.size(), o->fvec_.size());
+    for (size_t i = 0; i < fvec_.size(); ++i) {
+      fvec_[i] += o->fvec_[i];
+    }
+    CHECK_EQ(ivec_.size(), o->ivec_.size());
+    for (size_t i = 0; i < ivec_.size(); ++i) {
+      ivec_[i] += o->ivec_[i];
+    }
+  }
+
+  virtual void Clear() {
+    memset(fvec_.data(), 0, fvec_.size() * sizeof(double));
+    memset(ivec_.data(), 0, ivec_.size() * sizeof(size_t));
+  }
 
 
   virtual void Load(Stream* fi) {

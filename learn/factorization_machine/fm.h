@@ -1,18 +1,12 @@
 #pragma once
-
-// #include "base/dist_monitor.h"
-#include "base/minibatch_iter.h"
+#include "ps.h"
 #include "solver/async_sgd.h"
 #include "config.pb.h"
-
 namespace dmlc {
 namespace fm {
 
 using FeaID = ps::Key;
 using Real = float;
-template <typename T> using Blob = ps::Blob<T>;
-
-// commands
 static const int kPushFeaCnt = 1;
 
 class Progress : public VectorProgress {
@@ -20,20 +14,23 @@ class Progress : public VectorProgress {
   Progress() : VectorProgress(6, 3) {}
   virtual ~Progress() { }
 
-  virtual void Merge(const IProgress* const other) {
-
-  }
 
   /// head string for printing
   virtual std::string HeadStr() {
-    return "  objv       AUC    accuracy";
+    return "#example delta #ex    |w|_0       objv       AUC    accuracy";
   }
 
   /// string for printing
   virtual std::string PrintStr(const IProgress* const prev) {
-    return "";
+    if (num_ex() == 0) return "";
+    char buf[60];
+    snprintf(buf, 60, "%7.2g  %7.2g  %11.6g  %8.6lf  %8.6lf  %8.6lf",
+             (double)(prev.num_ex() + num_ex()),
+             (double)num_ex(),
+             (double)(prev.nnz_w() + nnz_w()),
+             objv() / num_ex(), auc() / count(), acc() / count());
+    return std::string(buf);
   }
-
 
   // mutator
   double& objv() { return fvec_[0]; }
@@ -50,7 +47,15 @@ class Progress : public VectorProgress {
 
 class FMScheduler : public solver::AsyncSGDScheduler<Progress> {
  public:
-  FMScheduler(const Config& conf) { }
+  FMScheduler(const Config& conf) {
+    CHECK(conf.has_train_data());
+    train_data_        = conf.train_data();
+    val_data_          = conf.val_data();
+    data_format_       = conf.data_format();
+    num_part_per_file_ = conf.num_parts_per_file();
+    max_data_pass_     = conf.max_data_pass();
+    disp_itv_          = conf.disp_itv();
+  }
   virtual ~FMScheduler() { }
 };
 

@@ -4,6 +4,8 @@
  */
 #include "ps.h"
 #include "ps/app.h"
+#include "dmlc/data.h"
+#include "dmlc/data/row_block.h"
 #include "base/progress.h"
 #include "base/dist_monitor.h"
 #include "base/workload_pool.h"
@@ -95,8 +97,9 @@ class AsyncSGDScheduler : public ps::App {
       if (is_train) {
         // continous print
         monitor_.Get(&cur); monitor_.Clear();
-        if (cur.Empty()) continue;
-        printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_).c_str());
+        auto disp = cur.PrintStr(&prog_);
+        if (disp.empty()) continue;
+        printf("%5.0lf  %s\n", GetTime() - start_time, disp.c_str());
         if (Stop(cur, prog_)) {
           stop = true;
           pool_.ClearRemain();
