@@ -19,8 +19,10 @@ struct AdaGradEntry {
   }
 
   inline void Resize(int n) {
-    Real* new_w = new Real[n]; memset(new_w, 0, sizeof(Real)*n);
-    Real* new_cg = new Real[n]; memset(new_cg, 0, sizeof(Real)*n);
+    if (n < size) { size = n; return; }
+
+    Real* new_w = new Real[n];
+    Real* new_cg = new Real[n];
 
     if (size == 1) {
       new_w[0] = w_0();
@@ -56,7 +58,7 @@ struct AdaGradEntry {
 
   // length of w. if size == 1, then using w itself to store the value to save
   // memory and avoid unnecessary new (see w_0())
-  unsigned size = 1;
+  int size = 1;
 
   Real *w = NULL;
   Real *sq_cum_grad = NULL;
@@ -70,8 +72,15 @@ struct AdaGradEntry {
  * \brief the base handle class
  */
 struct ISGDHandle {
+  ISGDHandle() {
+    LL << ps::RankSize();
+    srand(ps::RankSize());
+  }
+
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
+    // if (push)
+    // LL << push_count << " " << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
   }
   inline void Finish() {
     // report to scheduler
@@ -91,6 +100,8 @@ struct ISGDHandle {
   };
   std::array<Embedding, 2> embed;
 
+  Real w_min = -.01;
+  Real w_max = .01;
   Real lambda_l1 = 0;
   Real lambda_l2 = 0;
 };
@@ -99,10 +110,17 @@ struct AdaGradHandle : public ISGDHandle {
   inline void Push(FeaID key, Blob<const Real> recv, AdaGradEntry& val) {
     if (push_count) {
       val.fea_cnt += (unsigned) recv[0];
-      // resize 1 first to avoid double resize
-      for (int i = 1; i > 0; --i) {
-        if (val.fea_cnt > embed[i].thr && (int)val.size < embed[i].dim) {
+      // resize the larger dim first to avoid double resize
+      for (int i = 1; i >= 0; --i) {
+        if (val.fea_cnt > embed[i].thr &&
+            val.size < embed[i].dim + 1 &&
+            val.w_0() != 0) {
+          int old_siz = val.size;
           val.Resize(embed[i].dim + 1);
+          for (int j = old_siz; j < val.size; ++j) {
+            val.w[j] = rand() / (Real) RAND_MAX * (w_max - w_min) + w_min;
+          }
+          // LOG_EVERY_N(ERROR, 100) << DebugStr(val.w, val.size);
         }
       }
     } else {
@@ -156,6 +174,7 @@ class FMServer : public solver::AsyncSGDServer {
       h.embed[i].thr    = (unsigned)c.threshold();
       h.embed[i].dim    = c.dim();
       h.embed[i].lambda = c.lambda_l2();
+      LL << h.embed[i].dim;
     }
     Server s(h, Server::kDynamicSize);
     server_ = s.server();

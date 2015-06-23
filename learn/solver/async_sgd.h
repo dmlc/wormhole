@@ -56,14 +56,14 @@ class AsyncSGDScheduler : public ps::App {
   }
 
   virtual bool Run() {
-    double t = GetTime();
+    start_time_ = GetTime();
     for (int i = 0; i < max_data_pass_; ++i) {
       cur_data_pass_ = i;
       printf("training #iter = %d\n", i);
-      bool exit = !Iterate(true, t);
+      bool exit = !Iterate(true);
 
       printf("validating #iter = %d\n", i);
-      Iterate(false, t);
+      Iterate(false);
 
       if (exit) break;
     }
@@ -78,7 +78,7 @@ class AsyncSGDScheduler : public ps::App {
   }
 
  private:
-  bool Iterate(bool is_train, double start_time) {
+  bool Iterate(bool is_train) {
     bool stop = false;
     pool_.Clear();
     if (is_train) {
@@ -91,29 +91,17 @@ class AsyncSGDScheduler : public ps::App {
     Workload wl; SendWorkload(ps::kWorkerGroup, wl);
     printf(" sec %s\n", prog_.HeadStr().c_str());
 
-    Progress cur;
+    // print every k sec for training, while print at the end for validation
     while (!pool_.IsFinished()) {
       sleep(disp_itv_);
       if (is_train) {
-        // continous print
-        monitor_.Get(&cur); monitor_.Clear();
-        auto disp = cur.PrintStr(&prog_);
-        if (disp.empty()) continue;
-        printf("%5.0lf  %s\n", GetTime() - start_time, disp.c_str());
-        if (Stop(cur, prog_)) {
+        if (ShowProgress()) {
           stop = true;
           pool_.ClearRemain();
         }
-        prog_.Merge(&cur);
       }
     }
-
-    if (!is_train) {
-      // get cur
-      monitor_.Get(&cur); monitor_.Clear();
-      printf("%5.0lf  %s\n", GetTime() - start_time, cur.PrintStr(&prog_).c_str());
-      prog_.Merge(&cur);
-    }
+    if (!is_train) { ShowProgress(); }
     return stop;
   }
 
@@ -124,6 +112,20 @@ class AsyncSGDScheduler : public ps::App {
     Submit(task, id);
   }
 
+  // return true if it's time for stopping
+  bool ShowProgress() {
+    bool ret = false;
+    Progress cur;
+    monitor_.Get(&cur); monitor_.Clear();
+    auto disp = cur.PrintStr(&prog_);
+    if (disp.empty()) return ret;
+    printf("%5.0lf  %s\n", GetTime() - start_time_, disp.c_str());
+    if (Stop(cur, prog_)) ret = true;
+    prog_.Merge(&cur);
+    return ret;
+  }
+
+  double start_time_;
   WorkloadPool pool_;
   bool done_ = false;
   Progress prog_;

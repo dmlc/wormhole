@@ -201,6 +201,8 @@ class Objective {
         for (size_t i = 0; i < val2.size(); ++i) val2[i] = X.value[i] * X.value[i];
         XX.value = BeginPtr(val2);
       }
+
+      if (dim > 1) LL << pos.size();
     }
 
     void Save(std::vector<Real>* grad) const {
@@ -259,7 +261,6 @@ class FMWorker : public solver::AsyncSGDWorker {
 
     Localizer<FeaID> lc;
     lc.Localize(mb, data, feaid.get(), feacnt.get());
-    // LL << mb.size << " " << DebugStr(*feaid) << "\n" << DebugStr(*feacnt);
     ps::SyncOpts pull_w_opt;
 
     if (train) {
@@ -268,6 +269,8 @@ class FMWorker : public solver::AsyncSGDWorker {
       SetFilters(true, &cnt_opt);
       cnt_opt.cmd = kPushFeaCnt;
       int t = server_.ZPush(feaid, feacnt, cnt_opt);
+      // LL << DebugStr(*feacnt);
+
       pull_w_opt.deps.push_back(t);
     }
 
@@ -311,6 +314,7 @@ class FMWorker : public solver::AsyncSGDWorker {
 
  private:
   void SetFilters(bool push, ps::SyncOpts* opts) {
+    return;
     if (conf_.fixed_bytes() > 0) {
       opts->AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(conf_.fixed_bytes());
     }

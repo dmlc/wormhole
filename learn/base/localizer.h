@@ -1,4 +1,5 @@
 #pragma once
+#include <type_traits>
 #include <limits>
 #include "dmlc/data.h"
 #include "data/row_block.h"
@@ -111,6 +112,8 @@ void Localizer<I>:: CountUniqIndex(
   uniq_idx->clear();
   if (idx_frq) idx_frq->clear();
 
+  // cnt_max doesn't work for float and double
+  bool int_cnt = std::is_integral<C>::value;
   unsigned cnt_max = static_cast<unsigned>(std::numeric_limits<C>::max());
   I curr = pair_[0].k;
   unsigned cnt = 0;
@@ -119,13 +122,25 @@ void Localizer<I>:: CountUniqIndex(
     if (v.k != curr) {
       uniq_idx->push_back(curr);
       curr = v.k;
-      if (idx_frq) idx_frq->push_back(std::min(cnt, cnt_max));
+      if (idx_frq) {
+        if (int_cnt) {
+          idx_frq->push_back(std::min(cnt, cnt_max));
+        } else {
+          idx_frq->push_back(static_cast<C>(cnt));
+        }
+      }
       cnt = 0;
     }
     ++ cnt;
   }
   uniq_idx->push_back(curr);
-  if (idx_frq) idx_frq->push_back(std::min(cnt, cnt_max));
+  if (idx_frq) {
+    if (int_cnt) {
+      idx_frq->push_back(std::min(cnt, cnt_max));
+    } else {
+      idx_frq->push_back(static_cast<C>(cnt));
+    }
+  }
 }
 
 template<typename I>
