@@ -22,12 +22,13 @@ class Progress : public VectorProgress {
 
   /// string for printing
   virtual std::string PrintStr(const IProgress* const prev) {
+    Progress* const p = (Progress* const) prev;
     if (num_ex() == 0) return "";
     char buf[60];
     snprintf(buf, 60, "%7.2g  %7.2g  %11.6g  %8.6lf  %8.6lf  %8.6lf",
-             (double)(prev.num_ex() + num_ex()),
+             (double)(p->num_ex() + num_ex()),
              (double)num_ex(),
-             (double)(prev.nnz_w() + nnz_w()),
+             (double)(p->nnz_w() + nnz_w()),
              objv() / num_ex(), auc() / count(), acc() / count());
     return std::string(buf);
   }
@@ -41,8 +42,12 @@ class Progress : public VectorProgress {
   double& wdelta2() { return fvec_[5]; }
 
   size_t& count() { return ivec_[0]; }
+
   size_t& num_ex() { return ivec_[1]; }
   size_t& nnz_w() { return ivec_[2]; }
+
+  size_t num_ex() const { return ivec_[1]; }
+  size_t nnz_w() const { return ivec_[2]; }
 };
 
 class FMScheduler : public solver::AsyncSGDScheduler<Progress> {

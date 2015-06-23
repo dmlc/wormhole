@@ -240,7 +240,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     nt_             = conf_.num_threads();
     dims_.push_back(1);
     for (int i = 0; i < conf_.embedding_size(); ++i) {
-      dims_.push_back(conf_.embedding[i].dim());
+      dims_.push_back(conf_.embedding(i).dim());
       CHECK_GT(dims_[i], dims_[i-1]);
     }
   }
@@ -257,7 +257,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     Localizer<FeaID> lc;
     lc.Localize(mb, data, feaid.get(), feacnt.get());
 
-    ps::SyncOpts pull_w_opts;
+    ps::SyncOpts pull_w_opt;
 
     if (train) {
       // push the feature count to the servers

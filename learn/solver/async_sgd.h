@@ -4,8 +4,7 @@
  */
 #include "ps.h"
 #include "ps/app.h"
-#include "dmlc/data.h"
-#include "dmlc/data/row_block.h"
+#include "base/minibatch_iter.h"
 #include "base/progress.h"
 #include "base/dist_monitor.h"
 #include "base/workload_pool.h"
