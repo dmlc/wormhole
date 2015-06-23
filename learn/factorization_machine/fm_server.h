@@ -176,7 +176,7 @@ class FMServer : public solver::AsyncSGDServer {
       h.embed[i].lambda = c.lambda_l2();
       LL << h.embed[i].dim;
     }
-    Server s(h, Server::kDynamicSize);
+    Server s(h);
     server_ = s.server();
   }
 
