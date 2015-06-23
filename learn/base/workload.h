@@ -35,6 +35,7 @@ struct Workload : public Serializable {
       fi->Read(&f.format);
       fi->Read(&f.n, sizeof(f.n));
       fi->Read(&f.k, sizeof(f.k));
+      file.push_back(f);
     }
   }
 

@@ -8,6 +8,7 @@
 #include "base/progress.h"
 #include "base/dist_monitor.h"
 #include "base/workload_pool.h"
+#include "base/string_stream.h"
 
 namespace dmlc {
 namespace solver {
@@ -117,8 +118,8 @@ class AsyncSGDScheduler : public ps::App {
   }
 
   void SendWorkload(const std::string id, const Workload& wl) {
-    std::string wl_str; // TODO wl.SerializeToString(&wl_str);
-    ps::Task task; task.set_msg(wl_str);
+    StringStream ss; wl.Save(&ss);
+    ps::Task task; task.set_msg(ss.str());
     task.set_cmd(kProcess);
     Submit(task, id);
   }
@@ -204,7 +205,8 @@ class AsyncSGDWorker : public ps::App {
   virtual void ProcessRequest(ps::Message* request) {
     int cmd = request->task.cmd();
     if (cmd == kProcess) {
-      Workload wl; // CHECK(wl.ParseFromString(request->task.msg()));
+      StringStream ss(request->task.msg());
+      Workload wl; wl.Load(&ss);
       if (wl.file.size() < 1) return;
       Process(wl.file[0], wl.type);
     }
@@ -217,6 +219,7 @@ class AsyncSGDWorker : public ps::App {
 
     int mb_size = train ? minibatch_size_ : val_minibatch_size_;
     int max_delay = train ? max_delay_ : val_max_delay_;
+    num_mb_fly_ = num_mb_done_ = 0;
 
     dmlc::data::MinibatchIter<FeaID> reader(
         file.filename.c_str(), file.k, file.n, file.format.c_str(), mb_size);

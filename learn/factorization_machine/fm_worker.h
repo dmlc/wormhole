@@ -18,9 +18,13 @@ class Objective {
             const std::vector<int>& dims,
             int num_threads = 2) {
     nt_ = num_threads;
-    CHECK_EQ(dims[0], 1);
     data_.resize(dims.size());
     for (size_t i = 0; i < dims.size(); ++i) {
+      if (i == 0) {
+        CHECK_EQ(dims[0], 1);
+      } else {
+        CHECK_GT(dims[i], dims[i-1]);
+      }
       data_[i].Load(dims[i], data, model, model_siz);
     }
   }
@@ -38,8 +42,8 @@ class Objective {
     py_.resize(d.X.size);
     SpMV::Times(d.X, d.w, &py_, nt_);
 
+    // py += .5 * sum((x*u).^2 + (x.*x)*(u.*u), 2);
     for (size_t k = 1; k < data_.size(); ++k) {
-      // py += .5 * sum((x*u).^2 + (x.*x)*(u.*u), 2);
       auto& d = data_[k];
       if (d.w.empty()) continue;
 
@@ -54,9 +58,6 @@ class Objective {
       d.xw.resize(tmp.size());
       SpMM::Times(d.X, d.w, &d.xw, nt_);
 
-      // (x*u).^2
-      for (auto& t : tmp) t *= t;
-
       // py += .5 * sum(..., 2)
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < py_.size(); ++i) {
@@ -70,10 +71,12 @@ class Objective {
 
     // auc, acc, logloss,
     BinClassEval<Real> eval(d.X.label, py_.data(), py_.size(), nt_);
-    prog->objv() = eval.LogitObjv();
-    prog->auc() = eval.AUC();
-    prog->acc() = eval.Accuracy(0);
+    prog->objv()    = eval.LogitObjv();
+    prog->auc()     = eval.AUC();
+    prog->acc()     = eval.Accuracy(0);
     prog->logloss() = eval.LogLoss();
+    prog->num_ex()  = d.X.size;
+    prog->count()   = 1;
   }
 
   /*!
@@ -83,15 +86,16 @@ class Objective {
    * grad_u = x' * bsxfun(@times, p, x*u) - bsxfun(@times, (x.*x)'*p, u)
    */
   void CalcGrad(std::vector<Real>* grad) {
-    CHECK(py_.size()) << "call *evaluate* first";
+    // p =
     auto& d = data_[0];
+    CHECK_EQ(py_.size(), d.X.size) << "call *evaluate* first";
 #pragma omp parallel for num_threads(nt_)
     for (size_t i = 0; i < py_.size(); ++i) {
       Real y = d.X.label[i] > 0 ? 1 : -1;
       py_[i] = - y / ( 1 + exp ( y * py_[i] ));
     }
 
-    // grad_w
+    // grad_w =
     SpMV::TransTimes(d.X, py_, &d.w, nt_);
 
     // grad_u
@@ -109,7 +113,7 @@ class Objective {
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < m; ++i) {
         Real* u = d.w.data() + i * dim;
-        for (int j = 0; j < dim; ++j) u[j] *= -xxp[i];
+        for (int j = 0; j < dim; ++j) u[j] *= - xxp[i];
       }
 
       // bsxfun(@times, p, x*u)
@@ -121,7 +125,7 @@ class Objective {
       }
 
       // += x' * bsxfun(@times, p, x*u)
-      SpMM::TransTimes(d.X, d.xw, (Real)1, d.w,  &d.w, nt_);
+      SpMM::TransTimes(d.X, d.xw, (Real)1, d.w, &d.w, nt_);
     }
 
     for (const auto& d : data_) d.Save(grad);
@@ -132,13 +136,12 @@ class Objective {
   struct Data {
     Data() { }
     ~Data() { }
-    void Load(int dimension,
-              const RowBlock<unsigned>& data,
+    void Load(int d, const RowBlock<unsigned>& data,
               const std::vector<Real>& model,
               const std::vector<int>& model_siz) {
       // pos and w
+      dim = d;
       std::vector<unsigned> col_map;
-      dim = dimension;
       if (dim == 1) {
         pos.reserve(model_siz.size());
         w.reserve(model_siz.size());
@@ -160,9 +163,10 @@ class Objective {
           }
           p += model_siz[i];
         }
+        CHECK_EQ((size_t)p, model.size());
         w.resize(pos.size() * dim);
         for (size_t i = 0; i < pos.size(); ++i) {
-          memcpy(w.data() + i * dim, model.data() + pos[i] * dim, dim * sizeof(Real));
+          memcpy(w.data() + i * dim, model.data() + pos[i], dim * sizeof(Real));
         }
       }
 
@@ -184,7 +188,6 @@ class Objective {
           }
           os.push_back(idx.size());
         }
-
         X.size = data.size;
         X.offset = BeginPtr(os);
         X.value = BeginPtr(val);
@@ -256,7 +259,7 @@ class FMWorker : public solver::AsyncSGDWorker {
 
     Localizer<FeaID> lc;
     lc.Localize(mb, data, feaid.get(), feacnt.get());
-
+    // LL << mb.size << " " << DebugStr(*feaid) << "\n" << DebugStr(*feacnt);
     ps::SyncOpts pull_w_opt;
 
     if (train) {
@@ -279,8 +282,6 @@ class FMWorker : public solver::AsyncSGDWorker {
       Progress prog;
       obj.Evaluate(&prog);
       Report(&prog);
-
-      // monitor_.Update(local->label.size(), loss);
 
       if (train) {
         // calculate and push the gradients

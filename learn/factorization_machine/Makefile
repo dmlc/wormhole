@@ -15,7 +15,7 @@ DEPS_PATH = $(PS_PATH)/deps
 endif
 
 INC=-I./ -I../ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
-CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC) $(EXTRA_CFLAGS)
+CFLAGS  = -O0 -ggdb -Wall -std=c++11 $(DMLC_CFLAGS) $(PS_CFLAGS) $(INC) $(EXTRA_CFLAGS)
 LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
 
 .PHONY: all
@@ -23,6 +23,7 @@ LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
 all: base ps core bin # tool # test
 
 clean:
+	rm -rf
 	rm -rf build/*
 
 bin: build/fm.dmlc
@@ -53,4 +54,3 @@ build/fm.dmlc: build/config.pb.o build/fm.o ../base/base.a $(PS_PATH)/build/libp
 
 
 -include build/*.d
--include build/*/*.d

@@ -37,17 +37,17 @@ struct AdaGradEntry {
   }
 
   inline Real& w_0() {
-    return size == 1 ? *(Real *)w : w[0];
+    return size == 1 ? *(Real *)&w : w[0];
   }
   inline Real& sq_cum_grad_0() {
-    return size == 1 ? *(Real *)sq_cum_grad : sq_cum_grad[0];
+    return size == 1 ? *(Real *)&sq_cum_grad : sq_cum_grad[0];
   }
 
   inline Real w_0() const {
-    return size == 1 ? *(Real *)w : w[0];
+    return size == 1 ? *(Real *)&w : w[0];
   }
   inline Real sq_cum_grad_0() const {
-    return size == 1 ? *(Real *)sq_cum_grad : sq_cum_grad[0];
+    return size == 1 ? *(Real *)&sq_cum_grad : sq_cum_grad[0];
   }
 
 

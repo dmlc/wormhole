@@ -2,25 +2,26 @@
 #include "fm.h"
 #include "fm_server.h"
 #include "fm_worker.h"
-#include "base/arg2proto.h"
+#include "base/arg_parser.h"
 #include "config.pb.h"
 
 namespace ps {
 App* App::Create(int argc, char *argv[]) {
-
-  ::dmlc::fm::Config conf;
-  ::dmlc::Arg2Proto(argc, argv, &conf);
+  CHECK_GE(argc, 2) << "\nusage: " << argv[0] << " conf_file";
+  ::dmlc::ArgParser parser;
+  if (strcmp(argv[1], "none")) parser.ReadFile(argv[1]);
+  parser.ReadArgs(argc-2, argv+2);
+  ::dmlc::fm::Config conf; parser.ParseToProto(&conf);
 
   if (IsWorkerNode()) {
-    return new ::dmlc::fm::FMScheduler(conf);
+    return new ::dmlc::fm::FMWorker(conf);
   } else if (IsServerNode()) {
     return new ::dmlc::fm::FMServer(conf);
   } else if (IsSchedulerNode()) {
-    return new ::dmlc::fm::FMWorker(conf);
+    return new ::dmlc::fm::FMScheduler(conf);
+  } else {
+    LOG(FATAL) << "unknown node";
   }
-
-  // LOG(ERROR) << conf.ShortDebugString();
-  LOG(FATAL) << "unknown node";
   return NULL;
 }
 }  // namespace ps

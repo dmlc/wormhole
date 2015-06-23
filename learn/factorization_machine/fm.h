@@ -11,7 +11,8 @@ static const int kPushFeaCnt = 1;
 
 class Progress : public VectorProgress {
  public:
-  Progress() : VectorProgress(6, 3) {}
+
+  Progress() : VectorProgress(3, 6) {}
   virtual ~Progress() { }
 
 

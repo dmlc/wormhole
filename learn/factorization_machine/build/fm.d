@@ -47,5 +47,4 @@ build/fm.o: fm.cc ../../repo/ps-lite/src/ps.h \
  ../../dmlc-core/src/io/filesys.h ../../dmlc-core/include/dmlc/timer.h \
  ../base/workload.h config.pb.h fm_server.h fm_worker.h ../base/spmm.h \
  ../base/spmv.h ../base/localizer.h ../base/parallel_sort.h \
- ../base/binary_class_evaluation.h ../base/arg2proto.h \
- ../../dmlc-core/include/dmlc/config.h
+ ../base/binary_class_evaluation.h ../base/arg_parser.h
