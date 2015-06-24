@@ -20,9 +20,15 @@ message Config {
   optional string model_in = 10;
   optional string model_out = 11;
 
+  // for w
   optional float lambda_l2 = 20;
   optional float lambda_l1 = 21;
+  // learning rate, often in the format lr_eta / (lr_beta + x), where x is
+  // user-defined, such as sqrt(iter), or the cumulative gradient on adagrad
+  optional float lr_eta = 41;
+  optional float lr_beta = 42;
 
+  // for V
   message Embedding {
     optional int32 dim = 1;
     optional int32 threshold = 2;
@@ -48,12 +54,6 @@ message Config {
   // print the progress every n sec
   optional float disp_itv = 33 [default = 1];
 
-  // learning rate, often in the format lr_eta / (lr_beta + x), where x is
-  // user-defined, such as sqrt(iter), or the cumulative gradient on adagrad
-  optional float lr_eta = 41;
-  optional float lr_beta = 42;
-
-  //
   // to reduce sync cost
   //
 
