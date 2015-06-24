@@ -27,7 +27,12 @@ message Config {
     optional int32 dim = 1;
     optional int32 threshold = 2;
     optional float lambda_l2 = 3;
+    optional float lr_eta = 4 [default = .01];
+    optional float lr_beta = 5 [default = 1];
+    optional float init_max = 6 [default = .01];
+    optional float init_min = 7 [default = -.01];
   }
+
   repeated Embedding embedding = 22;
 
   //

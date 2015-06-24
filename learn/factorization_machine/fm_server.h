@@ -72,10 +72,7 @@ struct AdaGradEntry {
  * \brief the base handle class
  */
 struct ISGDHandle {
-  ISGDHandle() {
-    LL << ps::RankSize();
-    srand(ps::RankSize());
-  }
+  ISGDHandle() {}
 
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
@@ -93,17 +90,18 @@ struct ISGDHandle {
 
   Real alpha = 0.1, beta = 1;
 
-  struct Embedding {
+  struct Group {
     int dim = 0;
     unsigned thr;
-    Real lambda = 0;
+    Real lambda_l1 = 0;
+    Real lambda_l2 = 0;
+    Real alpha = .01;
+    Real beta = 1;
+    Real V_min = -.01;
+    Real V_max = .01;
   };
-  std::array<Embedding, 2> embed;
+  std::array<Group, 3> group;
 
-  Real w_min = -.01;
-  Real w_max = .01;
-  Real lambda_l1 = 0;
-  Real lambda_l2 = 0;
 };
 
 struct AdaGradHandle : public ISGDHandle {
@@ -111,16 +109,21 @@ struct AdaGradHandle : public ISGDHandle {
     if (push_count) {
       val.fea_cnt += (unsigned) recv[0];
       // resize the larger dim first to avoid double resize
-      for (int i = 1; i >= 0; --i) {
-        if (val.fea_cnt > embed[i].thr &&
-            val.size < embed[i].dim + 1 &&
+      for (int i = 2; i > 0; --i) {
+        if (val.fea_cnt > group[i].thr &&
+            val.size < group[i].dim + 1 &&
             val.w_0() != 0) {
           int old_siz = val.size;
-          val.Resize(embed[i].dim + 1);
+          const auto& g = group[i];
+          val.Resize(g.dim + 1);
           for (int j = old_siz; j < val.size; ++j) {
-            val.w[j] = rand() / (Real) RAND_MAX * (w_max - w_min) + w_min;
+            val.w[j] = rand() / (Real) RAND_MAX * (g.V_max - g.V_min) + g.V_min;
+            val.sq_cum_grad[j] = 0;
           }
+          // LOG_EVERY_N(ERROR, 1000) << key << " " << val.fea_cnt;
           // LOG_EVERY_N(ERROR, 100) << DebugStr(val.w, val.size);
+        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.w, val.size);
+        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.sq_cum_grad, val.size);
         }
       }
     } else {
@@ -128,14 +131,21 @@ struct AdaGradHandle : public ISGDHandle {
       CHECK_GE(recv.size, 0);
 
       // update w
-      Update(val.w_0(), val.sq_cum_grad_0(), recv[0], lambda_l2, lambda_l1);
+      Update(val.w_0(), val.sq_cum_grad_0(), recv[0], 0);
 
       // update u
       if (recv.size > 1) {
-        Real lam = ((int)val.size == embed[0].dim + 1) ? embed[0].lambda : embed[1].lambda;
+        int g = ((int)val.size == group[1].dim + 1) ? 1 : 2;
         for (size_t i = 1; i < recv.size; ++i) {
-          Update(val.w[i], val.sq_cum_grad[i], recv[i], lam, 0);
+          Update(val.w[i], val.sq_cum_grad[i], recv[i], g);
         }
+        // if (key == 1000428541) {
+        //   LL << lam << " " << DebugStr(recv.data, recv.size);
+        //   LL << DebugStr(val.w, val.size);
+        //   LL << DebugStr(val.sq_cum_grad, val.size);
+        // }
+        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.w, val.size);
+        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.sq_cum_grad, val.size);
       }
     }
   }
@@ -151,10 +161,10 @@ struct AdaGradHandle : public ISGDHandle {
     }
   }
 
-  inline void Update(Real& w, Real& cg, Real g, Real l2, Real l1) {
-    cg = sqrt(cg*cg + g*g);
-    Real eta = this->alpha / (cg + this->beta);
-    w = w - eta * g - l2 * w;
+  inline void Update(Real& w, Real& cg, Real g, int i) {
+    cg = sqrt(cg * cg + g * g);
+    Real eta = group[i].alpha / (cg + group[i].beta);
+    w = w - eta * ( g + group[i].lambda_l2 * w );
   }
 };
 
@@ -163,18 +173,27 @@ class FMServer : public solver::AsyncSGDServer {
   FMServer(const Config& conf) {
     using Server = ps::OnlineServer<AdaGradEntry, Real, AdaGradHandle>;
     AdaGradHandle h;
-    h.alpha     = conf.lr_eta();
-    h.beta      = conf.lr_beta();
-    h.lambda_l1 = conf.lambda_l1();
-    h.lambda_l2 = conf.lambda_l2();
 
+    // for w
+    auto& g     = h.group[0];
+    g.dim       = 1;
+    g.alpha     = conf.lr_eta();
+    g.beta      = conf.lr_beta();
+    g.lambda_l1 = conf.lambda_l1();
+    g.lambda_l2 = conf.lambda_l2();
+
+    // for V
     CHECK_LE(conf.embedding_size(), 2);
     for (int i = 0; i < conf.embedding_size(); ++i) {
-      const auto& c     = conf.embedding(i);
-      h.embed[i].thr    = (unsigned)c.threshold();
-      h.embed[i].dim    = c.dim();
-      h.embed[i].lambda = c.lambda_l2();
-      LL << h.embed[i].dim;
+      const auto& c = conf.embedding(i);
+      auto& g       = h.group[i+1];
+      g.dim         = c.dim();
+      g.thr         = (unsigned)c.threshold();
+      g.alpha       = c.lr_eta();
+      g.beta        = c.lr_beta();
+      g.lambda_l2   = c.lambda_l2();
+      g.V_min       = c.init_min();
+      g.V_max       = c.init_max();
     }
     Server s(h);
     server_ = s.server();
