@@ -76,7 +76,6 @@ class Objective {
     prog->objv()    = eval.LogitObjv();
     prog->auc()     = eval.AUC();
     prog->acc()     = eval.Accuracy(0);
-    prog->logloss() = eval.LogLoss();
     prog->num_ex()  = d.X.size;
     prog->count()   = 1;
   }

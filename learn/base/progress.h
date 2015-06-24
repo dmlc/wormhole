@@ -45,7 +45,7 @@ class VectorProgress : public IProgress {
 
   virtual bool Empty() const {
     for (double f : fvec_) if (f != 0) return false;
-    for (size_t i : ivec_) if (i != 0) return false;
+    for (int64_t i : ivec_) if (i != 0) return false;
     return true;
   }
 
@@ -63,7 +63,7 @@ class VectorProgress : public IProgress {
 
   virtual void Clear() {
     memset(fvec_.data(), 0, fvec_.size() * sizeof(double));
-    memset(ivec_.data(), 0, ivec_.size() * sizeof(size_t));
+    memset(ivec_.data(), 0, ivec_.size() * sizeof(int64_t));
   }
 
 
@@ -79,7 +79,7 @@ class VectorProgress : public IProgress {
 
  protected:
   std::vector<double> fvec_;
-  std::vector<size_t> ivec_;
+  std::vector<int64_t> ivec_;
 };
 
 }  // namespace dmlc

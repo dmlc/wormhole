@@ -57,9 +57,10 @@ class BinClassEval {
     for (size_t i = 0; i < n; ++i) {
       V y = label_[i] > 0;
       V p = 1 / (1 + exp(- predict_[i]));
+      p = p < 1e-10 ? 1e-10 : p;
       loss += y * log(p) + (1 - y) * log(1 - p);
     }
-    return - loss / n;
+    return - loss;
   }
 
   V LogitObjv() {

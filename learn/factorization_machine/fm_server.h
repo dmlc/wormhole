@@ -76,19 +76,20 @@ struct ISGDHandle {
 
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
-    // if (push)
-    // LL << push_count << " " << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
   }
   inline void Finish() {
-    // report to scheduler
-
+    if (new_w_entry > 1000) {
+      Progress prog; prog.nnz_w() = new_w_entry;
+      if (reporter) reporter(prog);
+      new_w_entry = 0;
+    }
   }
   inline void SetCaller(void *obj) { }
 
   bool push_count;
-  // ModelMonitor* tracker = nullptr;
 
-  Real alpha = 0.1, beta = 1;
+  int64_t new_w_entry = 0;
+  std::function<void(const Progress& prog)> reporter;
 
   struct Group {
     int dim = 0;
@@ -120,10 +121,7 @@ struct AdaGradHandle : public ISGDHandle {
             val.w[j] = rand() / (Real) RAND_MAX * (g.V_max - g.V_min) + g.V_min;
             val.sq_cum_grad[j] = 0;
           }
-          // LOG_EVERY_N(ERROR, 1000) << key << " " << val.fea_cnt;
-          // LOG_EVERY_N(ERROR, 100) << DebugStr(val.w, val.size);
-        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.w, val.size);
-        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.sq_cum_grad, val.size);
+          new_w_entry += val.size - old_siz;
         }
       }
     } else {
@@ -131,21 +129,20 @@ struct AdaGradHandle : public ISGDHandle {
       CHECK_GE(recv.size, 0);
 
       // update w
+      Real old_w = val.w_0();
       Update(val.w_0(), val.sq_cum_grad_0(), recv[0], 0);
+      if (old_w == 0 && val.w_0() != 0) {
+        ++ new_w_entry;
+      } else if (old_w != 0 && val.w_0() == 0) {
+        -- new_w_entry;
+      }
 
-      // update u
+      // update V
       if (recv.size > 1) {
         int g = ((int)val.size == group[1].dim + 1) ? 1 : 2;
         for (size_t i = 1; i < recv.size; ++i) {
           Update(val.w[i], val.sq_cum_grad[i], recv[i], g);
         }
-        // if (key == 1000428541) {
-        //   LL << lam << " " << DebugStr(recv.data, recv.size);
-        //   LL << DebugStr(val.w, val.size);
-        //   LL << DebugStr(val.sq_cum_grad, val.size);
-        // }
-        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.w, val.size);
-        // LOG_EVERY_N(ERROR, 1000) << DebugStr(val.sq_cum_grad, val.size);
       }
     }
   }
@@ -173,6 +170,9 @@ class FMServer : public solver::AsyncSGDServer {
   FMServer(const Config& conf) {
     using Server = ps::OnlineServer<AdaGradEntry, Real, AdaGradHandle>;
     AdaGradHandle h;
+    h.reporter = [this](const Progress& prog) {
+      Report(&prog);
+    };
 
     // for w
     auto& g     = h.group[0];
@@ -195,6 +195,8 @@ class FMServer : public solver::AsyncSGDServer {
       g.V_min       = c.init_min();
       g.V_max       = c.init_max();
     }
+
+
     Server s(h);
     server_ = s.server();
   }
