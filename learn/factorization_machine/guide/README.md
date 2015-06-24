@@ -17,11 +17,18 @@ Given training data pairs *(x,y)*, the factorization machine learns the model
 
 ![obj](obj.png)
 
+Here *l* is the loss function such as logistic loss. If we set *k=0*, then
+factorization machine is a linear method. Therefore, the configuration to run
+factorization is almost identical to [linear method](../../linear/guide).
+
 ### How to choose *k*
 
 The right choice of the embedding dimension *k* varies for different data, and
-even for different features in the same dataset. We can specify *k* by the
-rules:
+even for different features in the same dataset. A large *k* increases the model
+complexity and therefore potentially gives better accuracy. While a smaller *k*
+can reduce the overfitting, memory consumption, and network traffic.
+
+We can specify *k* by the rules:
 
 ```
 if feature i appears more than 1024 times
