@@ -1,5 +1,6 @@
+# Tutorial to run Factorization Machine
 
-## Factorization Machine
+## Model
 
 For a *p* dimension example *x*, the factorization machine models the data by
 
@@ -15,6 +16,8 @@ Given training data pairs *(x,y)*, the factorization machine learns the model
 \|w\|_2^2 + \frac{1}{2} \mu_2 \|V\|_F^2 -->
 
 ![obj](obj.png)
+
+### How to choose *k*
 
 The right choice of the embedding dimension *k* varies for different data, and
 even for different features in the same dataset. We can specify *k* by the
