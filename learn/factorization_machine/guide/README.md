@@ -1,2 +1,2 @@
 
-![hat_y](http://bit.ly/1NhCTsc)
+![hat_y](hat_y.png)
