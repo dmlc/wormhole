@@ -27,11 +27,13 @@ class AsyncSGDScheduler : public ps::App {
   std::string train_data_;
   std::string val_data_;
   std::string data_format_;
+  bool worker_local_data_ = false;
   int save_model_ = 0;
 
   int num_part_per_file_ = 10;
   int max_data_pass_ = 1;
   int cur_data_pass_ = 0;
+  Workload::Type cur_type_;
   int disp_itv_ = 1;
 
   virtual bool Stop(const Progress& cur, const Progress& prev) {
@@ -50,8 +52,22 @@ class AsyncSGDScheduler : public ps::App {
     if (response->task.cmd() == kProcess) {
       auto id = response->sender;
       pool_.Finish(id);
-      Workload wl; pool_.Get(id, &wl); wl.data_pass = cur_data_pass_;
-      if (wl.file.size() > 0) SendWorkload(id, wl);
+
+      if (response->task.msg().size()) {
+        CHECK(worker_local_data_);
+        StringStream ss(response->task.msg());
+        Workload wl; wl.Load(&ss);
+        pool_.Add(wl.file, num_part_per_file_, id);
+      }
+
+      Workload wl; pool_.Get(id, &wl);
+      if (!wl.Empty()) {
+        CHECK_EQ(wl.file.size(), 1);
+        wl.type = cur_type_;
+        wl.data_pass = cur_data_pass_;
+        wl.file[0].format = data_format_;
+        SendWorkload(id, wl);
+      }
     }
   }
 
@@ -60,10 +76,10 @@ class AsyncSGDScheduler : public ps::App {
     for (int i = 0; i < max_data_pass_; ++i) {
       cur_data_pass_ = i;
       printf("training #iter = %d\n", i);
-      bool exit = Iterate(true);
+      bool exit = Iterate(Workload::TRAIN);
 
       printf("validating #iter = %d\n", i);
-      Iterate(false);
+      Iterate(Workload::VAL);
 
       if (exit) {
         printf("hit stop critera\n"); break;
@@ -83,30 +99,36 @@ class AsyncSGDScheduler : public ps::App {
   }
 
  private:
-  bool Iterate(bool is_train) {
+  bool Iterate(Workload::Type type) {
+    cur_type_ = type;
     bool stop = false;
     pool_.Clear();
-    if (is_train) {
-      if (train_data_.empty()) return stop;
-      pool_.Add(train_data_, data_format_, num_part_per_file_,  Workload::TRAIN);
-    } else {
-      if (val_data_.empty()) return stop;
-        pool_.Add(val_data_, data_format_, num_part_per_file_, Workload::VAL);
+    if (!worker_local_data_) {
+      Workload wl;
+      if (type == Workload::TRAIN) {
+        pool_.Match(train_data_, &wl);
+      } else {
+        pool_.Match(val_data_, &wl);
+      }
+      pool_.Add(wl.file, num_part_per_file_);
     }
-    Workload wl; SendWorkload(ps::kWorkerGroup, wl);
-    printf(" sec %s\n", prog_.HeadStr().c_str());
+    pool_.Start();
+
+    // send an empty workerload to all workers
+    Workload wl; wl.type = type; SendWorkload(ps::kWorkerGroup, wl);
 
     // print every k sec for training, while print at the end for validation
+    printf(" sec %s\n", prog_.HeadStr().c_str());
     while (!pool_.IsFinished()) {
       sleep(disp_itv_);
-      if (is_train) {
+      if (type == Workload::TRAIN) {
         if (ShowProgress()) {
           stop = true;
           pool_.ClearRemain();
         }
       }
     }
-    if (!is_train) { ShowProgress(); }
+    if (type != Workload::TRAIN) ShowProgress();
     return stop;
   }
 
@@ -204,6 +226,10 @@ class AsyncSGDWorker : public ps::App {
   int val_minibatch_size_ = 1000000;
   int val_max_delay_ = 10;
 
+  bool worker_local_data_ = false;
+  std::string train_data_;
+  std::string val_data_;
+
   /// implement system APIs
  public:
   AsyncSGDWorker() { }
@@ -215,13 +241,26 @@ class AsyncSGDWorker : public ps::App {
     if (cmd == kProcess) {
       StringStream ss(request->task.msg());
       Workload wl; wl.Load(&ss);
-      Process(wl);
+      if (wl.Empty()) {
+        if (!worker_local_data_) return;
+
+        Workload local;
+        if (wl.type == Workload::TRAIN) {
+          WorkloadPool::Match(train_data_, &local);
+        } else {
+          WorkloadPool::Match(val_data_, &local);
+        }
+        StringStream ss; local.Save(&ss);
+        ps::Task res; res.set_msg(ss.str());
+        Reply(request, res);
+      } else {
+        Process(wl);
+      }
     }
   }
 
  private:
   void Process(const Workload& wl) {
-    if (wl.file.size() < 1) return;  // empty workload
     CHECK_EQ(wl.file.size(), 1);
     auto file = wl.file[0];
     LOG(INFO) << ps::MyNodeID() << ": iter=" << wl.data_pass

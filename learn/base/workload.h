@@ -25,6 +25,8 @@ struct Workload : public Serializable {
   };
   std::vector<File> file;
 
+  bool Empty() { return file.size() == 0; }
+
   virtual void Load(Stream* fi) {
     fi->Read(&type, sizeof(type));
     fi->Read(&data_pass, sizeof(data_pass));

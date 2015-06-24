@@ -245,12 +245,17 @@ class Objective {
 class FMWorker : public solver::AsyncSGDWorker {
  public:
   FMWorker(const Config& conf) : conf_(conf) {
-    minibatch_size_ = conf_.minibatch();
-    max_delay_      = conf_.max_delay();
-    nt_             = conf_.num_threads();
+    minibatch_size_ = conf.minibatch();
+    max_delay_      = conf.max_delay();
+    nt_             = conf.num_threads();
+    if (conf.worker_local_data()) {
+      train_data_        = conf.train_data();
+      val_data_          = conf.val_data();
+      worker_local_data_ = true;
+    }
     dims_.push_back(1);
-    for (int i = 0; i < conf_.embedding_size(); ++i) {
-      dims_.push_back(conf_.embedding(i).dim());
+    for (int i = 0; i < conf.embedding_size(); ++i) {
+      dims_.push_back(conf.embedding(i).dim());
       CHECK_GT(dims_[i], dims_[i-1]);
     }
   }

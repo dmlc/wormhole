@@ -13,22 +13,80 @@ namespace dmlc {
  */
 class WorkloadPool {
  public:
-  /**
-   * @param size uses 0 for online algorithm, #workers for batch algorithms
-   */
-  WorkloadPool(int size = 0) {
+  WorkloadPool() { }
+  ~WorkloadPool() {
+    if (straggler_killer_) {
+      straggler_killer_->join();
+      delete straggler_killer_;
+    }
+  }
+
+  void Start() {
     straggler_killer_ = new std::thread([this]() {
         while (!IsFinished()) {
           RemoveStraggler();
           sleep(1);
         }
       });
-    num_consumers_ = size;
   }
-  ~WorkloadPool() {
-    straggler_killer_->join();
-    delete straggler_killer_;
+
+  /**
+   * @brief do regexp match
+   *
+   * @param files s3://my_path/part-.*
+   * @param format libsvm, criteo, ...
+   */
+  static void Match(const std::string& files,
+                    Workload* wl) {
+    // get the path
+    size_t pos = files.find_last_of("/\\");
+    std::string path = "./";
+    if (pos != std::string::npos) path = files.substr(0, pos);
+
+    // find all files
+    dmlc::io::URI path_uri(path.c_str());
+    dmlc::io::FileSystem *fs = dmlc::io::FileSystem::GetInstance(path_uri.protocol);
+    std::vector<io::FileInfo> info;
+    fs->ListDirectory(path_uri, &info);
+
+    // store all matached files
+    std::regex pattern;
+    try {
+      std::string file = pos == std::string::npos ? files : files.substr(pos+1);
+      file = ".*" + file;
+      pattern = std::regex(".*"+file);
+    } catch (const std::regex_error& e) {
+      LOG(FATAL) << files << " is not valid regex, or unsupported regex"
+                 << ". you may try gcc>=4.9 or llvm>=3.4";
+    }
+
+    wl->file.clear();
+    for (size_t i = 0; i < info.size(); ++i) {
+      std::string file = info[i].path.str();
+      if (!std::regex_match(file, pattern)) {
+        continue;
+      }
+      Workload::File f;
+      f.filename = file;
+      wl->file.push_back(f);
+    }
   }
+
+  void Add(const std::vector<Workload::File>& files, int npart,
+           const std::string& id = "") {
+    std::lock_guard<std::mutex> lk(mu_);
+    for (auto f : files) {
+      LOG(INFO) << "add " << f.ShortDebugString() << " for "
+                << (id == "" ? " all workers " : id);
+      for (int k = 0; k < npart; ++k) {
+        f.n = npart;
+        f.k = k;
+        remain_.push_back(f);
+      }
+    }
+    // TODO
+  }
+
 
   /**
    * @brief add the workload
@@ -46,8 +104,7 @@ class WorkloadPool {
     // get the path
     size_t pos = files.find_last_of("/\\");
     std::string path = "./";
-    if (pos != std::string::npos)
-      path = files.substr(0, pos);
+    if (pos != std::string::npos) path = files.substr(0, pos);
 
     // find all files
     dmlc::io::URI path_uri(path.c_str());
@@ -210,7 +267,7 @@ class WorkloadPool {
   // process time
   std::vector<double> time_;
   std::mutex mu_;
-  std::thread* straggler_killer_;
+  std::thread* straggler_killer_ = NULL;
 };
 
 }  // namespace dmlc

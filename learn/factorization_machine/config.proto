@@ -11,6 +11,8 @@ message Config {
   optional string test_data = 3;
   optional string data_format = 4 [default = "libsvm"];
 
+  optional bool worker_local_data = 6 [default = false];
+
   // partition a file into npart
   optional int32 num_parts_per_file = 5 [default = 1];
 
