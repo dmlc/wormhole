@@ -10,6 +10,7 @@ namespace dmlc {
 
 struct Workload : public Serializable {
   enum Type { TRAIN, VAL } type;
+  int data_pass;
   struct File {
     std::string filename;
     std::string format;  // data format
@@ -24,9 +25,9 @@ struct Workload : public Serializable {
   };
   std::vector<File> file;
 
-
   virtual void Load(Stream* fi) {
     fi->Read(&type, sizeof(type));
+    fi->Read(&data_pass, sizeof(data_pass));
     size_t num;
     fi->Read(&num, sizeof(num));
     for (size_t i = 0; i < num; ++i) {
@@ -41,6 +42,7 @@ struct Workload : public Serializable {
 
   virtual void Save(Stream *fo) const {
     fo->Write(&type, sizeof(type));
+    fo->Write(&data_pass, sizeof(data_pass));
     size_t num = file.size();
     fo->Write(&num, sizeof(num));
     for (const auto& f : file) {

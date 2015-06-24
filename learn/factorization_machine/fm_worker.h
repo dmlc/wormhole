@@ -259,7 +259,7 @@ class FMWorker : public solver::AsyncSGDWorker {
 
  protected:
 
-  virtual void ProcessMinibatch(const Minibatch& mb, bool train) {
+  virtual void ProcessMinibatch(const Minibatch& mb, int data_pass, bool train) {
 
     auto data = new dmlc::data::RowBlockContainer<unsigned>();
     auto feaid = std::make_shared<std::vector<FeaID>>();
@@ -269,7 +269,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     lc.Localize(mb, data, feaid.get(), feacnt.get());
     ps::SyncOpts pull_w_opt;
 
-    if (train) {
+    if (train && data_pass == 0) {
       // push the feature count to the servers
       ps::SyncOpts cnt_opt;
       SetFilters(true, &cnt_opt);

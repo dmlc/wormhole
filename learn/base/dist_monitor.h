@@ -54,10 +54,11 @@ class ProgressReporter : public ps::Customer {
   virtual ~ProgressReporter() { }
 
   void Report(const IProgress *const prog, int chl = 0) {
+    if (prog->Empty()) return;
     StringStream stream; prog->Save(&stream);
     ps::Task report; report.set_msg(stream.str());
     report.set_key_channel(chl);
-    Submit(report, ps::SchedulerID());
+    Wait(Submit(report, ps::SchedulerID()));
   }
 };
 

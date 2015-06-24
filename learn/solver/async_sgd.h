@@ -50,7 +50,7 @@ class AsyncSGDScheduler : public ps::App {
     if (response->task.cmd() == kProcess) {
       auto id = response->sender;
       pool_.Finish(id);
-      Workload wl; pool_.Get(id, &wl);
+      Workload wl; pool_.Get(id, &wl); wl.data_pass = cur_data_pass_;
       if (wl.file.size() > 0) SendWorkload(id, wl);
     }
   }
@@ -60,12 +60,17 @@ class AsyncSGDScheduler : public ps::App {
     for (int i = 0; i < max_data_pass_; ++i) {
       cur_data_pass_ = i;
       printf("training #iter = %d\n", i);
-      bool exit = !Iterate(true);
+      bool exit = Iterate(true);
 
       printf("validating #iter = %d\n", i);
       Iterate(false);
 
-      if (exit) break;
+      if (exit) {
+        printf("hit stop critera\n"); break;
+      }
+      if (i == max_data_pass_ -1) {
+        printf("hit max number of data passes\n");
+      }
     }
 
     if (save_model_) {
@@ -176,7 +181,8 @@ class AsyncSGDWorker : public ps::App {
   /**
    * \brief Process one minibatch
    */
-  virtual void ProcessMinibatch(const Minibatch& mb, bool train) = 0;
+  virtual void ProcessMinibatch(
+      const Minibatch& mb, int data_pass, bool train) = 0;
 
   /**
    * \brief Mark one minibatch is finished
@@ -209,16 +215,19 @@ class AsyncSGDWorker : public ps::App {
     if (cmd == kProcess) {
       StringStream ss(request->task.msg());
       Workload wl; wl.Load(&ss);
-      if (wl.file.size() < 1) return;
-      Process(wl.file[0], wl.type);
+      Process(wl);
     }
   }
 
  private:
-  void Process(const Workload::File& file, Workload::Type type) {
-    bool train = type == Workload::TRAIN;
-    LOG(INFO) << ps::MyNodeID() << ": start to process " << file.ShortDebugString();
+  void Process(const Workload& wl) {
+    if (wl.file.size() < 1) return;  // empty workload
+    CHECK_EQ(wl.file.size(), 1);
+    auto file = wl.file[0];
+    LOG(INFO) << ps::MyNodeID() << ": iter=" << wl.data_pass
+              << " start to process " << file.ShortDebugString();
 
+    bool train = wl.type == Workload::TRAIN;
     int mb_size = train ? minibatch_size_ : val_minibatch_size_;
     int max_delay = train ? max_delay_ : val_max_delay_;
     num_mb_fly_ = num_mb_done_ = 0;
@@ -230,12 +239,14 @@ class AsyncSGDWorker : public ps::App {
       // wait for data consistency
       WaitMinibatch(max_delay);
 
-      ProcessMinibatch(reader.Value(), train);
+      ProcessMinibatch(reader.Value(), wl.data_pass, train);
 
       mb_mu_.lock(); ++ num_mb_fly_; mb_mu_.unlock();
-
-      LOG(INFO) << "#minibatches on processing: " << num_mb_fly_;
     }
+
+    // wait untill all are done
+    WaitMinibatch(0);
+    LOG(INFO) << ps::MyNodeID() << ": finished";
   }
 
   // wait if the currenta number of on processing minibatch > num
@@ -259,6 +270,8 @@ void AsyncSGDWorker::FinishMinibatch() {
   ++ num_mb_done_;
   mb_mu_.unlock();
   mb_cond_.notify_one();
+
+  LOG(INFO) << num_mb_done_ << " done, " << num_mb_fly_ << " on processing";
 }
 
 
