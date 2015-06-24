@@ -28,7 +28,7 @@ even for different features in the same dataset. A large *k* increases the model
 complexity and therefore potentially gives better accuracy. While a smaller *k*
 can reduce the overfitting, memory consumption, and network traffic.
 
-We can specify *k* by the rules:
+We can specify *k* using the following rules:
 
 ```
 if feature i appears more than 1024 times
