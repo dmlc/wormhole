@@ -132,7 +132,7 @@ class WorkloadPool {
           wl->file.push_back(a.Get());
           LOG(INFO) << "assign " << id << " job " << a.DebugStr();
           k = 1;
-          break;
+          return;
         }
       }
     }
