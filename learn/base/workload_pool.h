@@ -67,7 +67,7 @@ class WorkloadPool {
   void Get(const std::string& id, Workload* wl) {
     std::lock_guard<std::mutex> lk(mu_);
     wl->file.clear();
-    for (int i = 0; i < num_; ++i) {
+    for (int i = 0; i < num_file_per_wl_; ++i) {
       GetOne(id, wl);
     }
   }
@@ -177,10 +177,8 @@ class WorkloadPool {
     }
   }
 
-  int num_ = 1;
+  int num_file_per_wl_ = 1;
   int num_finished_ = 0;
-
-  // std::list<Workload::File> remain_;
 
   struct Task {
     // capable nodes
