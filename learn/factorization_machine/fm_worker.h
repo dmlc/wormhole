@@ -34,7 +34,7 @@ class Objective {
   /**
    * \brief evaluate the progress
    * predict_y
-   *  py = x * w + .5 * sum((x*u).^2 + (x.*x)*(u.*u), 2);
+   *  py = x * w + .5 * sum((x*u).^2 - (x.*x)*(u.*u), 2);
    */
   void Evaluate(Progress* prog) {
     // py = X * w
@@ -66,7 +66,7 @@ class Objective {
         Real* tt = tmp.data() + i * d.dim;
         Real* t = d.xw.data() + i * d.dim;
         Real s = 0;
-        for (int j = 0; j < d.dim; ++j) s += t[j] * t[j] + tt[j];
+        for (int j = 0; j < d.dim; ++j) s += t[j] * t[j] - tt[j];
         py_[i] += .5 * s;
       }
     }
