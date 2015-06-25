@@ -206,8 +206,6 @@ class Objective {
         for (size_t i = 0; i < val2.size(); ++i) val2[i] = X.value[i] * X.value[i];
         XX.value = BeginPtr(val2);
       }
-
-      // if (dim > 1) LL << dim << " " << pos.size();
     }
 
     void Save(std::vector<Real>* grad) const {
@@ -276,7 +274,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     if (train && data_pass == 0) {
       // push the feature count to the servers
       ps::SyncOpts cnt_opt;
-      SetFilters(true, &cnt_opt);
+      SetFilters(0, &cnt_opt);
       cnt_opt.cmd = kPushFeaCnt;
       int t = server_.ZPush(feaid, feacnt, cnt_opt);
       // LL << DebugStr(*feacnt);
@@ -302,13 +300,15 @@ class FMWorker : public solver::AsyncSGDWorker {
 
         ps::SyncOpts push_grad_opt;
         // filters to reduce network traffic
-        SetFilters(true, &push_grad_opt);
+        SetFilters(2, &push_grad_opt);
         // this callback will be called when the gradients have been actually pushed
+        // LL << DebugStr(*val);
         push_grad_opt.callback = [this]() { FinishMinibatch(); };
         server_.ZVPush(feaid,
                        std::shared_ptr<std::vector<Real>>(val),
                        std::shared_ptr<std::vector<int>>(val_siz),
                        push_grad_opt);
+
       } else {
         FinishMinibatch();
         delete val;
@@ -318,18 +318,25 @@ class FMWorker : public solver::AsyncSGDWorker {
     };
 
     // filters to reduce network traffic
-    SetFilters(false, &pull_w_opt);
+    SetFilters(1, &pull_w_opt);
     server_.ZVPull(feaid, val, val_siz, pull_w_opt);
   }
 
  private:
-  void SetFilters(bool push, ps::SyncOpts* opts) {
-    return;
-    if (conf_.fixed_bytes() > 0) {
-      opts->AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(conf_.fixed_bytes());
-    }
+  // flag: 0 push feature count, 1 pull weight, 2 push gradient
+  void SetFilters(int flag, ps::SyncOpts* opts) {
     if (conf_.key_cache()) {
-      opts->AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(push);
+      opts->AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(flag == 2);
+    }
+    if (conf_.fixed_bytes() > 0) {
+      if (flag == 0) {
+        // trancate the count to uint8
+        opts->AddFilter(ps::Filter::TRUNCATE_FLOAT)->set_num_bytes(1);
+      } else if (flag == 2) {
+        // randomly round the gradient
+        opts->AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(
+            conf_.fixed_bytes());
+      }
     }
     if (conf_.msg_compression()) {
       opts->AddFilter(ps::Filter::COMPRESSING);

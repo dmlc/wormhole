@@ -47,8 +47,8 @@ class WorkloadPool {
       if (t.track.empty()) t.track.resize(npart);
       CHECK_EQ(t.track.size(), npart);
       if (id.size()) t.node.insert(id);
-      LOG(INFO) << "add " << f.filename << " for " <<
-          (id == "" ? "all workers" : id);
+      // LOG(INFO) << "add " << f.filename << " for " <<
+      //     (id == "" ? "all workers" : id);
     }
   }
 

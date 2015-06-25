@@ -76,7 +76,11 @@ struct ISGDHandle {
 
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
+    // if (push) {
+    //   LL << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
+    // }
   }
+
   inline void Finish() {
     if (new_w_entry > 1000) {
       Progress prog; prog.nnz_w() = new_w_entry;
