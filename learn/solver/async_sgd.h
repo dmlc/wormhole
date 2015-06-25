@@ -112,7 +112,6 @@ class AsyncSGDScheduler : public ps::App {
       }
       pool_.Add(wl.file, num_part_per_file_);
     }
-    pool_.Start();
 
     // send an empty workerload to all workers
     Workload wl; wl.type = type; SendWorkload(ps::kWorkerGroup, wl);

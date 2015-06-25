@@ -4,7 +4,7 @@
 #include "data/row_block.h"
 namespace dmlc {
 
-
+// debug string
 
 template <typename V>
 inline std::string DebugStr(const V* data, int n, int m = 5) {
@@ -41,6 +41,7 @@ template<typename I>
 inline std::string DebugStr(const data::RowBlockContainer<I>& blk) {
   return DebugStr(blk.GetBlock());
 }
+
 
 // for debug use
 #define LL LOG(ERROR)
