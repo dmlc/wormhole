@@ -9,13 +9,10 @@ message Config {
   //
   optional string train_data = 1;
   optional string val_data = 2;
-  optional string test_data = 3;
   optional string data_format = 4 [default = "libsvm"];
-
   // partition a file into npart
   optional int32 num_parts_per_file = 5 [default = 1];
-  // limit the number of files send to a worker
-  // optional int32 num_files_per_worker = 6 [default = 0];
+  optional bool use_worker_local_data = 3;
 
   //
   // model
@@ -34,7 +31,7 @@ message Config {
 
   // regularizer: lambda_l1 * ||w||_1 + .5 * lambda_l2 * ||w||_F^2
   optional float lambda_l1 = 21;
-  optional float lambda_l2 = 21;
+  optional float lambda_l2 = 22;
 
   //
   // optimization methods
@@ -61,6 +58,7 @@ message Config {
   optional float lr_eta = 41;
   optional float lr_beta = 42;
 
+  optional int32 num_threads = 60 [default = 2];
   //
   // to reduce sync cost
   //

@@ -1,1 +1,1 @@
-a simpler version of linear
+a simpler implementation of linear

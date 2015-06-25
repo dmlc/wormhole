@@ -2,206 +2,140 @@
  * @file   async_sgd.h
  * @brief  Asynchronous stochastic gradient descent to solve linear methods.
  */
-#include "proto/config.pb.h"
-#include "proto/workload.pb.h"
-#include "dmlc/timer.h"
-#include "base/minibatch_iter.h"
-#include "base/arg_parser.h"
+#include "config.pb.h"
+#include "linear.h"
+#include "solver/async_sgd.h"
 #include "base/localizer.h"
-#include "base/loss.h"
-#include "sgd/sgd_server_handle.h"
-// #include "sgd/delay_tol_handle.h"
-#include "base/dist_monitor.h"
-#include "base/workload_pool.h"
-
-#include "base/utils.h"
-#include "ps.h"
-#include "ps/app.h"
+#include "loss.h"
+#include "penalty.h"
 
 namespace dmlc {
 namespace linear {
 
-// commands
-static const int kProcess = 1;
-static const int kSaveModel = 2;
+template <typename T> using Blob = ps::Blob<T>;
 
-/*****************************************************************************
- * \brief A worker node, which takes a part of training data and calculate the
- * gradients
- *****************************************************************************/
-class AsyncSGDWorker : public ps::App {
+/*********************************************************************
+ * \brief the base handle class
+ *********************************************************************/
+struct ISGDHandle {
  public:
-  AsyncSGDWorker(const Config& conf) : conf_(conf), reporter_(conf_.disp_itv()) { }
-  virtual ~AsyncSGDWorker() { }
-
-  // process request from the scheduler node
-  virtual void ProcessRequest(ps::Message* request) {
-    int cmd = request->task.cmd();
-    if (cmd == kProcess) {
-      Workload wl; CHECK(wl.ParseFromString(request->task.msg()));
-      if (wl.file_size() < 1) return;
-      Process(wl.file(0), wl.type());
-      if (wl.type() != Workload::TRAIN) {
-        // return the progress
-        std::string prog_str; monitor_.prog.Serialize(&prog_str);
-        ps::Task res; res.set_msg(prog_str);
-        Reply(request, res);
-      }
-    }
+  inline void Start(bool push, int timestamp, int cmd, void* msg) { }
+  // report
+  inline void Finish() {
+    Progress prog;
+    if (reporter) reporter(prog);
   }
 
- private:
-  void Process(const File& file, Workload::Type type) {
-    // use a large minibatch size and max_delay for val or test tasks
-    int mb_size = type == Workload::TRAIN ? conf_.minibatch() :
-                  std::max(conf_.minibatch()*10, 100000);
-    int max_delay = type == Workload::TRAIN ? conf_.max_delay() : 100000;
-    num_mb_fly_ = num_mb_done_ = 0;
+  inline void Report(Real cur_w, Real old_w) {
 
-    LOG(INFO) << ps::MyNodeID() << ": start to process " << file.ShortDebugString();
-    dmlc::data::MinibatchIter<FeaID> reader(
-        file.file().c_str(), file.k(), file.n(),
-        conf_.data_format().c_str(), mb_size);
-    reader.BeforeFirst();
-    while (reader.Next()) {
-      using std::vector;
-      using std::shared_ptr;
-      using Minibatch = dmlc::data::RowBlockContainer<unsigned>;
-
-      // find all feature id in this minibatch, and convert it to a more compact format
-      auto global = reader.Value();
-      Minibatch* local = new Minibatch();
-      shared_ptr<vector<FeaID> > feaid(new vector<FeaID>());
-      Localizer<FeaID> lc; lc.Localize(global, local, feaid.get());
-
-      // wait for data consistency
-      WaitMinibatch(max_delay);
-
-      // pull the weight from the servers
-      vector<Real>* buf = new vector<Real>(feaid.get()->size());
-      ps::SyncOpts opts;
-
-      // this callback will be called when the weight has been actually pulled back
-      opts.callback = [this, local, feaid, buf, type]() {
-        // eval the progress
-        auto loss = CreateLoss<real_t>(conf_.loss());
-        loss->Init(local->GetBlock(), *buf);
-        monitor_.Update(local->label.size(), loss);
-
-        if (type == Workload::TRAIN) {
-          // reporting from time to time
-          reporter_.Report(0, &monitor_.prog);
-
-          // calculate and push the gradients
-          loss->CalcGrad(buf);
-          ps::SyncOpts opts;
-          // this callback will be called when the gradients have been actually pushed
-          opts.callback = [this]() { FinishMinibatch(); };
-          // filters to reduce network traffic
-          SetFilters(true, &opts);
-          server_.ZPush(feaid, shared_ptr<vector<Real>>(buf), opts);
-        } else {
-          // don't need to cal grad for evaluation task
-          FinishMinibatch();
-          delete buf;
-        }
-        delete local;
-        delete loss;
-      };
-
-      // filters to reduce network traffic
-      SetFilters(false, &opts);
-      server_.ZPull(feaid, buf, opts);
-
-      mb_mu_.lock(); ++ num_mb_fly_; mb_mu_.unlock();
-
-      LOG(INFO) << "#minibatches on processing: " << num_mb_fly_;
-    }
-
-    // wait untill all are done
-    WaitMinibatch(0);
-    LOG(INFO) << ps::MyNodeID() << ": finished";
   }
 
-  // wait if the currenta number of on processing minibatch > num
-  inline void WaitMinibatch(int num) {
-    std::unique_lock<std::mutex> lk(mb_mu_);
-    mb_cond_.wait(lk, [this, num] {return num_mb_fly_ <= num;});
-  }
+  L1L2<Real> penalty;
 
-  inline void FinishMinibatch() {
-    // wake the main thread
-    mb_mu_.lock();
-    -- num_mb_fly_;
-    ++ num_mb_done_;
-    mb_mu_.unlock();
-    mb_cond_.notify_one();
-  }
+  // learning rate
+  Real alpha = 0.1, beta = 1;
 
-  void SetFilters(bool push, ps::SyncOpts* opts) {
-    if (conf_.fixed_bytes() > 0) {
-      opts->AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(conf_.fixed_bytes());
-    }
-    if (conf_.key_cache()) {
-      opts->AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(push);
-    }
-    if (conf_.msg_compression()) {
-      opts->AddFilter(ps::Filter::COMPRESSING);
-    }
-  }
-
-  Config conf_;
-  ps::KVWorker<Real> server_;
-  WorkerMonitor monitor_;
-  TimeReporter reporter_;
-
-  int num_mb_fly_;
-  int num_mb_done_;
-  std::mutex mb_mu_;
-  std::condition_variable mb_cond_;
+  std::function<void(const Progress& prog)> reporter;
 };
 
-/**************************************************************************
- * \brief A server node, which maintains a part of the model, and update the
- * model once received gradients from workers
- **************************************************************************/
-class AsyncSGDServer : public ps::App {
+/*********************************************************************
+ * \brief Standard SGD
+ * use alpha / ( beta + sqrt(t)) as the learning rate
+ *********************************************************************/
+struct SGDHandle : public ISGDHandle {
  public:
-  AsyncSGDServer(const Config& conf)
-      : model_(NULL), conf_(conf), monitor_(conf_.disp_itv())  {
-    Init();
-  }
-  virtual ~AsyncSGDServer() { }
-
-  virtual void ProcessRequest(ps::Message* request) {
-    if (request->task.cmd() == kSaveModel) {
-      if (conf_.has_model_out()) {
-        model_->SaveModel(conf_.model_out());
-      }
+  inline void Start(bool push, int timestamp, int cmd, void* msg) {
+    if (push) {
+      eta = (this->beta + sqrt((Real)t)) / this->alpha;
+      t += 1;
     }
   }
-
- private:
-  template <typename Entry, typename Handle>
-  void CreateServer() {
-    L1L2<Real> l1l2;
-    if (conf_.lambda_size() > 0) l1l2.set_lambda1(conf_.lambda(0));
-    if (conf_.lambda_size() > 1) l1l2.set_lambda2(conf_.lambda(1));
-
-    Handle h;
-    h.penalty = l1l2;
-
-    if (conf_.has_lr_eta()) h.alpha = conf_.lr_eta();
-    if (conf_.has_lr_theta()) h.theta = conf_.lr_theta();
-    if (conf_.has_lr_beta()) h.beta = conf_.lr_beta();
-
-    h.tracker = &monitor_;
-
-    ps::OnlineServer<Entry, Real, Handle> s(h);
-    model_ = s.server();
+  inline void Push(FeaID key, Blob<const Real> grad, Real& w) {
+    Real old_w = w;
+    w = penalty.Solve(eta * w - grad[0], eta);
+    Report(w, old_w);
   }
 
-  void Init() {
+  inline void Pull(FeaID key, const Real& w, Blob<Real>& send) {
+    send[0] = w;
+  }
+  // iteration count
+  int t = 1;
+  Real eta = 0;
+};
+
+
+/*********************************************************************
+ * \brief AdaGrad SGD handle.
+ * use alpha / ( beta + sqrt(sum_t grad_t^2)) as the learning rate
+ *
+ * sq_cum_grad: sqrt(sum_t grad_t^2)
+ *********************************************************************/
+
+struct AdaGradEntry { Real w = 0; Real sq_cum_grad = 0; };
+
+struct AdaGradHandle : public ISGDHandle {
+  inline void Init(FeaID key,  AdaGradEntry& val) { }
+
+  inline void Push(FeaID key, Blob<const Real> grad, AdaGradEntry& val) {
+    // update cum grad
+    Real g = grad[0];
+    Real sqrt_n = val.sq_cum_grad;
+    val.sq_cum_grad = sqrt(sqrt_n * sqrt_n + g * g);
+
+    // update w
+    Real eta = (val.sq_cum_grad + beta) / alpha;
+    Real old_w = val.w;
+    val.w = penalty.Solve(eta * old_w - g, eta);
+
+    Report(val.w, old_w);
+  }
+
+  inline void Pull(FeaID key, const AdaGradEntry& val, Blob<Real>& send) {
+    send[0] = val.w;
+  }
+};
+
+/*********************************************************************
+ * \brief FTRL updater, use a smoothed weight for better spasity
+ *
+ * w : weight
+ * z : the smoothed version of - eta * w + grad
+ * sq_cum_grad: sqrt(sum_t grad_t^2)
+ *********************************************************************/
+
+struct FTRLEntry { Real w = 0; Real z = 0; Real sq_cum_grad = 0; };
+
+struct FTRLHandle : public ISGDHandle {
+ public:
+  inline void Init(FeaID key,  FTRLEntry& val) { }
+
+  inline void Push(FeaID key, Blob<const Real> grad, FTRLEntry& val) {
+    // update cum grad
+    Real g = grad[0];
+    Real sqrt_n = val.sq_cum_grad;
+    val.sq_cum_grad = sqrt(sqrt_n * sqrt_n + g * g);
+
+    // update z
+    Real old_w = val.w;
+    Real sigma = (val.sq_cum_grad - sqrt_n) / alpha;
+    val.z += g - sigma * old_w;
+
+    // update w
+    val.w = penalty.Solve(-val.z, (beta + val.sq_cum_grad) / alpha);
+
+    Report(val.w, old_w);
+  }
+
+  inline void Pull(FeaID key, const FTRLEntry& val, Blob<Real>& send) {
+    send[0] = val.w;
+  }
+};
+
+
+class AsgdServer : public solver::AsyncSGDServer {
+ public:
+  AsgdServer(const Config& conf) : conf_(conf) {
     auto algo = conf_.algo();
     if (algo == Config::SGD) {
       CreateServer<Real, SGDHandle>();
@@ -213,137 +147,115 @@ class AsyncSGDServer : public ps::App {
       LOG(FATAL) << "unknown algo: " << algo;
     }
   }
-  ps::KVStore* model_;
+  virtual ~AsgdServer() { }
+ protected:
+  template <typename Entry, typename Handle>
+  void CreateServer() {
+    Handle h;
+    h.penalty.set_lambda1(conf_.lambda_l1());
+    h.penalty.set_lambda2(conf_.lambda_l2());
+    if (conf_.has_lr_eta()) h.alpha = conf_.lr_eta();
+    if (conf_.has_lr_beta()) h.beta = conf_.lr_beta();
+    ps::OnlineServer<Entry, Real, Handle> s(h);
+    server_ = s.server();
+  }
+
   Config conf_;
-  DistModelMonitor monitor_;
+  virtual void SaveModel() { }
+  ps::KVStore* server_;
 };
 
-/**************************************************************************
- * \brief The scheduler node, which issues workloads to workers/servers, in
- * charge of fault tolerance, and also print the progress
- **************************************************************************/
-class AsyncSGDScheduler : public ps::App {
+class AsgdWorker : public solver::AsyncSGDWorker {
  public:
-  AsyncSGDScheduler(const Config& conf) : conf_(conf) {
-    sys_.manager().AddNodeFailureHandler([this](const std::string& id) {
-        pool_.Reset(id);
-      });
-  }
-  virtual ~AsyncSGDScheduler() { }
-
-  virtual void ProcessResponse(ps::Message* response) {
-    if (response->task.cmd() == kProcess) {
-      auto id = response->sender;
-      if (!response->task.msg().empty()) {
-        Progress p;
-        p.Parse(response->task.msg());
-        prog_.Merge(p);
-      }
-      pool_.Finish(id);
-
-      Workload wl; pool_.Get(id, &wl);
-      if (wl.file_size() > 0) SendWorkload(id, wl);
-
-      // Workload wl;
-      // if (pool_.num_finished() < conf_.init_workload()) {
-      //   if (pool_.num_assigned() >= conf_.init_num_worker()) {
-      //     request_ids_.push_back(id);
-      //     return;
-      //   } else {
-      //     pool_.Get(id, &wl);
-      //     if (wl.file_size() > 0) SendWorkload(id, wl);
-      //   }
-      // } else {
-      //   pool_.Get(id, &wl);
-      //   if (wl.file_size() > 0) SendWorkload(id, wl);
-      //   if (!request_ids_.empty()) {
-      //     for (auto id : request_ids_) {
-      //       pool_.Get(id, &wl);
-      //       if (wl.file_size() > 0) SendWorkload(id, wl);
-      //     }
-      //     request_ids_.clear();
-      //   }
-      // }
+  AsgdWorker(const Config& conf) : conf_(conf) {
+    minibatch_size_ = conf.minibatch();
+    max_delay_      = conf.max_delay();
+    nt_             = conf.num_threads();
+    if (conf.use_worker_local_data()) {
+      train_data_        = conf.train_data();
+      val_data_          = conf.val_data();
+      worker_local_data_ = true;
     }
   }
+  virtual ~AsgdWorker() { }
 
-  virtual bool Run() {
+ protected:
+  virtual void ProcessMinibatch(const Minibatch& mb, int data_pass, bool train) {
+    // find the unique feature ids in this minibatch
+    auto data = new dmlc::data::RowBlockContainer<unsigned>();
+    auto feaid = std::make_shared<std::vector<FeaID>>();
+    Localizer<FeaID> lc;
+    lc.Localize(mb, data, feaid.get());
 
-    CHECK(conf_.has_train_data());
-    double t = GetTime();
-    size_t num_ex = 0;
-    int64_t nnz_w = 0;
-    bool exit = false;
-    for (int i = 0; i < conf_.max_data_pass(); ++i) {
-      printf("training #iter = %d\n", i);
-      // train
-      pool_.Clear();
-      pool_.Add(conf_.train_data(), conf_.num_parts_per_file(), 0, Workload::TRAIN);
-      Workload wl; SendWorkload(ps::kWorkerGroup, wl);
+    // pull the weight from the servers
+    auto val = new std::vector<Real>();
+    ps::SyncOpts pull_w_opt;
 
-      printf(" sec  #example delta #ex    |w|_0     %s\n", prog_.HeadStr().c_str());
-      sleep(1);
-      while (!pool_.IsFinished()) {
-        sleep((int) conf_.disp_itv());
-        Progress prog; monitor_.Get(0, &prog);
-        monitor_.Clear(0);
-        if (prog.Empty()) continue;
-        num_ex += prog.num_ex();
-        nnz_w += prog.nnz_w();
-        printf("%5.0lf  %7.2g  %7.2g  %11.6g  %s\n",
-               GetTime() - t, (double)num_ex, (double)prog.num_ex(), (double)nnz_w,
-               prog.PrintStr().c_str());
-        if (conf_.has_max_objv() && prog.objv()/prog.num_ex() > conf_.max_objv()) {
-          pool_.ClearRemain();
-          exit = true;
-        }
+    // this callback will be called when the weight has been actually pulled
+    // back
+    pull_w_opt.callback = [this, data, feaid, val, train]() {
+      // eval the objective, and report progress to the scheduler
+      auto loss = CreateLoss(conf_.loss());
+      loss->Init(data->GetBlock(), *val, nt_);
+      Progress prog; loss->Evaluate(&prog);
+      Report(&prog);
+
+      if (train) {
+        // calculate and push the gradients
+        loss->CalcGrad(val);
+
+        ps::SyncOpts push_grad_opt;
+        // filters to reduce network traffic
+        SetFilters(train, &push_grad_opt);
+        // this callback will be called when the gradients have been actually
+        // pushed
+        push_grad_opt.callback = [this]() { FinishMinibatch(); };
+        server_.ZPush(
+            feaid, std::shared_ptr<std::vector<Real>>(val), push_grad_opt);
+      } else {
+        FinishMinibatch();
+        delete val;
       }
-      if (exit) {
-        printf("current objv > the max allowed value %g. stop training.\n",
-               conf_.max_objv());
-        break;
-      }
-
-      // val
-      if (!conf_.has_val_data()) continue;
-      printf("validation #iter = %d\n", i);
-      pool_.Clear();
-      pool_.Add(conf_.val_data(), conf_.num_parts_per_file(), 0, Workload::VAL);
-      SendWorkload(ps::kWorkerGroup, wl);
-
-      while (!pool_.IsFinished()) { sleep(1); }
-
-      printf("%7.1lf sec, #val %.3g, %s\n",
-             GetTime() - t, (double)prog_.num_ex(), prog_.PrintStr().c_str());
-      prog_.Clear();
-    }
-
-    if (conf_.has_model_out() && !exit) {
-      printf("saving model to %s\n", conf_.model_out().c_str());;
-      ps::Task task; task.set_cmd(kSaveModel);
-      Wait(Submit(task, ps::kServerGroup));
-    }
-    printf("async_sgd done!\n");
-    return true;
+      delete loss;
+      delete data;
+    };
+    server_.ZPull(feaid, val, pull_w_opt);
   }
-
  private:
-  void SendWorkload(const std::string id, const Workload& wl) {
-    std::string wl_str; wl.SerializeToString(&wl_str);
-    ps::Task task; task.set_msg(wl_str);
-    task.set_cmd(kProcess);
-    Submit(task, id);
+  void SetFilters(bool push, ps::SyncOpts* opts) {
+    if (conf_.fixed_bytes() > 0) {
+      opts->AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(
+          conf_.fixed_bytes());
+    }
+    if (conf_.key_cache()) {
+      opts->AddFilter(ps::Filter::KEY_CACHING)->set_clear_cache(push);
+    }
+    if (conf_.msg_compression()) {
+      opts->AddFilter(ps::Filter::COMPRESSING);
+    }
   }
-
   Config conf_;
-  WorkloadPool pool_;
-  bool done_ = false;
-  Progress prog_;
-  ps::MonitorMaster<Progress> monitor_;
-
-  // std::vector<std::string> request_ids_;
+  ps::KVWorker<Real> server_;
+  int nt_ = 2;
 };
 
+
+class AsgdScheduler : public solver::AsyncSGDScheduler<Progress> {
+ public:
+  AsgdScheduler(const Config& conf) {
+    if (conf.use_worker_local_data()) {
+      worker_local_data_ = true;
+    } else {
+      train_data_        = conf.train_data();
+      val_data_          = conf.val_data();
+    }
+    data_format_         = conf.data_format();
+    num_part_per_file_   = conf.num_parts_per_file();
+    max_data_pass_       = conf.max_data_pass();
+    disp_itv_            = conf.disp_itv();
+  }
+  virtual ~AsgdScheduler() { }
+};
 
 }  // namespace linear
 }  // namespace dmlc

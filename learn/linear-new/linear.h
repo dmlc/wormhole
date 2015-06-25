@@ -1,13 +1,11 @@
 #pragma once
 #include "ps.h"
-#include "config.pb.h"
 #include "base/progress.h"
 namespace dmlc {
 namespace linear {
 
 using FeaID = ps::Key;
 using Real = float;
-
 
 class Progress : public VectorProgress {
  public:
