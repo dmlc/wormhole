@@ -203,7 +203,7 @@ class WorkloadPool {
     }
     std::string DebugStr() {
       std::stringstream ss;
-      ss << filename << " " << k << "/" << n;
+      ss << filename << " " << k << " / " << n;
       return ss.str();
     }
   };

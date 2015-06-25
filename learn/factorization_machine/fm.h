@@ -58,8 +58,8 @@ class FMScheduler : public solver::AsyncSGDScheduler<Progress> {
     } else {
       train_data_        = conf.train_data();
       val_data_          = conf.val_data();
-      data_format_       = conf.data_format();
     }
+    data_format_         = conf.data_format();
     num_part_per_file_   = conf.num_parts_per_file();
     max_data_pass_       = conf.max_data_pass();
     disp_itv_            = conf.disp_itv();
