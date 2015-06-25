@@ -47,6 +47,8 @@ class WorkloadPool {
       if (t.track.empty()) t.track.resize(npart);
       CHECK_EQ(t.track.size(), npart);
       if (id.size()) t.node.insert(id);
+      LOG(INFO) << "add " << f.filename << " for " <<
+          (id == "" ? "all workers" : id);
     }
   }
 
@@ -120,20 +122,19 @@ class WorkloadPool {
       auto& t = it.second;
       if (!t.node.empty() && t.node.count(id) == 0) continue;
       if (t.done == t.track.size()) continue;
-      for (auto& k : t.track) {
-        if (k == 0) {
-          Assigned a;
-          a.filename = it.first;
-          a.start    = GetTime();
-          a.node     = id;
-          a.k        = k;
-          a.n        = (int)t.track.size();
-          assigned_.push_back(a);
-          wl->file.push_back(a.Get());
-          LOG(INFO) << "assign " << id << " job " << a.DebugStr();
-          k = 1;
-          return;
-        }
+      for (size_t k = 0; k < t.track.size(); ++k) {
+        if (t.track[k] != 0) continue;
+        Assigned a;
+        a.filename = it.first;
+        a.start    = GetTime();
+        a.node     = id;
+        a.k        = (int)k;
+        a.n        = (int)t.track.size();
+        assigned_.push_back(a);
+        wl->file.push_back(a.Get());
+        LOG(INFO) << "assign " << id << " job " << a.DebugStr();
+        t.track[k] = 1;
+        return;
       }
     }
   }
