@@ -1,7 +1,7 @@
 ifneq ("$(wildcard ../../config.mk)","")
 	config = ../../config.mk
 else
-	config = ../../make/config.mk
+	config = ../../make/config.ps.mk
 endif
 include $(config)
 
