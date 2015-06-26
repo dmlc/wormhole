@@ -132,3 +132,24 @@ for i in {0..23}; do
     rm -r $tmp
 done
 ```
+
+#### Dispatch data
+
+```
+src_file=criteo-rec/*
+dst_path=/data/criteo-rec-local
+hostfile=hosts
+
+n=`cat $hostfile | wc -l`
+i=0
+for f in ${src_file}; do
+    k=$((i % n))
+    node=`sed -n $((k+1))p ${hostfile}`
+    if [ $i -lt $n ]; then
+        ssh ${node} mkdir -p ${dst_path}
+    fi
+    echo "copy $f to $node"
+    scp $f ${node}:${dst_path}/
+    ((i++))
+done
+```
