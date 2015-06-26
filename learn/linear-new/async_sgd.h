@@ -196,8 +196,11 @@ class AsgdWorker : public solver::AsyncSGDWorker {
     // find the unique feature ids in this minibatch
     auto data = new dmlc::data::RowBlockContainer<unsigned>();
     auto feaid = std::make_shared<std::vector<FeaID>>();
+
+    double start = GetTime();
     Localizer<FeaID> lc;
     lc.Localize(mb, data, feaid.get());
+    workload_time_ += GetTime() - start;
 
     // pull the weight from the servers
     auto val = new std::vector<Real>();
@@ -206,6 +209,7 @@ class AsgdWorker : public solver::AsyncSGDWorker {
     // this callback will be called when the weight has been actually pulled
     // back
     pull_w_opt.callback = [this, data, feaid, val, train]() {
+      double start = GetTime();
       // eval the objective, and report progress to the scheduler
       auto loss = CreateLoss(conf_.loss());
       loss->Init(data->GetBlock(), *val, nt_);
@@ -230,6 +234,7 @@ class AsgdWorker : public solver::AsyncSGDWorker {
       }
       delete loss;
       delete data;
+      workload_time_ += GetTime() - start;
     };
     server_.ZPull(feaid, val, pull_w_opt);
   }
@@ -255,16 +260,13 @@ class AsgdWorker : public solver::AsyncSGDWorker {
 class AsgdScheduler : public solver::AsyncSGDScheduler<Progress> {
  public:
   AsgdScheduler(const Config& conf) {
-    if (conf.use_worker_local_data()) {
-      worker_local_data_ = true;
-    } else {
-      train_data_        = conf.train_data();
-      val_data_          = conf.val_data();
-    }
-    data_format_         = conf.data_format();
-    num_part_per_file_   = conf.num_parts_per_file();
-    max_data_pass_       = conf.max_data_pass();
-    disp_itv_            = conf.disp_itv();
+    worker_local_data_ = conf.use_worker_local_data();
+    train_data_        = conf.train_data();
+    val_data_          = conf.val_data();
+    data_format_       = conf.data_format();
+    num_part_per_file_ = conf.num_parts_per_file();
+    max_data_pass_     = conf.max_data_pass();
+    disp_itv_          = conf.disp_itv();
   }
   virtual ~AsgdScheduler() { }
 };
