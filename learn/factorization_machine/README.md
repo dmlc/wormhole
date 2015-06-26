@@ -17,7 +17,7 @@ Given training data pairs *(x,y)*, the factorization machine learns the model
 
 ![obj](guide/obj.png)
 
-Here *l* is the loss function such as logistic loss. If we set *k=0*, then
+Here *ℓ* is the loss function such as logistic loss. If we set *k=0*, then
 factorization machine is a linear method. Therefore, the configuration to run
 factorization is almost identical to [linear method](../linear/guide).
 
