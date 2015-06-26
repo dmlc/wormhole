@@ -68,5 +68,5 @@ cd guide
 
 More documents:
 
-- [Use bigger datasets](../guide/data.md)
-- [Launch jobs in multiple machines](../guide/run.md)
+- [Use bigger datasets](../../doc/data.md)
+- [Launch jobs in multiple machines](../../doc/run.md)
