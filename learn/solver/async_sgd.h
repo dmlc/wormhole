@@ -75,13 +75,7 @@ class AsyncSGDScheduler : public ps::App {
     start_time_ = GetTime();
     for (int i = 0; i < max_data_pass_; ++i) {
       cur_data_pass_ = i;
-      printf("training #iter = %d\n", i);
-      bool exit = Iterate(Workload::TRAIN);
-
-      printf("validating #iter = %d\n", i);
-      Iterate(Workload::VAL);
-
-      if (exit) {
+      if (Iterate(Workload::TRAIN) || Iterate(Workload::VAL)) {
         printf("hit stop critera\n"); break;
       }
       if (i == max_data_pass_ -1) {
@@ -99,17 +93,22 @@ class AsyncSGDScheduler : public ps::App {
   }
 
  private:
+  // return true if time for stop
   bool Iterate(Workload::Type type) {
-    cur_type_ = type;
     bool stop = false;
+    std::string data;
+    if (type == Workload::TRAIN) {
+      printf("training #iter = %d\n", cur_data_pass_);
+      data = train_data_;
+    } else {
+      printf("validating #iter = %d\n", cur_data_pass_);
+      data = val_data_;
+    }
+    if (data.empty()) return stop;
+
     pool_.Clear();
     if (!worker_local_data_) {
-      Workload wl;
-      if (type == Workload::TRAIN) {
-        pool_.Match(train_data_, &wl);
-      } else {
-        pool_.Match(val_data_, &wl);
-      }
+      Workload wl; pool_.Match(data, &wl);
       pool_.Add(wl.file, num_part_per_file_);
     }
 
@@ -127,15 +126,8 @@ class AsyncSGDScheduler : public ps::App {
         }
       }
     }
-    if (type != Workload::TRAIN) ShowProgress();
+    if (type != Workload::TRAIN) stop = ShowProgress();
     return stop;
-  }
-
-  void SendWorkload(const std::string id, const Workload& wl) {
-    StringStream ss; wl.Save(&ss);
-    ps::Task task; task.set_msg(ss.str());
-    task.set_cmd(kProcess);
-    Submit(task, id);
   }
 
   // return true if it's time for stopping
@@ -149,6 +141,13 @@ class AsyncSGDScheduler : public ps::App {
     if (Stop(cur, prog_)) ret = true;
     prog_.Merge(&cur);
     return ret;
+  }
+
+  void SendWorkload(const std::string id, const Workload& wl) {
+    StringStream ss; wl.Save(&ss);
+    ps::Task task; task.set_msg(ss.str());
+    task.set_cmd(kProcess);
+    Submit(task, id);
   }
 
   double start_time_;

@@ -6,7 +6,6 @@ LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
 all: base ps core bin # tool # test
 
 clean:
-	rm -rf
 	rm -rf build/*
 
 bin: build/fm.dmlc

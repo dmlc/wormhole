@@ -246,7 +246,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     minibatch_size_ = conf.minibatch();
     max_delay_      = conf.max_delay();
     nt_             = conf.num_threads();
-    if (conf.worker_local_data()) {
+    if (conf.use_worker_local_data()) {
       train_data_        = conf.train_data();
       val_data_          = conf.val_data();
       worker_local_data_ = true;

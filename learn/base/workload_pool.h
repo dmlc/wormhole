@@ -132,7 +132,8 @@ class WorkloadPool {
         a.n        = (int)t.track.size();
         assigned_.push_back(a);
         wl->file.push_back(a.Get());
-        LOG(INFO) << "assign " << id << " job " << a.DebugStr();
+        LOG(INFO) << "assign " << id << " job " << a.DebugStr()
+                  << ". #jobs on processing: " << assigned_.size();
         t.track[k] = 1;
         return;
       }
