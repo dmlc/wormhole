@@ -52,7 +52,12 @@ threshold = 256
 }
 ```
 
-## Optimization
+## Learning algorithm
 
-In default, the objective function is solved by distributed asynchronous
-stochastic gradient descent
+In default, the objective function is minimized by distributed asynchronous
+stochastic gradient descent.
+
+## Build and Run
+
+First run `../../make/build_deps.sh` if you didn't run it before. Then
+`make`. (Only tested on linux with gcc >= 4.8).
