@@ -4,6 +4,7 @@
  */
 #pragma once
 #include <string>
+#include <sstream>
 #include "dmlc/io.h"
 
 namespace dmlc {
@@ -25,6 +26,15 @@ struct Workload : public Serializable {
   };
   std::vector<File> file;
 
+  std::string ShortDebugString() const {
+    std::stringstream ss;
+    ss << "iter = " << data_pass << ", "
+       << (type == TRAIN ? "training," : "validation,");
+    for (const auto& f : file) {
+      ss << " " << f.ShortDebugString();
+    }
+    return ss.str();
+  }
   bool Empty() { return file.size() == 0; }
 
   virtual void Load(Stream* fi) {

@@ -95,6 +95,7 @@ class AsyncSGDScheduler : public ps::App {
  private:
   // return true if time for stop
   bool Iterate(Workload::Type type) {
+    cur_type_ = type;
     bool stop = false;
     std::string data;
     if (type == Workload::TRAIN) {
@@ -228,6 +229,7 @@ class AsyncSGDWorker : public ps::App {
   std::string train_data_;
   std::string val_data_;
 
+  double workload_time_;
   /// implement system APIs
  public:
   AsyncSGDWorker() { }
@@ -259,16 +261,18 @@ class AsyncSGDWorker : public ps::App {
 
  private:
   void Process(const Workload& wl) {
-    CHECK_EQ(wl.file.size(), 1);
-    auto file = wl.file[0];
-    LOG(INFO) << ps::MyNodeID() << ": iter=" << wl.data_pass
-              << " start to process " << file.ShortDebugString();
-
     bool train = wl.type == Workload::TRAIN;
     int mb_size = train ? minibatch_size_ : val_minibatch_size_;
     int max_delay = train ? max_delay_ : val_max_delay_;
-    num_mb_fly_ = num_mb_done_ = 0;
+    LOG(INFO) << ps::MyNodeID() << ": " << wl.ShortDebugString()
+              << ", minibatch = " << mb_size << ", max_delay = " <<  max_delay;
 
+    num_mb_fly_ = num_mb_done_ = 0;
+    start_ = GetTime();
+    workload_time_ = 0;
+
+    CHECK_EQ(wl.file.size(), 1);
+    auto file = wl.file[0];
     dmlc::data::MinibatchIter<FeaID> reader(
         file.filename.c_str(), file.k, file.n, file.format.c_str(), mb_size);
     reader.BeforeFirst();
@@ -296,7 +300,7 @@ class AsyncSGDWorker : public ps::App {
   int num_mb_done_;
   std::mutex mb_mu_;
   std::condition_variable mb_cond_;
-
+  double start_;
   ProgressReporter reporter_;
 };
 
@@ -308,9 +312,19 @@ void AsyncSGDWorker::FinishMinibatch() {
   mb_mu_.unlock();
   mb_cond_.notify_one();
 
-  LOG(INFO) << num_mb_done_ << " done, " << num_mb_fly_ << " on processing";
-}
+  // log some info
 
+  double ttl_time = (GetTime() - start_);
+  std::string overhead;
+  if (workload_time_ > 0) {
+    int avg_oh
+        = std::max(ttl_time-workload_time_, (double)0) / ttl_time * 100;
+    overhead = "overhead " + std::to_string(avg_oh) + "%, ";
+  }
+  LOG(INFO) << num_mb_done_ << " done, avg time "
+            << ttl_time / num_mb_done_ << ", " << overhead
+            << num_mb_fly_ << " on running";
+}
 
 
 }  // namespace solver

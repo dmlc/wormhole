@@ -267,19 +267,20 @@ class FMWorker : public solver::AsyncSGDWorker {
     auto feaid = std::make_shared<std::vector<FeaID>>();
     auto feacnt = std::make_shared<std::vector<Real>>();
 
+    double start = GetTime();
     Localizer<FeaID> lc;
     lc.Localize(mb, data, feaid.get(), feacnt.get());
-    ps::SyncOpts pull_w_opt;
+    workload_time_ += GetTime() - start;
 
+    ps::SyncOpts pull_w_opt;
     if (train && data_pass == 0) {
       // push the feature count to the servers
       ps::SyncOpts cnt_opt;
       SetFilters(0, &cnt_opt);
       cnt_opt.cmd = kPushFeaCnt;
       int t = server_.ZPush(feaid, feacnt, cnt_opt);
-      // LL << DebugStr(*feacnt);
-
       pull_w_opt.deps.push_back(t);
+      // LL << DebugStr(*feacnt);
     }
 
     // pull the weight from the servers
@@ -288,6 +289,7 @@ class FMWorker : public solver::AsyncSGDWorker {
 
     // this callback will be called when the weight has been actually pulled back
     pull_w_opt.callback = [this, data, feaid, val, val_siz, train]() {
+      double start = GetTime();
       // eval the objective, and report progress to the scheduler
       Objective obj(data->GetBlock(), *val, *val_siz, dims_, nt_);
       Progress prog;
@@ -315,6 +317,7 @@ class FMWorker : public solver::AsyncSGDWorker {
         delete val_siz;
       }
       delete data;
+      workload_time_ += GetTime() - start;
     };
 
     // filters to reduce network traffic
