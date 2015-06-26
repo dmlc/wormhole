@@ -22,12 +22,19 @@ struct ISGDHandle {
   inline void Start(bool push, int timestamp, int cmd, void* msg) { }
   // report
   inline void Finish() {
-    Progress prog;
-    if (reporter) reporter(prog);
+    if (new_w_nnz > 1000) {
+      Progress prog; prog.nnz_w() = new_w_nnz;
+      if (reporter) reporter(prog);
+      new_w_nnz = 0;
+    }
   }
 
   inline void Report(Real cur_w, Real old_w) {
-
+    if (old_w == 0 && cur_w != 0) {
+      ++ new_w_nnz;
+    } else if (old_w != 0 && cur_w == 0) {
+      -- new_w_nnz;
+    }
   }
 
   L1L2<Real> penalty;
@@ -36,6 +43,7 @@ struct ISGDHandle {
   Real alpha = 0.1, beta = 1;
 
   std::function<void(const Progress& prog)> reporter;
+  int64_t new_w_nnz = 0;
 };
 
 /*********************************************************************
@@ -156,6 +164,10 @@ class AsgdServer : public solver::AsyncSGDServer {
     h.penalty.set_lambda2(conf_.lambda_l2());
     if (conf_.has_lr_eta()) h.alpha = conf_.lr_eta();
     if (conf_.has_lr_beta()) h.beta = conf_.lr_beta();
+
+    h.reporter = [this](const Progress& prog) {
+      Report(&prog);
+    };
     ps::OnlineServer<Entry, Real, Handle> s(h);
     server_ = s.server();
   }
