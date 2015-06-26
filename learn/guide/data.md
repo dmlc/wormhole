@@ -1,6 +1,6 @@
 # Data
 
-## Filesystems
+## Supported Filesystems
 
 Wormholes can read and write data in major filesystems, such as local disk,
 [HDFS](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsUserGuide.html),
@@ -14,7 +14,7 @@ export AWS_ACCESS_KEY_ID=YOUR_ID export
 AWS_SECRET_ACCESS_KEY=YOUR_KEY
 ```
 
-## Dataset format
+## Dataset formats
 
 Wormhole is able to read various dataset formats, including widely used
 [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) and
@@ -37,7 +37,9 @@ preparation. For example, sparse dataset only stores the nonzero entries by
 integer`. There is no need to map these feature IDs into continuous small
 integers.
 
-## Common options
+## More
+
+### Common options
 
 If the number of works is less than the number of files. We can virtually split
 the files so that each worker can process at least one file by:
@@ -61,11 +63,11 @@ use_worker_local_data = true
 ```
 
 
-## Sample scripts
+### Sample scripts
 
-Download the
-[Criteo Terabyte CTR dataset](http://labs.criteo.com/downloads/download-terabyte-click-logs/)
-and then put them into S3: (change `s3cmd put` to `hadoop fs -put` for HDFS)
+#### Put [Criteo Terabyte CTR dataset](http://labs.criteo.com/downloads/download-terabyte-click-logs/) to S3
+
+(change `s3cmd put` to `hadoop fs -put` for HDFS)
 
 ```bash
 s3cmd_path=~/s3cmd-1.5.2
@@ -84,7 +86,7 @@ train_data = "s3://ctr-data/criteo/day_.*"
 data_format = "criteo"
 ```
 
-The above uses plain text format, we can also use a recordio format:
+#### Use the recordio format instead of plain text
 
 ```bash
 s3cmd_path=~/s3cmd-1.5.2
@@ -105,7 +107,7 @@ train_data = "s3://ctr-data/criteo/day_.*.rec"
 data_format = "criteo_rec"
 ```
 
-The following scripts split and shuffle the Criteo dataset:
+#### Split and shuffle the Criteo dataset:
 
 ```bash
 in_dir=criteo
