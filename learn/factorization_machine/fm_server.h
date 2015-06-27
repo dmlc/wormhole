@@ -76,7 +76,8 @@ struct ISGDHandle {
 
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
-    // if (push) {
+    perf.Start(push, cmd);
+    // if (push) { // for debug
     //   LL << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
     // }
   }
@@ -87,6 +88,7 @@ struct ISGDHandle {
       if (reporter) reporter(prog);
       new_w_entry = 0;
     }
+    perf.Stop();
   }
   inline void SetCaller(void *obj) { }
 
@@ -107,6 +109,30 @@ struct ISGDHandle {
   };
   std::array<Group, 3> group;
 
+ private:
+  // performance monitor
+  class Perf {
+   public:
+    // Perf() { disp_ = ps::NumWorkers() * 5; }
+    void Start(bool push, int cmd) {
+      time_[0] = GetTime();
+      i_ = push ? ((cmd == kPushFeaCnt) ? 1 : 2) : 3;
+    }
+    void Stop() {
+      time_[i_] += GetTime() - time_[0];
+      ++ count_[i_]; ++ count_[0];
+      if ((count_[0] % disp_) == 0) {
+        LOG(INFO) << "push feacnt: " << count_[1] << " x " << time_[1]/count_[1]
+                  << ", push grad: " << count_[2] << " x " << time_[2]/count_[2]
+                  << ", pull: " << count_[3] << " x " << time_[3]/count_[3];
+      }
+    }
+   private:
+    std::array<double, 4> time_{};
+    std::array<int, 4> count_{};
+    int i_ = 0;
+    int disp_ = ps::NumWorkers() * 5;;
+  } perf;
 };
 
 struct AdaGradHandle : public ISGDHandle {
