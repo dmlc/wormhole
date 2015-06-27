@@ -72,6 +72,8 @@ class AsyncSGDScheduler : public ps::App {
   }
 
   virtual bool Run() {
+    printf("connected %d servers and %d workers\n",
+           ps::NumServers(), ps::NumWorkers());
     start_time_ = GetTime();
     for (int i = 0; i < max_data_pass_; ++i) {
       cur_data_pass_ = i;

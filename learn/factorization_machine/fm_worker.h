@@ -273,7 +273,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     workload_time_ += GetTime() - start;
 
     ps::SyncOpts pull_w_opt;
-    if (train && data_pass == 0) {
+    if (train && data_pass == 0 && dims_.size() > 1) {
       // push the feature count to the servers
       ps::SyncOpts cnt_opt;
       SetFilters(0, &cnt_opt);
