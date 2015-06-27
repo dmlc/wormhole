@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <limits>
 #include "dmlc/data.h"
+#include "dmlc/omp.h"
 #include "data/row_block.h"
 #include "base/parallel_sort.h"
 
@@ -19,7 +20,7 @@ namespace dmlc {
 template<typename I>
 class Localizer {
  public:
-  Localizer() { }
+  Localizer(int nthreads = 2) : nt_(nthreads) { }
   ~Localizer() { }
   /**
    * @brief Localize a Rowblock
@@ -30,7 +31,7 @@ class Localizer {
                 std::vector<I>* uniq_idx = NULL,
                 std::vector<C>* idx_frq = NULL) {
     std::vector<I>* uidx = uniq_idx == NULL ? new std::vector<I>() : uniq_idx;
-    CountUniqIndex<C>(blk, 4, uidx, idx_frq);
+    CountUniqIndex<C>(blk, uidx, idx_frq);
     RemapIndex(blk, *uidx, localized);
     if (uniq_idx == NULL) delete uidx;
     Clear();
@@ -46,8 +47,9 @@ class Localizer {
    * @param idx_frq if not NULL then returns the according occurrence counts
    */
   template<typename C>
-  void CountUniqIndex(const RowBlock<I>& blk, int nthreads,
-                      std::vector<I> *uniq_idx, std::vector<C>* idx_frq);
+  void CountUniqIndex(const RowBlock<I>& blk,
+                      std::vector<I> *uniq_idx,
+                      std::vector<C>* idx_frq);
 
   /**
    * @brief Remaps the index.
@@ -57,7 +59,8 @@ class Localizer {
    *
    * @param localized a rowblock with index mapped: idx_dict[i] -> i.
    */
-  void RemapIndex(const RowBlock<I>& blk, const std::vector<I>& idx_dict,
+  void RemapIndex(const RowBlock<I>& blk,
+                  const std::vector<I>& idx_dict,
                   data::RowBlockContainer<unsigned> *localized);
 
 
@@ -67,6 +70,7 @@ class Localizer {
   void Clear() { pair_.clear(); }
 
  private:
+  int nt_;
 #pragma pack(push)
 #pragma pack(4)
   struct Pair {
@@ -79,8 +83,7 @@ class Localizer {
 template<typename I>
 template<typename C>
 void Localizer<I>:: CountUniqIndex(
-    const RowBlock<I>& blk, int nthreads,
-    std::vector<I> *uniq_idx, std::vector<C>* idx_frq) {
+    const RowBlock<I>& blk, std::vector<I> *uniq_idx, std::vector<C>* idx_frq) {
   // sort
   if (blk.size == 0) return;
   size_t idx_size = blk.offset[blk.size];
@@ -92,19 +95,21 @@ void Localizer<I>:: CountUniqIndex(
   if (ps::FLAGS_max_key < (uint64_t)max_index) {
     // hash kernel
     max_index = (I) ps::FLAGS_max_key;
+#pragma omp parallel for num_threads(nt_)
     for (size_t i = 0; i < idx_size; ++i) {
       // TODO rehash?
       pair_[i].k = blk.index[i] % max_index;
       pair_[i].i = i;
     }
   } else {
+#pragma omp parallel for num_threads(nt_)
     for (size_t i = 0; i < idx_size; ++i) {
       pair_[i].k = blk.index[i];
       pair_[i].i = i;
     }
   }
 
-  ParallelSort(&pair_, nthreads,
+  ParallelSort(&pair_, nt_,
                [](const Pair& a, const Pair& b) {return a.k < b.k; });
 
   // save data

@@ -268,7 +268,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     auto feacnt = std::make_shared<std::vector<Real>>();
 
     double start = GetTime();
-    Localizer<FeaID> lc;
+    Localizer<FeaID> lc(nt_);
     lc.Localize(mb, data, feaid.get(), feacnt.get());
     workload_time_ += GetTime() - start;
 

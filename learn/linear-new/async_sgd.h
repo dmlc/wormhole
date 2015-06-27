@@ -198,7 +198,7 @@ class AsgdWorker : public solver::AsyncSGDWorker {
     auto feaid = std::make_shared<std::vector<FeaID>>();
 
     double start = GetTime();
-    Localizer<FeaID> lc;
+    Localizer<FeaID> lc(nt_);
     lc.Localize(mb, data, feaid.get());
     workload_time_ += GetTime() - start;
 
