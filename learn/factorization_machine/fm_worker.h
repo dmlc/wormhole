@@ -34,37 +34,35 @@ class Objective {
   /**
    * \brief evaluate the progress
    * predict_y
-   *  py = x * w + .5 * sum((x*u).^2 - (x.*x)*(u.*u), 2);
+   *  py = X * w + .5 * sum((X*V).^2 - (X.*X)*(V.*V), 2);
    */
   void Evaluate(Progress* prog) {
     // py = X * w
     auto& d = data_[0];
-
     py_.resize(d.X.size);
     SpMV::Times(d.X, d.w, &py_, nt_);
 
-    // py += .5 * sum((x*u).^2 + (x.*x)*(u.*u), 2);
+    // py += .5 * sum((X*V).^2 + (X.*X)*(V.*V), 2);
     for (size_t k = 1; k < data_.size(); ++k) {
       auto& d = data_[k];
       if (d.w.empty()) continue;
 
-      // (x.*x)*(u.*u)
-      std::vector<Real> uu = d.w;
-      for (auto& u : uu) u *= u;
-
+      // tmp = (X.*X)*(V.*V)
       std::vector<Real> tmp(d.X.size * d.dim);
-      CHECK_EQ(uu.size(), d.pos.size()*d.dim);
-      SpMM::Times(d.XX, uu, &tmp, nt_);
+      std::vector<Real> vv = d.w;
+      for (auto& v : vv) v *= v;
+      CHECK_EQ(vv.size(), d.pos.size()*d.dim);
+      SpMM::Times(d.XX, vv, &tmp, nt_);
 
-      // x*u
+      // d.xw = X*V
       d.xw.resize(tmp.size());
       SpMM::Times(d.X, d.w, &d.xw, nt_);
 
-      // py += .5 * sum(..., 2)
+      // py += .5 * sum((d.xw).^2 - tmp 2)
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < py_.size(); ++i) {
-        Real* tt = tmp.data() + i * d.dim;
         Real* t = d.xw.data() + i * d.dim;
+        Real* tt = tmp.data() + i * d.dim;
         Real s = 0;
         for (int j = 0; j < d.dim; ++j) s += t[j] * t[j] - tt[j];
         py_[i] += .5 * s;
@@ -83,11 +81,11 @@ class Objective {
   /*!
    * \brief compute the gradients
    * p = - y ./ (1 + exp (y .* py));
-   * grad_w = x' * p;
-   * grad_u = x' * bsxfun(@times, p, x*u) - bsxfun(@times, (x.*x)'*p, u)
+   * grad_w = X' * p;
+   * grad_u = X' * bsxfun(@times, p, X*V) - bsxfun(@times, (X.*X)'*p, V)
    */
   void CalcGrad(std::vector<Real>* grad) {
-    // p =
+    // p = ... (reuse py_)
     auto& d = data_[0];
     CHECK_EQ(py_.size(), d.X.size) << "call *evaluate* first";
 #pragma omp parallel for num_threads(nt_)
@@ -96,29 +94,29 @@ class Objective {
       py_[i] = - y / ( 1 + exp ( y * py_[i] ));
     }
 
-    // grad_w =
+    // grad_w = ...
     SpMV::TransTimes(d.X, py_, &d.w, nt_);
 
-    // grad_u
+    // grad_u = ...
     for (size_t k = 1; k < data_.size(); ++k) {
       auto& d = data_[k];
       if (d.w.empty()) continue;
       int dim = d.dim;
 
-      // (x.*x)'*p
+      // (X.*X)'*p
       size_t m = d.pos.size();
       std::vector<Real> xxp(m);
       SpMM::TransTimes(d.XX, py_, &xxp, nt_);
 
-      // bsxfun(@times, (x.*x)'*p, u)
+      // V = - bsxfun(@times, (X.*X)'*p, V)
       CHECK_EQ(d.w.size(), dim * m);
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < m; ++i) {
-        Real* u = d.w.data() + i * dim;
-        for (int j = 0; j < dim; ++j) u[j] *= - xxp[i];
+        Real* v = d.w.data() + i * dim;
+        for (int j = 0; j < dim; ++j) v[j] *= - xxp[i];
       }
 
-      // bsxfun(@times, p, x*u)
+      // d.xw = bsxfun(@times, p, X*V)
       size_t n = py_.size();
       CHECK_EQ(d.xw.size(), n * dim);
 #pragma omp parallel for num_threads(nt_)
@@ -127,7 +125,7 @@ class Objective {
         for (int j = 0; j < dim; ++j) y[j] *= py_[i];
       }
 
-      // += x' * bsxfun(@times, p, x*u)
+      // V += x' * d.xw
       SpMM::TransTimes(d.X, d.xw, (Real)1, d.w, &d.w, nt_);
     }
 
@@ -260,9 +258,7 @@ class FMWorker : public solver::AsyncSGDWorker {
   virtual ~FMWorker() { }
 
  protected:
-
   virtual void ProcessMinibatch(const Minibatch& mb, int data_pass, bool train) {
-
     auto data = new dmlc::data::RowBlockContainer<unsigned>();
     auto feaid = std::make_shared<std::vector<FeaID>>();
     auto feacnt = std::make_shared<std::vector<Real>>();
@@ -287,7 +283,8 @@ class FMWorker : public solver::AsyncSGDWorker {
     auto val = new std::vector<Real>();
     auto val_siz = new std::vector<int>();
 
-    // this callback will be called when the weight has been actually pulled back
+    // this callback will be called when the weight has been actually pulled
+    // back
     pull_w_opt.callback = [this, data, feaid, val, val_siz, train]() {
       double start = GetTime();
       // eval the objective, and report progress to the scheduler
@@ -303,7 +300,8 @@ class FMWorker : public solver::AsyncSGDWorker {
         ps::SyncOpts push_grad_opt;
         // filters to reduce network traffic
         SetFilters(2, &push_grad_opt);
-        // this callback will be called when the gradients have been actually pushed
+        // this callback will be called when the gradients have been actually
+        // pushed
         // LL << DebugStr(*val);
         push_grad_opt.callback = [this]() { FinishMinibatch(); };
         server_.ZVPush(feaid,
@@ -345,11 +343,11 @@ class FMWorker : public solver::AsyncSGDWorker {
       opts->AddFilter(ps::Filter::COMPRESSING);
     }
   }
-  Config conf_;
-  ps::KVWorker<Real> server_;
 
   int nt_ = 2;
+  Config conf_;
   std::vector<int> dims_;
+  ps::KVWorker<Real> server_;
 };
 
 }  // namespace fm
