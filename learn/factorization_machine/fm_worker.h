@@ -35,6 +35,9 @@ class Objective {
    * \brief evaluate the progress
    * predict_y
    *  py = X * w + .5 * sum((X*V).^2 - (X.*X)*(V.*V), 2);
+   *
+   * sum(A, 2) : sum the rows of A
+   * .* : elemenetal-wise times
    */
   void Evaluate(Progress* prog) {
     // py = X * w
@@ -48,21 +51,21 @@ class Objective {
       if (d.w.empty()) continue;
 
       // tmp = (X.*X)*(V.*V)
-      std::vector<Real> tmp(d.X.size * d.dim);
       std::vector<Real> vv = d.w;
       for (auto& v : vv) v *= v;
-      CHECK_EQ(vv.size(), d.pos.size()*d.dim);
-      SpMM::Times(d.XX, vv, &tmp, nt_);
+      CHECK_EQ(vv.size(), d.pos.size() * d.dim);
+      std::vector<Real> xxvv(d.X.size * d.dim);
+      SpMM::Times(d.XX, vv, &xxvv, nt_);
 
-      // d.xw = X*V
-      d.xw.resize(tmp.size());
-      SpMM::Times(d.X, d.w, &d.xw, nt_);
+      // d.XV = X*V
+      d.XV.resize(xxvv.size());
+      SpMM::Times(d.X, d.w, &d.XV, nt_);
 
-      // py += .5 * sum((d.xw).^2 - tmp 2)
+      // py += .5 * sum((d.XV).^2 - xxvv)
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < py_.size(); ++i) {
-        Real* t = d.xw.data() + i * d.dim;
-        Real* tt = tmp.data() + i * d.dim;
+        Real* t = d.XV.data() + i * d.dim;
+        Real* tt = xxvv.data() + i * d.dim;
         Real s = 0;
         for (int j = 0; j < d.dim; ++j) s += t[j] * t[j] - tt[j];
         py_[i] += .5 * s;
@@ -82,7 +85,7 @@ class Objective {
    * \brief compute the gradients
    * p = - y ./ (1 + exp (y .* py));
    * grad_w = X' * p;
-   * grad_u = X' * bsxfun(@times, p, X*V) - bsxfun(@times, (X.*X)'*p, V)
+   * grad_u = X' * diag(p) * X * V  - diag((X.*X)'*p) * V
    */
   void CalcGrad(std::vector<Real>* grad) {
     // p = ... (reuse py_)
@@ -103,12 +106,12 @@ class Objective {
       if (d.w.empty()) continue;
       int dim = d.dim;
 
-      // (X.*X)'*p
+      // xxp = (X.*X)'*p
       size_t m = d.pos.size();
       std::vector<Real> xxp(m);
       SpMM::TransTimes(d.XX, py_, &xxp, nt_);
 
-      // V = - bsxfun(@times, (X.*X)'*p, V)
+      // V = - diag(xxp) * V
       CHECK_EQ(d.w.size(), dim * m);
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < m; ++i) {
@@ -116,17 +119,17 @@ class Objective {
         for (int j = 0; j < dim; ++j) v[j] *= - xxp[i];
       }
 
-      // d.xw = bsxfun(@times, p, X*V)
+      // d.XV = diag(p) * X * V
       size_t n = py_.size();
-      CHECK_EQ(d.xw.size(), n * dim);
+      CHECK_EQ(d.XV.size(), n * dim);
 #pragma omp parallel for num_threads(nt_)
       for (size_t i = 0; i < n; ++i) {
-        Real* y = d.xw.data() + i * dim;
+        Real* y = d.XV.data() + i * dim;
         for (int j = 0; j < dim; ++j) y[j] *= py_[i];
       }
 
-      // V += x' * d.xw
-      SpMM::TransTimes(d.X, d.xw, (Real)1, d.w, &d.w, nt_);
+      // V += X' * d.XV
+      SpMM::TransTimes(d.X, d.XV, (Real)1, d.w, &d.w, nt_);
     }
 
     for (const auto& d : data_) d.Save(grad);
@@ -177,7 +180,7 @@ class Objective {
       if (dim == 1) {
         X = data;
       } else {
-        // slice data
+        // pick the columns with model_siz = dim + 1
         os.push_back(0);
         for (size_t i = 0; i < data.size; ++i) {
           for (size_t j = data.offset[i]; j < data.offset[i+1]; ++j) {
@@ -221,7 +224,7 @@ class Objective {
     std::vector<Real> w;
     std::vector<unsigned> pos;
 
-    std::vector<Real> xw;
+    std::vector<Real> XV;
 
    private:
     std::vector<Real> val, val2;
