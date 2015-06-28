@@ -50,12 +50,12 @@ class SpMM {
       TransTimes<V>(D, x.data(), NULL, 0, y->data(), y->size(), dim, nt);
     }
   }
-
-
+ private:
+  // y = D * x
   template<typename V>
   static void Times(const SpMat& D, const V* const x,
                     V* y, int dim, int nt = kDefaultNT) {
-
+    memset(y, 0, D.size * dim * sizeof(V));
 #pragma omp parallel num_threads(nt)
     {
       Range rg = Range(0, D.size).Segment(
@@ -80,6 +80,7 @@ class SpMM {
     }
   }
 
+  // y = D' * x
   template<typename V>
   static void TransTimes(const SpMat& D, const V* const x,
                          const V* const z, V p,
@@ -93,7 +94,7 @@ class SpMM {
 
 #pragma omp parallel num_threads(nt)
     {
-      Range rg = Range(0, y_size).Segment(
+      Range rg = Range(0, y_size/dim).Segment(
           omp_get_thread_num(), omp_get_num_threads());
 
       for (size_t i = 0; i < D.size; ++i) {
