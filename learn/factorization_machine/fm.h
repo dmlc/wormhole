@@ -46,6 +46,7 @@ class Progress : public VectorProgress {
   int64_t& num_ex() { return ivec_[1]; }
   int64_t& nnz_w() { return ivec_[2]; }
 
+  double objv() const { return fvec_[0]; }
   int64_t num_ex() const { return ivec_[1]; }
   int64_t nnz_w() const { return ivec_[2]; }
 };

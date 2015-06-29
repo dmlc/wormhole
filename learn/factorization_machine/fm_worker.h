@@ -15,17 +15,25 @@ class Objective {
   Objective(const RowBlock<unsigned>& data,
             const std::vector<Real>& model,
             const std::vector<int>& model_siz,
-            const std::vector<int>& dims,
-            int num_threads = 2) {
-    nt_ = num_threads;
-    data_.resize(dims.size());
-    for (size_t i = 0; i < dims.size(); ++i) {
-      if (i == 0) {
-        CHECK_EQ(dims[0], 1);
-      } else {
-        CHECK_GT(dims[i], dims[i-1]);
+            const Config& conf) {
+    nt_ = conf.num_threads();
+
+    Config cf; cf.add_embedding()->set_dim(1);
+    for (int i = 0; i < conf.embedding_size(); ++i) {
+      if (conf.embedding(i).dim() > 0) {
+        cf.add_embedding()->CopyFrom(conf.embedding(i));
       }
-      data_[i].Load(dims[i], data, model, model_siz);
+    }
+
+    int n = cf.embedding_size();
+    data_.resize(n);
+    for (int i = 0; i < n; ++i) {
+      const auto& eb = cf.embedding(i);
+      data_[i].Load(eb.dim(), data, model, model_siz);
+      if (i > 0) CHECK_GT(data_[i].dim, data_[i-1].dim);
+
+      data_[i].dropout = eb.dropout();
+      data_[i].grad_clipping = eb.grad_clipping();
     }
   }
 
@@ -130,6 +138,19 @@ class Objective {
 
       // V += X' * d.XV
       SpMM::TransTimes(d.X, d.XV, (Real)1, d.w, &d.w, nt_);
+
+      if (d.grad_clipping > 0) {
+        Real gc = d.grad_clipping;
+        for (Real& g : d.w) {
+          g = g > gc ? gc : ( g < -gc ? -gc : g);
+        }
+      }
+      if (d.dropout > 0) {
+        for (Real& g : d.w) {
+          Real p = (Real)rand() / RAND_MAX;
+          if (p > 1 - d.dropout) g = 0;
+        }
+      }
     }
 
     for (const auto& d : data_) d.Save(grad);
@@ -227,6 +248,8 @@ class Objective {
 
     std::vector<Real> XV;
 
+    Real dropout = 0;
+    Real grad_clipping = 0;
    private:
     std::vector<Real> val, val2;
     std::vector<size_t> os;
@@ -247,33 +270,38 @@ class FMWorker : public solver::AsyncSGDWorker {
   FMWorker(const Config& conf) : conf_(conf) {
     minibatch_size_ = conf.minibatch();
     max_delay_      = conf.max_delay();
-    nt_             = conf.num_threads();
     if (conf.use_worker_local_data()) {
       train_data_        = conf.train_data();
       val_data_          = conf.val_data();
       worker_local_data_ = true;
     }
-    dims_.push_back(1);
+
     for (int i = 0; i < conf.embedding_size(); ++i) {
-      dims_.push_back(conf.embedding(i).dim());
-      CHECK_GT(dims_[i], dims_[i-1]);
+      if (conf.embedding(i).dim() > 0) {
+        do_embedding_ = true; break;
+      }
     }
   }
   virtual ~FMWorker() { }
 
  protected:
+  virtual bool Stop(const Progress& cur, const Progress& prev) {
+    bool stop = conf_.has_max_objv() && cur.objv() > conf_.has_max_objv();
+    return stop;
+  }
+
   virtual void ProcessMinibatch(const Minibatch& mb, int data_pass, bool train) {
     auto data = new dmlc::data::RowBlockContainer<unsigned>();
     auto feaid = std::make_shared<std::vector<FeaID>>();
     auto feacnt = std::make_shared<std::vector<Real>>();
 
     double start = GetTime();
-    Localizer<FeaID> lc(nt_);
+    Localizer<FeaID> lc(conf_.num_threads());
     lc.Localize(mb, data, feaid.get(), feacnt.get());
     workload_time_ += GetTime() - start;
 
     ps::SyncOpts pull_w_opt;
-    if (train && data_pass == 0 && dims_.size() > 1) {
+    if (train && data_pass == 0 && do_embedding_) {
       // push the feature count to the servers
       ps::SyncOpts cnt_opt;
       SetFilters(0, &cnt_opt);
@@ -292,7 +320,7 @@ class FMWorker : public solver::AsyncSGDWorker {
     pull_w_opt.callback = [this, data, feaid, val, val_siz, train]() {
       double start = GetTime();
       // eval the objective, and report progress to the scheduler
-      Objective obj(data->GetBlock(), *val, *val_siz, dims_, nt_);
+      Objective obj(data->GetBlock(), *val, *val_siz, conf_);
       Progress prog;
       obj.Evaluate(&prog);
       Report(&prog);
@@ -348,9 +376,8 @@ class FMWorker : public solver::AsyncSGDWorker {
     }
   }
 
-  int nt_ = 2;
   Config conf_;
-  std::vector<int> dims_;
+  bool do_embedding_ = false;
   ps::KVWorker<Real> server_;
 };
 

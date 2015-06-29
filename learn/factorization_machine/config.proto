@@ -34,11 +34,17 @@ message Config {
   message Embedding {
     optional int32 dim = 1;
     optional int32 threshold = 2;
+
     optional float lambda_l2 = 3;
+    // learning rate
     optional float lr_eta = 4 [default = .01];
     optional float lr_beta = 5 [default = 1];
-    optional float init_max = 6 [default = .01];
-    optional float init_min = 7 [default = -.01];
+    // uniformly random weight in [-init_scale, +init_scale]
+    optional float init_scale = 6 [default = .01];
+
+    // experimetal
+    optional float dropout = 7;
+    optional float grad_clipping = 8;
   }
 
   repeated Embedding embedding = 22;
@@ -56,7 +62,12 @@ message Config {
   // print the progress every n sec
   optional float disp_itv = 33 [default = 1];
 
-  // to reduce sync cost
+  // stop if the objective values exceeds *max_objv* (often used in parameter
+  // tuning)
+  optional float max_objv = 34;
+
+  //
+  // system performance
   //
 
   // maximal allowed delay during synchronization
@@ -67,5 +78,9 @@ message Config {
   // 0 means no fixing
   optional int32 fixed_bytes = 53 [default = 1];
 
+  // number of threads used to process one minibatch
   optional int32 num_threads = 60 [default = 2];
+
+  /// extra
+
 }

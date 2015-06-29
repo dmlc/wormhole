@@ -77,7 +77,7 @@ struct ISGDHandle {
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
     perf.Start(push, cmd);
-    // if (push) { // for debug
+    // if (push && !push_count) { // for debug
     //   LL << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
     // }
   }
@@ -222,10 +222,9 @@ class FMServer : public solver::AsyncSGDServer {
       g.alpha       = c.lr_eta();
       g.beta        = c.lr_beta();
       g.lambda_l2   = c.lambda_l2();
-      g.V_min       = c.init_min();
-      g.V_max       = c.init_max();
+      g.V_min       = - c.init_scale();
+      g.V_max       = c.init_scale();
     }
-
 
     Server s(h);
     server_ = s.server();
