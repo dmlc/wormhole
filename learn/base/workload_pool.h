@@ -13,7 +13,7 @@ namespace dmlc {
  */
 class WorkloadPool {
  public:
-  WorkloadPool() {
+  WorkloadPool(bool shuffle = true) : shuffle_(shuffle) {
     straggler_killer_ = new std::thread([this]() {
         while (!done_) {
           RemoveStraggler();
@@ -118,12 +118,30 @@ class WorkloadPool {
   }
 
   void GetOne(const std::string& id, Workload* wl) {
+    int pick = 0;
+    if (shuffle_) {
+      int n = 0;
+      for (auto& it : task_) {
+        auto& t = it.second;
+        if (!t.node.empty() && t.node.count(id) == 0) continue;
+        if (t.done == t.track.size()) continue;
+        for (size_t k = 0; k < t.track.size(); ++k) {
+          if (t.track[k] != 0) continue;
+          ++ n;
+        }
+      }
+      if (n == 0) return;
+      pick = rand() % n;
+    }
+
+    int i = 0;
     for (auto& it : task_) {
       auto& t = it.second;
       if (!t.node.empty() && t.node.count(id) == 0) continue;
       if (t.done == t.track.size()) continue;
       for (size_t k = 0; k < t.track.size(); ++k) {
         if (t.track[k] != 0) continue;
+        if (i < pick) { ++ i; continue; }
         Assigned a;
         a.filename = it.first;
         a.start    = GetTime();
@@ -213,6 +231,7 @@ class WorkloadPool {
 
   bool inited_ = false, done_ = false;
 
+  bool shuffle_;
   // process time of finished tasks
   std::vector<double> time_;
   std::mutex mu_;
