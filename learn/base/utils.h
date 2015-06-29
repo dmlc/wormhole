@@ -10,7 +10,7 @@ template <typename V>
 inline std::string DebugStr(const V* data, int n, int m = 5) {
   std::stringstream ss;
   ss << "[" << n << "]: ";
-  if (n < 2 * m) {
+  if (n <= 2 * m) {
     for (int i = 0; i < n; ++i) ss << data[i] << " ";
   } else {
     for (int i = 0; i < m; ++i) ss << data[i] << " ";

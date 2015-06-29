@@ -144,6 +144,7 @@ class Objective {
               const std::vector<Real>& model,
               const std::vector<int>& model_siz) {
       // pos and w
+      CHECK_GE(model.size(), model_siz.size());
       dim = d;
       std::vector<unsigned> col_map;
       if (dim == 1) {
