@@ -70,3 +70,4 @@ More documents:
 
 - [Use bigger datasets](../../doc/data.md)
 - [Launch jobs in multiple machines](../../doc/run.md)
+- [FAQ for build](https://github.com/dmlc/ps-lite/tree/master/make#faq)
