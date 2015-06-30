@@ -22,14 +22,15 @@ struct AdaGradEntry {
     if (n < size) { size = n; return; }
 
     Real* new_w = new Real[n];
-    Real* new_cg = new Real[n];
+    Real* new_cg = new Real[n+1];
 
     if (size == 1) {
       new_w[0] = w_0();
       new_cg[0] = sq_cum_grad_0();
+      new_cg[1] = z_0();
     } else {
       memcpy(new_w, w, size * sizeof(Real));
-      memcpy(new_cg, sq_cum_grad, size * sizeof(Real));
+      memcpy(new_cg, sq_cum_grad, (size+1) * sizeof(Real));
       Clear();
     }
 
@@ -48,10 +49,10 @@ struct AdaGradEntry {
   inline Real w_0() const {
     return size == 1 ? *(Real *)&w : w[0];
   }
-  inline Real sq_cum_grad_0() const {
-    return size == 1 ? *(Real *)&sq_cum_grad : sq_cum_grad[0];
-  }
 
+  inline Real& z_0() {
+    return size == 1 ? *(((Real *)&sq_cum_grad)+1) : sq_cum_grad[1];
+  }
 
   // appearence of this feature in the data
   unsigned fea_cnt = 0;
@@ -72,7 +73,6 @@ struct AdaGradEntry {
  * \brief the base handle class
  */
 struct ISGDHandle {
-  ISGDHandle() {}
 
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
@@ -136,6 +136,10 @@ struct ISGDHandle {
 };
 
 struct AdaGradHandle : public ISGDHandle {
+
+  AdaGradHandle() {
+    CHECK_EQ(sizeof(Real*), sizeof(Real)*2) << " the reason see z_0()";
+  }
   inline void Push(FeaID key, Blob<const Real> recv, AdaGradEntry& val) {
     if (push_count) {
       val.fea_cnt += (unsigned) recv[0];
@@ -149,7 +153,7 @@ struct AdaGradHandle : public ISGDHandle {
           val.Resize(g.dim + 1);
           for (int j = old_siz; j < val.size; ++j) {
             val.w[j] = rand() / (Real) RAND_MAX * (g.V_max - g.V_min) + g.V_min;
-            val.sq_cum_grad[j] = 0;
+            val.sq_cum_grad[j+1] = 0;
           }
           new_w_entry += val.size - old_siz;
         }
@@ -160,7 +164,7 @@ struct AdaGradHandle : public ISGDHandle {
 
       // update w
       Real old_w = val.w_0();
-      Update(val.w_0(), val.sq_cum_grad_0(), recv[0], 0);
+      UpdateW(val, recv[0]);
       if (old_w == 0 && val.w_0() != 0) {
         ++ new_w_entry;
       } else if (old_w != 0 && val.w_0() == 0) {
@@ -168,19 +172,23 @@ struct AdaGradHandle : public ISGDHandle {
       }
 
       // update V
-      if (recv.size > 1) {
-        int g = ((int)val.size == group[1].dim + 1) ? 1 : 2;
-        for (size_t i = 1; i < recv.size; ++i) {
-          Update(val.w[i], val.sq_cum_grad[i], recv[i], g);
-        }
+      int rsz = recv.size;
+      int pos = 1;
+      for (int i = 1; i < 3; ++i) {
+        if (rsz <= pos) break;
+        UpdateV(val.w + pos,
+                val.sq_cum_grad + pos + 1,
+                recv.data + pos,
+                std::min(rsz - pos, group[i].dim), i);
       }
     }
   }
 
   inline void Pull(FeaID key, const AdaGradEntry& val, Blob<Real>& send) {
-    if (val.size == 1) {
+    Real w0 = val.w_0();
+    if (val.size == 1 || w0 == 0) {  // trick: don't send V_i if w_i = 0
       CHECK_GT(send.size, 0);
-      send[0] = val.w_0();
+      send[0] = w0;
       send.size = 1;
     } else {
       send.data = val.w;
@@ -188,10 +196,37 @@ struct AdaGradHandle : public ISGDHandle {
     }
   }
 
-  inline void Update(Real& w, Real& cg, Real g, int i) {
-    cg = sqrt(cg * cg + g * g);
-    Real eta = group[i].alpha / (cg + group[i].beta);
-    w = w - eta * ( g + group[i].lambda_l2 * w );
+  // ftrl
+  inline void UpdateW(AdaGradEntry& val, Real g) {
+    auto const& g0 = group[0];
+
+    Real cg = val.sq_cum_grad_0();
+    Real cg_new = sqrt( cg * cg + g * g );
+    val.sq_cum_grad_0() = cg_new;
+
+    Real w = val.w_0();
+    val.z_0() -= g - (cg_new - cg) / g0.alpha * w;
+
+    Real z = val.z_0();
+    Real l1 = g0.lambda_l1;
+    if (z <= l1  && z >= - l1) {
+      val.w_0() = 0;
+    } else {
+      val.w_0() = (z > 0 ? z - l1 : z + l1) /
+                  ((g0.beta + cg_new) / g0.alpha + g0.lambda_l2);
+    }
+  }
+
+  // adagrad
+  inline void UpdateV(Real* w, Real* cg, Real const* g, int n, int d) {
+    Real alpha = group[d].alpha;
+    Real beta = group[d].beta;
+    Real l2 = group[d].lambda_l2;
+    for (int i = 0; i < n; ++i) {
+      cg[i] = sqrt(cg[i] * cg[i] + g[i] * g[i]);
+      Real eta = alpha / ( cg[i] + beta );
+      w[i] -= eta * ( g[i] + l2 * w[i] );
+    }
   }
 };
 
