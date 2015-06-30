@@ -11,13 +11,13 @@ static const int kPushFeaCnt = 1;
 
 class Progress : public VectorProgress {
  public:
-  Progress() : VectorProgress(3, 3) {}
+  Progress() : VectorProgress(4, 3) {}
   virtual ~Progress() { }
 
 
   /// head string for printing
   virtual std::string HeadStr() {
-    return "#example delta #ex    |w|_0       logloss     AUC    accuracy";
+    return "#example delta #ex      |w|_0       |V|_0      logloss     AUC    accuracy";
   }
 
   /// string for printing
@@ -25,10 +25,11 @@ class Progress : public VectorProgress {
     Progress* const p = (Progress* const) prev;
     if (num_ex() == 0) return "";
     char buf[256];
-    snprintf(buf, 256, "%7.2g  %7.2g  %11.6g  %8.6lf  %8.6lf  %8.6lf",
+    snprintf(buf, 256, "%7.2g  %7.2g  %11.6g  %11.6g  %8.6lf  %8.6lf  %8.6lf",
              (double)(p->num_ex() + num_ex()),
              (double)num_ex(),
              (double)(p->nnz_w() + nnz_w()),
+             (double)(p->nnz_V() + nnz_V()),
              objv() / num_ex(),
              auc() / count(),
              acc() / count());
@@ -45,10 +46,12 @@ class Progress : public VectorProgress {
   int64_t& count() { return ivec_[0]; }
   int64_t& num_ex() { return ivec_[1]; }
   int64_t& nnz_w() { return ivec_[2]; }
+  int64_t& nnz_V() { return ivec_[3]; }
 
   double objv() const { return fvec_[0]; }
   int64_t num_ex() const { return ivec_[1]; }
   int64_t nnz_w() const { return ivec_[2]; }
+  int64_t nnz_V() const { return ivec_[3]; }
 };
 
 class FMScheduler : public solver::AsyncSGDScheduler<Progress> {

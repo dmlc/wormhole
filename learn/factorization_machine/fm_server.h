@@ -83,10 +83,10 @@ struct ISGDHandle {
   }
 
   inline void Finish() {
-    if (new_w_entry > 1000) {
-      Progress prog; prog.nnz_w() = new_w_entry;
+    if (new_w + new_V > 10000) {
+      Progress prog; prog.nnz_w() = new_w; prog.nnz_V() = new_V;
       if (reporter) reporter(prog);
-      new_w_entry = 0;
+      new_w = 0; new_V = 0;
     }
     perf.Stop();
   }
@@ -94,7 +94,8 @@ struct ISGDHandle {
 
   bool push_count;
 
-  int64_t new_w_entry = 0;
+  int64_t new_w = 0;
+  int64_t new_V = 0;
   std::function<void(const Progress& prog)> reporter;
 
   struct Group {
@@ -155,7 +156,7 @@ struct AdaGradHandle : public ISGDHandle {
             val.w[j] = rand() / (Real) RAND_MAX * (g.V_max - g.V_min) + g.V_min;
             val.sq_cum_grad[j+1] = 0;
           }
-          new_w_entry += val.size - old_siz;
+          new_V += val.size - old_siz;
         }
       }
     } else {
@@ -166,9 +167,9 @@ struct AdaGradHandle : public ISGDHandle {
       Real old_w = val.w_0();
       UpdateW(val, recv[0]);
       if (old_w == 0 && val.w_0() != 0) {
-        ++ new_w_entry;
+        ++ new_w;
       } else if (old_w != 0 && val.w_0() == 0) {
-        -- new_w_entry;
+        -- new_w;
       }
 
       // update V
