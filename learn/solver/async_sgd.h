@@ -16,6 +16,8 @@ namespace solver {
 // commands
 static const int kProcess = 1;
 static const int kSaveModel = 2;
+static const int kLoadModel = 3;
+static const int kMaxNumCmd = 10;
 
 /**************************************************************************
  * \brief The scheduler node, which issues workloads to workers/servers, in
@@ -28,10 +30,11 @@ class AsyncSGDScheduler : public ps::App {
   std::string val_data_;
   std::string data_format_;
   bool worker_local_data_ = false;
+  int load_model_ = 1;
   int save_model_ = 0;
   int num_part_per_file_ = 10;
   int max_data_pass_ = 1;
-  int cur_data_pass_ = 0;
+  int cur_data_pass_ = 1;  // start from 1
   Workload::Type cur_type_;
   int disp_itv_ = 1;
 
@@ -74,12 +77,21 @@ class AsyncSGDScheduler : public ps::App {
     printf("connected %d servers and %d workers\n",
            ps::NumServers(), ps::NumWorkers());
     start_time_ = GetTime();
-    for (int i = 0; i < max_data_pass_; ++i) {
-      cur_data_pass_ = i;
+
+    if (load_model_ > 0) {
+      printf("loading model from #iter = %d\n", load_model_);
+      cur_data_pass_ = load_model_;
+      ps::Task task; task.set_cmd(kLoadModel + cur_data_pass_ * kMaxNumCmd);
+      Wait(Submit(task, ps::kServerGroup));
+      Iterate(Workload::VAL);
+      ++ cur_data_pass_;
+    }
+
+    for (; cur_data_pass_ <= max_data_pass_; ++cur_data_pass_) {
       if (Iterate(Workload::TRAIN) || Iterate(Workload::VAL)) {
         printf("hit stop critera\n"); break;
       }
-      if (i == max_data_pass_ -1) {
+      if (cur_data_pass_ == max_data_pass_) {
         printf("hit max number of data passes\n");
       }
       SaveModel(false);
@@ -93,9 +105,9 @@ class AsyncSGDScheduler : public ps::App {
  private:
   void SaveModel(bool force) {
     if (save_model_ == 0) return;
-    if (force || (cur_data_pass_+1) % save_model_ == 0) {
+    if (force || cur_data_pass_ % save_model_ == 0) {
       printf("saving model #iter = %d\n", cur_data_pass_);
-      ps::Task task; task.set_cmd(kSaveModel+cur_data_pass_);
+      ps::Task task; task.set_cmd(kSaveModel + cur_data_pass_ * kMaxNumCmd);
       Wait(Submit(task, ps::kServerGroup));
     }
   }
@@ -173,6 +185,7 @@ class AsyncSGDScheduler : public ps::App {
 class AsyncSGDServer : public ps::App {
  protected:
   virtual void SaveModel(int iter) = 0;
+  virtual void LoadModel(int iter) = 0;
 
   /**
    * \brief Report the progress to the scheduler
@@ -186,9 +199,14 @@ class AsyncSGDServer : public ps::App {
   virtual ~AsyncSGDServer() { }
 
   virtual void ProcessRequest(ps::Message* request) {
-    int cmd = request->task.cmd();
-    if (cmd >= kSaveModel) {
-      SaveModel(cmd - kSaveModel);
+    int c = request->task.cmd();
+    int cmd = c % kMaxNumCmd;
+    int iter = c / kMaxNumCmd;
+
+    if (cmd == kSaveModel) {
+      SaveModel(iter);
+    } else if (cmd == kLoadModel) {
+      LoadModel(iter);
     }
   }
 

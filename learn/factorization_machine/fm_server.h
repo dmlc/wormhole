@@ -294,27 +294,32 @@ class FMServer : public solver::AsyncSGDServer {
     Server s(h);
     server_ = s.server();
 
-    if (conf.model_in().size()) {
-      Stream* fi = Stream::Create(ModelName(conf_.model_in()).c_str(), "r");
-      server_->Load(fi);
-    }
   }
 
   virtual ~FMServer() { }
  protected:
+  void LoadModel(int iter) {
+    auto filename = ModelName(conf_.model_in(), iter);
+    LOG(INFO) << filename;
+    Stream* fi = Stream::Create(filename.c_str(), "r");
+    server_->Load(fi);
+  }
+
   void SaveModel(int iter) {
-    auto filename = conf_.model_out() + "_iter-" + std::to_string(iter);
-    Stream* fo = Stream::Create(ModelName(filename).c_str(), "w");
+    auto filename = ModelName(conf_.model_out(), iter);
+    LOG(INFO) << filename;
+    Stream* fo = Stream::Create(filename.c_str(), "w");
     server_->Save(fo);
   }
 
-  std::string ModelName(const std::string& base) {
+  std::string ModelName(const std::string& base, int iter) {
     CHECK(base.size()) << "empty model name";
-    return base + "_S" + std::to_string(ps::MyRank()) + ".model";
+    return base + "_iter-" + std::to_string(iter)
+        + "_S" + std::to_string(ps::MyRank()) + ".model";
   }
 
-  Config conf_;
   ps::KVStore* server_;
+  Config conf_;
 };
 }  // namespace fm
 }  // namespace dmlc

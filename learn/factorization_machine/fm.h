@@ -62,6 +62,9 @@ class FMScheduler : public solver::AsyncSGDScheduler<Progress> {
     max_data_pass_     = conf.max_data_pass();
     disp_itv_          = conf.disp_itv();
     save_model_        = conf.save_model();
+    load_model_        = conf.load_model();
+    if (save_model_) CHECK(conf.model_out().size()) << "empty model_out";
+    if (load_model_) CHECK(conf.model_in().size()) << "empty model_in";
   }
   virtual ~FMScheduler() { }
 };
