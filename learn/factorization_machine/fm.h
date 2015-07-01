@@ -11,7 +11,7 @@ static const int kPushFeaCnt = 1;
 
 class Progress : public VectorProgress {
  public:
-  Progress() : VectorProgress(4, 4) {}
+  Progress() : VectorProgress(4, 5) {}
   virtual ~Progress() { }
 
 
@@ -40,6 +40,7 @@ class Progress : public VectorProgress {
   double& objv() { return fvec_[2]; }
   double objv() const { return fvec_[2]; }
   double& auc() { return fvec_[3]; }
+  double& copc() { return fvec_[4]; }
 
   int64_t& count() { return ivec_[0]; }
   int64_t& num_ex() { return ivec_[1]; }
