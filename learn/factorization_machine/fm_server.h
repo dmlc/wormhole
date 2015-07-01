@@ -155,8 +155,8 @@ struct AdaGradHandle : public ISGDHandle {
         }
       }
     } else {
-      CHECK_LE(recv.size, val.size);
-      CHECK_GE(recv.size, 0);
+      CHECK_LE(recv.size, (size_t)val.size);
+      CHECK_GE(recv.size, (size_t)0);
 
       // update w
       Real old_w = val.w_0();
@@ -179,7 +179,7 @@ struct AdaGradHandle : public ISGDHandle {
 
   inline void Pull(FeaID key, const AdaGradEntry& val, Blob<Real>& send) {
     if (val.size == 1) {
-      CHECK_GT(send.size, 0);
+      CHECK_GT(send.size, (size_t)0);
       send[0] = val.w_0();
       send.size = 1;
     } else {

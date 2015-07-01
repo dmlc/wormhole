@@ -62,7 +62,7 @@ class AsyncSGDScheduler : public ps::App {
 
       Workload wl; pool_.Get(id, &wl);
       if (!wl.Empty()) {
-        CHECK_EQ(wl.file.size(), 1);
+        CHECK_EQ(wl.file.size(), (size_t)1);
         wl.type = cur_type_;
         wl.data_pass = cur_data_pass_;
         wl.file[0].format = data_format_;
@@ -273,7 +273,7 @@ class AsyncSGDWorker : public ps::App {
     start_ = GetTime();
     workload_time_ = 0;
 
-    CHECK_EQ(wl.file.size(), 1);
+    CHECK_EQ(wl.file.size(), (size_t)1);
     auto file = wl.file[0];
     dmlc::data::MinibatchIter<FeaID> reader(
         file.filename.c_str(), file.k, file.n, file.format.c_str(), mb_size);

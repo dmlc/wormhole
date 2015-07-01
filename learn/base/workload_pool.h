@@ -45,7 +45,7 @@ class WorkloadPool {
     for (auto f : files) {
       auto& t = task_[f.filename];
       if (t.track.empty()) t.track.resize(npart);
-      CHECK_EQ(t.track.size(), npart);
+      CHECK_EQ(t.track.size(), (size_t)npart);
       if (id.size()) t.node.insert(id);
       // LOG(INFO) << "add " << f.filename << " for " <<
       //     (id == "" ? "all workers" : id);
@@ -186,7 +186,7 @@ class WorkloadPool {
     auto it = task_.find(filename);
     if (it == task_.end()) return;
     auto& t = it->second;
-    CHECK_LT(k, t.track.size());
+    CHECK_LT(k, (int)t.track.size());
     if (mark == 2 && t.track[k] != 2) {
       ++ num_finished_;
       ++ t.done;
