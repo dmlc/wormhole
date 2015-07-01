@@ -168,7 +168,7 @@ class Objective {
               const std::vector<Real>& model,
               const std::vector<int>& model_siz) {
       // pos and w
-      CHECK_GE(model.size(), model_siz.size());
+      // CHECK_GE(model.size(), model_siz.size());
       dim = d;
       std::vector<unsigned> col_map;
       if (dim == 1) {
@@ -176,7 +176,7 @@ class Objective {
         w.reserve(model_siz.size());
         unsigned p = 0;
         for (int i : model_siz) {
-          CHECK_GE(i, 1);
+          if (i == 0) continue;
           pos.push_back(p);
           w.push_back(model[p]);
           p += i;
