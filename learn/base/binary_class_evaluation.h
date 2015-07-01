@@ -72,6 +72,17 @@ class BinClassEval {
     }
     return objv;
   }
+  
+  V Copc(){
+    V clk = 0;
+    V clk_exp = 0.0;
+#pragma omp parallel for reduction(+:clk,clk_exp) num_threads(nt_)
+    for (size_t i = 0; i < size_; ++i) {
+      if (label_[i] > 0) clk += 1;
+      clk_exp += 1.0 / ( 1.0 + exp( - predict_[i] ));
+    }
+    return clk / clk_exp;
+  }
 
  private:
   V const* label_;
