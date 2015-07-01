@@ -29,7 +29,6 @@ class AsyncSGDScheduler : public ps::App {
   std::string data_format_;
   bool worker_local_data_ = false;
   int save_model_ = 0;
-
   int num_part_per_file_ = 10;
   int max_data_pass_ = 1;
   int cur_data_pass_ = 0;
@@ -83,18 +82,24 @@ class AsyncSGDScheduler : public ps::App {
       if (i == max_data_pass_ -1) {
         printf("hit max number of data passes\n");
       }
+      SaveModel(false);
     }
 
-    if (save_model_) {
-      printf("saving model");
-      ps::Task task; task.set_cmd(kSaveModel);
-      Wait(Submit(task, ps::kServerGroup));
-    }
-    printf("async_sgd done!\n");
+    SaveModel(true);
+    printf("async_sgd is done!\n");
     return true;
   }
 
  private:
+  void SaveModel(bool force) {
+    if (save_model_ == 0) return;
+    if (force || (cur_data_pass_+1) % save_model_ == 0) {
+      printf("saving model #iter = %d\n", cur_data_pass_);
+      ps::Task task; task.set_cmd(kSaveModel+cur_data_pass_);
+      Wait(Submit(task, ps::kServerGroup));
+    }
+  }
+
   // return true if time for stop
   bool Iterate(Workload::Type type) {
     cur_type_ = type;
@@ -158,6 +163,7 @@ class AsyncSGDScheduler : public ps::App {
   bool done_ = false;
   Progress prog_;
   ProgressMonitor<Progress> monitor_;
+  int last_save_ = -1;
 };
 
 /**************************************************************************
@@ -166,7 +172,7 @@ class AsyncSGDScheduler : public ps::App {
  **************************************************************************/
 class AsyncSGDServer : public ps::App {
  protected:
-  virtual void SaveModel() = 0;
+  virtual void SaveModel(int iter) = 0;
 
   /**
    * \brief Report the progress to the scheduler
@@ -180,8 +186,9 @@ class AsyncSGDServer : public ps::App {
   virtual ~AsyncSGDServer() { }
 
   virtual void ProcessRequest(ps::Message* request) {
-    if (request->task.cmd() == kSaveModel) {
-      SaveModel();
+    int cmd = request->task.cmd();
+    if (cmd >= kSaveModel) {
+      SaveModel(cmd - kSaveModel);
     }
   }
 

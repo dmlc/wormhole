@@ -1,4 +1,5 @@
 #pragma once
+#include "dmlc/io.h"
 #include "fm.h"
 
 namespace dmlc {
@@ -54,6 +55,30 @@ struct AdaGradEntry {
     return size == 1 ? *(((Real *)&sq_cum_grad)+1) : sq_cum_grad[1];
   }
 
+  void Load(Stream* fi) {
+    fi->Read(&size, sizeof(size));
+    if (size == 1) {
+      fi->Read(&w, sizeof(Real*));
+      fi->Read(&sq_cum_grad, sizeof(Real*));
+    } else {
+      w = new Real[size];
+      sq_cum_grad = new Real[size+1];
+      fi->Read(w, sizeof(Real)*size);
+      fi->Read(sq_cum_grad, sizeof(Real)*(size+1));
+    }
+  }
+
+  void Save(Stream *fo) const {
+    fo->Write(&size, sizeof(size));
+    if (size == 1) {
+      fo->Write(&w, sizeof(Real*));
+      fo->Write(&sq_cum_grad, sizeof(Real*));
+    } else {
+      fo->Write(w, sizeof(Real)*size);
+      fo->Write(sq_cum_grad, sizeof(Real)*(size+1));
+    }
+  }
+
   // appearence of this feature in the data
   unsigned fea_cnt = 0;
 
@@ -63,6 +88,7 @@ struct AdaGradEntry {
 
   Real *w = NULL;
   Real *sq_cum_grad = NULL;
+
 };
 
 ////////////////////////////////////////////////////////////
@@ -109,6 +135,9 @@ struct ISGDHandle {
     Real V_max = .01;
   };
   std::array<Group, 3> group;
+
+  void Load(Stream* fi) { }
+  void Save(Stream *fo) const { }
 
  private:
   // performance monitor
@@ -233,7 +262,7 @@ struct AdaGradHandle : public ISGDHandle {
 
 class FMServer : public solver::AsyncSGDServer {
  public:
-  FMServer(const Config& conf) {
+  FMServer(const Config& conf) : conf_(conf) {
     using Server = ps::OnlineServer<AdaGradEntry, Real, AdaGradHandle>;
     AdaGradHandle h;
     h.reporter = [this](const Progress& prog) {
@@ -264,11 +293,27 @@ class FMServer : public solver::AsyncSGDServer {
 
     Server s(h);
     server_ = s.server();
+
+    if (conf.model_in().size()) {
+      Stream* fi = Stream::Create(ModelName(conf_.model_in()).c_str(), "r");
+      server_->Load(fi);
+    }
   }
 
   virtual ~FMServer() { }
  protected:
-  virtual void SaveModel() { }
+  void SaveModel(int iter) {
+    auto filename = conf_.model_out() + "_iter-" + std::to_string(iter);
+    Stream* fo = Stream::Create(ModelName(filename).c_str(), "w");
+    server_->Save(fo);
+  }
+
+  std::string ModelName(const std::string& base) {
+    CHECK(base.size()) << "empty model name";
+    return base + "_S" + std::to_string(ps::MyRank()) + ".model";
+  }
+
+  Config conf_;
   ps::KVStore* server_;
 };
 }  // namespace fm

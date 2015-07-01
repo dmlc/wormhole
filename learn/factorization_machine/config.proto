@@ -21,6 +21,8 @@ message Config {
   //
   optional string model_in = 10;
   optional string model_out = 11;
+  // save model for every *save_model* data pass
+  optional int32 save_model = 12;
 
   // for w
   optional float lambda_l2 = 20;
