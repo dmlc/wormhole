@@ -17,7 +17,7 @@ class Progress : public VectorProgress {
 
   /// head string for printing
   virtual std::string HeadStr() {
-    return "#example  inc #ex | w:  #nnz   logloss   AUC  | V: #nnz    logloss   AUC";
+    return "#example  inc #ex | w:  #nnz   logloss   AUC  | V:   #nnz  logloss   AUC";
   }
 
   /// string for printing
