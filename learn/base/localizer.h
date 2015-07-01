@@ -192,6 +192,9 @@ void Localizer<I>::RemapIndex(
       o->index[k++] = remapped_idx[j] - 1;
     }
     o->offset[i+1] = o->offset[i] + n;
+    if (!blk.value) {  // just double check..
+      std::sort(o->index.begin() + o->offset[i], o->index.begin() + o->offset[i+1]);
+    }
   }
   CHECK_EQ(k, matched);
 
