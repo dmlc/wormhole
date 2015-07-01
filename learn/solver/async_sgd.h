@@ -119,7 +119,7 @@ class AsyncSGDScheduler : public ps::App {
     Workload wl; wl.type = type; SendWorkload(ps::kWorkerGroup, wl);
 
     // print every k sec for training, while print at the end for validation
-    printf(" sec %s\n", prog_.HeadStr().c_str());
+    printf("  sec %s\n", prog_.HeadStr().c_str());
     while (!pool_.IsFinished()) {
       sleep(disp_itv_);
       if (type == Workload::TRAIN) {
