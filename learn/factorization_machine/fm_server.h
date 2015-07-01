@@ -65,7 +65,9 @@ struct AdaGradEntry {
       sq_cum_grad = new Real[size+1];
       fi->Read(w, sizeof(Real)*size);
       fi->Read(sq_cum_grad, sizeof(Real)*(size+1));
+      new_V += size - 1;
     }
+    if (w_0() != 0) ++ new_w;
   }
 
   void Save(Stream *fo) const {
@@ -89,6 +91,8 @@ struct AdaGradEntry {
   Real *w = NULL;
   Real *sq_cum_grad = NULL;
 
+  static int64_t new_w;
+  static int64_t new_V;
 };
 
 ////////////////////////////////////////////////////////////
@@ -108,15 +112,15 @@ struct ISGDHandle {
     // }
   }
 
-  inline void Finish() {
+  inline void Report() {
     if (new_w + new_V > 10000) {
       Progress prog; prog.nnz_w() = new_w; prog.nnz_V() = new_V;
       if (reporter) reporter(prog);
       new_w = 0; new_V = 0;
     }
-    perf.Stop();
   }
-  inline void SetCaller(void *obj) { }
+
+  inline void Finish() { Report(); perf.Stop(); }
 
   bool push_count;
 
@@ -303,6 +307,11 @@ class FMServer : public solver::AsyncSGDServer {
     LOG(INFO) << filename;
     Stream* fi = Stream::Create(filename.c_str(), "r");
     server_->Load(fi);
+
+    Progress prog;
+    prog.nnz_w() = AdaGradEntry::new_w;
+    prog.nnz_V() = AdaGradEntry::new_V;
+    Report(&prog);
   }
 
   void SaveModel(int iter) {
