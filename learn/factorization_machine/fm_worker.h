@@ -143,14 +143,11 @@ class Objective {
 
       if (d.grad_clipping > 0) {
         Real gc = d.grad_clipping;
-        for (Real& g : d.w) {
-          g = g > gc ? gc : ( g < -gc ? -gc : g);
-        }
+        for (Real& g : d.w) g = g > gc ? gc : ( g < -gc ? -gc : g);
       }
       if (d.dropout > 0) {
         for (Real& g : d.w) {
-          Real p = (Real)rand() / RAND_MAX;
-          if (p > 1 - d.dropout) g = 0;
+          if ((Real)rand() / RAND_MAX > 1 - d.dropout) g = 0;
         }
       }
     }
@@ -159,26 +156,26 @@ class Objective {
   }
 
  private:
-  // store w (dim==0) and u (dim >= 1)
+  // store w (dim==0) and V (dim >= 1)
   struct Data {
-    Data() { }
-    ~Data() { }
     void Load(int d, const RowBlock<unsigned>& data,
               const std::vector<Real>& model,
               const std::vector<int>& model_siz) {
-      // pos and w
-      // CHECK_GE(model.size(), model_siz.size());
-      dim = d;
+      // init pos and w
       std::vector<unsigned> col_map;
+      dim = d;
       if (dim == 0) {
-        pos.reserve(model_siz.size());
-        w.reserve(model_siz.size());
+        pos.resize(model_siz.size());
+        w.resize(model_siz.size());
         unsigned p = 0;
-        for (int i : model_siz) {
-          if (i == 0) continue;
-          pos.push_back(p);
-          w.push_back(model[p]);
-          p += i;
+        for (size_t i = 0; i < model_siz.size(); ++i) {
+          if (model_siz[i] == 0) {
+            pos[i]  = (unsigned)-1;
+          } else {
+            pos[i]  = p;
+            w[i]    = model[p];
+            p += model_siz[i];
+          }
         }
         CHECK_EQ((size_t)p, model.size());
       } else {
@@ -194,13 +191,13 @@ class Objective {
         CHECK_EQ((size_t)p, model.size());
         w.resize(pos.size() * dim);
         for (size_t i = 0; i < pos.size(); ++i) {
-          memcpy(w.data() + i * dim, model.data() + pos[i], dim * sizeof(Real));
+          memcpy(w.data()+i*dim, model.data()+pos[i], dim*sizeof(Real));
         }
       }
 
       if (w.empty()) return;
 
-      // X
+      // init X
       if (dim == 0) {
         X = data;
       } else {
@@ -209,7 +206,6 @@ class Objective {
         for (size_t i = 0; i < data.size; ++i) {
           for (size_t j = data.offset[i]; j < data.offset[i+1]; ++j) {
             unsigned d = data.index[j];
-            CHECK_LT(d, col_map.size());
             unsigned k = col_map[d];
             if (k > 0) {
               idx.push_back(k-1);
@@ -224,11 +220,12 @@ class Objective {
         X.index = BeginPtr(idx);
       }
 
-      // XX
+      // init XX
       XX = X;
       if (X.value) {
         val2.resize(X.offset[X.size]);
-        for (size_t i = 0; i < val2.size(); ++i) val2[i] = X.value[i] * X.value[i];
+        for (size_t i = 0; i < val2.size(); ++i)
+          val2[i] = X.value[i] * X.value[i];
         XX.value = BeginPtr(val2);
       }
     }
@@ -237,9 +234,9 @@ class Objective {
       if (w.empty()) return;
       int d = dim == 0 ? 1 : dim;
       CHECK_EQ(w.size(), pos.size()*d);
-      CHECK_GE(grad->size(), pos.back() + d);
       for (size_t i = 0; i < pos.size(); ++i) {
-        memcpy(grad->data() + pos[i], w.data() + i*d, d * sizeof(Real));
+        if (pos[i] == (unsigned)-1) continue;
+        memcpy(grad->data()+pos[i], w.data()+i*d, d*sizeof(Real));
       }
     }
 
@@ -250,7 +247,6 @@ class Objective {
     std::vector<unsigned> pos;
 
     std::vector<Real> XV;
-
     Real dropout = 0;
     Real grad_clipping = 0;
    private:
