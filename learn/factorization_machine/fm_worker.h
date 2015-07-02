@@ -54,9 +54,6 @@ class Objective {
     py_.resize(d.X.size);
     SpMV::Times(d.X, d.w, &py_, nt_);
 
-    BinClassEval<Real> eval(d.X.label, py_.data(), py_.size(), nt_);
-    prog->objv_w() = eval.LogitObjv();
-    prog->auc_w()  = eval.AUC();
 
     // py += .5 * sum((X*V).^2 - (X.*X)*(V.*V), 2);
     for (size_t k = 1; k < data_.size(); ++k) {
@@ -86,6 +83,7 @@ class Objective {
     }
 
     // auc, acc, logloss, copc
+    BinClassEval<Real> eval(d.X.label, py_.data(), py_.size(), nt_);
     prog->objv()   = eval.LogitObjv();
     prog->auc()    = eval.AUC();
     // prog->copc()   = eval.Copc();
