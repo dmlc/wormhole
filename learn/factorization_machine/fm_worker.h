@@ -18,7 +18,7 @@ class Objective {
             const Config& conf) {
     nt_ = conf.num_threads();
 
-    Config cf; cf.add_embedding()->set_dim(1);
+    Config cf; cf.add_embedding()->set_dim(0);
     for (int i = 0; i < conf.embedding_size(); ++i) {
       if (conf.embedding(i).dim() > 0) {
         cf.add_embedding()->CopyFrom(conf.embedding(i));
@@ -161,7 +161,7 @@ class Objective {
   }
 
  private:
-  // store w (dim==1) and u (dim > 1)
+  // store w (dim==0) and u (dim >= 1)
   struct Data {
     Data() { }
     ~Data() { }
@@ -172,7 +172,7 @@ class Objective {
       // CHECK_GE(model.size(), model_siz.size());
       dim = d;
       std::vector<unsigned> col_map;
-      if (dim == 1) {
+      if (dim == 0) {
         pos.reserve(model_siz.size());
         w.reserve(model_siz.size());
         unsigned p = 0;
@@ -203,7 +203,7 @@ class Objective {
       if (w.empty()) return;
 
       // X
-      if (dim == 1) {
+      if (dim == 0) {
         X = data;
       } else {
         // pick the columns with model_siz = dim + 1
@@ -237,10 +237,11 @@ class Objective {
 
     void Save(std::vector<Real>* grad) const {
       if (w.empty()) return;
-      CHECK_EQ(w.size(), pos.size()*dim);
-      CHECK_GE(grad->size(), pos.back() + dim);
+      int d = dim == 0 ? 1 : dim;
+      CHECK_EQ(w.size(), pos.size()*d);
+      CHECK_GE(grad->size(), pos.back() + d);
       for (size_t i = 0; i < pos.size(); ++i) {
-        memcpy(grad->data() + pos[i], w.data() + i*dim, dim * sizeof(Real));
+        memcpy(grad->data() + pos[i], w.data() + i*d, d * sizeof(Real));
       }
     }
 
