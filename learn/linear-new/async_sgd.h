@@ -37,6 +37,9 @@ struct ISGDHandle {
     }
   }
 
+  void Load(Stream* fi) { }
+  void Save(Stream *fo) const { }
+
   L1L2<Real> penalty;
 
   // learning rate
@@ -44,6 +47,7 @@ struct ISGDHandle {
 
   std::function<void(const Progress& prog)> reporter;
   int64_t new_w_nnz = 0;
+
 };
 
 /*********************************************************************
@@ -80,7 +84,11 @@ struct SGDHandle : public ISGDHandle {
  * sq_cum_grad: sqrt(sum_t grad_t^2)
  *********************************************************************/
 
-struct AdaGradEntry { Real w = 0; Real sq_cum_grad = 0; };
+struct AdaGradEntry {
+  Real w = 0; Real sq_cum_grad = 0;
+  void Load(Stream* fi) { }
+  void Save(Stream *fo) const { }
+};
 
 struct AdaGradHandle : public ISGDHandle {
   inline void Init(FeaID key,  AdaGradEntry& val) { }
@@ -112,7 +120,11 @@ struct AdaGradHandle : public ISGDHandle {
  * sq_cum_grad: sqrt(sum_t grad_t^2)
  *********************************************************************/
 
-struct FTRLEntry { Real w = 0; Real z = 0; Real sq_cum_grad = 0; };
+struct FTRLEntry {
+  Real w = 0; Real z = 0; Real sq_cum_grad = 0;
+  void Load(Stream* fi) { }
+  void Save(Stream *fo) const { }
+};
 
 struct FTRLHandle : public ISGDHandle {
  public:
@@ -146,7 +158,7 @@ class AsgdServer : public solver::AsyncSGDServer {
   AsgdServer(const Config& conf) : conf_(conf) {
     auto algo = conf_.algo();
     if (algo == Config::SGD) {
-      CreateServer<Real, SGDHandle>();
+      // CreateServer<Real, SGDHandle>();
     } else if (algo == Config::ADAGRAD) {
       CreateServer<AdaGradEntry, AdaGradHandle>();
     } else if (algo == Config::FTRL) {
@@ -173,7 +185,9 @@ class AsgdServer : public solver::AsyncSGDServer {
   }
 
   Config conf_;
-  virtual void SaveModel() { }
+
+  void LoadModel(int iter) {}
+  void SaveModel(int iter) {}
   ps::KVStore* server_;
 };
 

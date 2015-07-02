@@ -30,7 +30,7 @@ class AsyncSGDScheduler : public ps::App {
   std::string val_data_;
   std::string data_format_;
   bool worker_local_data_ = false;
-  int load_model_ = 1;
+  int load_model_ = 0;
   int save_model_ = 0;
   int num_part_per_file_ = 10;
   int max_data_pass_ = 1;
