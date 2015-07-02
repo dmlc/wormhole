@@ -88,7 +88,7 @@ class Objective {
     // auc, acc, logloss, copc
     prog->objv()   = eval.LogitObjv();
     prog->auc()    = eval.AUC();
-    prog->copc()   = eval.Copc();
+    // prog->copc()   = eval.Copc();
     prog->num_ex() = d.X.size;
     prog->count()  = 1;
   }
