@@ -7,34 +7,26 @@ namespace fm {
 template <typename T> using Blob = ps::Blob<T>;
 
 ////////////////////////////////////////////////////////////
-//   model
+//   model & updater
 ////////////////////////////////////////////////////////////
 
-/**
- * \brief the base updater
- */
+/*! \brief the base updater */
 struct ISGDHandle {
-
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
     perf.Start(push, cmd);
-    // if (push && !push_count) { // for debug
-    //   LL << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
-    // }
   }
 
   inline void Report() {
-    if (new_w + new_V > 10000) {
-      Progress prog; prog.nnz_w() = new_w; prog.nnz_V() = new_V;
-      if (reporter) reporter(prog);
-      new_w = 0; new_V = 0;
-    }
+    if (new_w + new_V < 10000) return;  // reduce communication frequency
+    Progress prog; prog.nnz_w() = new_w; prog.nnz_V() = new_V;
+    if (reporter) reporter(prog);
+    new_w = 0; new_V = 0;
   }
 
   inline void Finish() { Report(); perf.Stop(); }
 
   bool push_count;
-
   static int64_t new_w;
   static int64_t new_V;
   std::function<void(const Progress& prog)> reporter;
@@ -55,10 +47,9 @@ struct ISGDHandle {
   void Save(Stream *fo) const { }
 
  private:
-  // performance monitor
+  // performance monitor and logger
   class Perf {
    public:
-    // Perf() { disp_ = ps::NumWorkers() * 5; }
     void Start(bool push, int cmd) {
       time_[0] = GetTime();
       i_ = push ? ((cmd == kPushFeaCnt) ? 1 : 2) : 3;
@@ -75,8 +66,7 @@ struct ISGDHandle {
    private:
     std::array<double, 4> time_{};
     std::array<int, 4> count_{};
-    int i_ = 0;
-    int disp_ = ps::NumWorkers() * 5;;
+    int i_ = 0, disp_ = ps::NumWorkers() * 5;;
   } perf;
 };
 
@@ -85,56 +75,45 @@ struct AdaGradEntry {
   ~AdaGradEntry() { Clear(); }
 
   inline void Clear() {
-    if ( size > 1 ) { delete [] w; delete [] sq_cum_grad; }
-    size = 0;
+    if ( size > 1 ) { delete [] w; delete [] sqc_grad; }
+    size = 0; w = NULL; sqc_grad = NULL;
   }
 
   inline void Resize(int n) {
     if (n < size) { size = n; return; }
 
-    Real* new_w = new Real[n];
-    Real* new_cg = new Real[n+1];
-
+    Real* new_w = new Real[n]; Real* new_cg = new Real[n+1];
     if (size == 1) {
-      new_w[0] = w_0();
-      new_cg[0] = sq_cum_grad_0();
-      new_cg[1] = z_0();
+      new_w[0] = w_0(); new_cg[0] = sqc_grad_0(); new_cg[1] = z_0();
     } else {
       memcpy(new_w, w, size * sizeof(Real));
-      memcpy(new_cg, sq_cum_grad, (size+1) * sizeof(Real));
+      memcpy(new_cg, sqc_grad, (size+1) * sizeof(Real));
       Clear();
     }
-
-    w = new_w;
-    sq_cum_grad = new_cg;
-    size = n;
+    w = new_w; sqc_grad = new_cg; size = n;
   }
 
-  inline Real& w_0() {
-    return size == 1 ? *(Real *)&w : w[0];
-  }
-  inline Real& sq_cum_grad_0() {
-    return size == 1 ? *(Real *)&sq_cum_grad : sq_cum_grad[0];
-  }
+  inline Real& w_0() { return size == 1 ? *(Real *)&w : w[0]; }
+  inline Real w_0() const { return size == 1 ? *(Real *)&w : w[0]; }
 
-  inline Real w_0() const {
-    return size == 1 ? *(Real *)&w : w[0];
+  inline Real& sqc_grad_0() {
+    return size == 1 ? *(Real *)&sqc_grad : sqc_grad[0];
   }
 
   inline Real& z_0() {
-    return size == 1 ? *(((Real *)&sq_cum_grad)+1) : sq_cum_grad[1];
+    return size == 1 ? *(((Real *)&sqc_grad)+1) : sqc_grad[1];
   }
 
   void Load(Stream* fi) {
     fi->Read(&size, sizeof(size));
     if (size == 1) {
       fi->Read(&w, sizeof(Real*));
-      fi->Read(&sq_cum_grad, sizeof(Real*));
+      fi->Read(&sqc_grad, sizeof(Real*));
     } else {
       w = new Real[size];
-      sq_cum_grad = new Real[size+1];
+      sqc_grad = new Real[size+1];
       fi->Read(w, sizeof(Real)*size);
-      fi->Read(sq_cum_grad, sizeof(Real)*(size+1));
+      fi->Read(sqc_grad, sizeof(Real)*(size+1));
       ISGDHandle::new_V += size - 1;
     }
     if (w_0() != 0) ++ ISGDHandle::new_w;
@@ -144,72 +123,46 @@ struct AdaGradEntry {
     fo->Write(&size, sizeof(size));
     if (size == 1) {
       fo->Write(&w, sizeof(Real*));
-      fo->Write(&sq_cum_grad, sizeof(Real*));
+      fo->Write(&sqc_grad, sizeof(Real*));
     } else {
       fo->Write(w, sizeof(Real)*size);
-      fo->Write(sq_cum_grad, sizeof(Real)*(size+1));
+      fo->Write(sqc_grad, sizeof(Real)*(size+1));
     }
   }
 
-  // appearence of this feature in the data
+  // #appearence of this feature in the data
   unsigned fea_cnt = 0;
 
   // length of w. if size == 1, then using w itself to store the value to save
   // memory and avoid unnecessary new (see w_0())
   int size = 1;
 
-  Real *w = NULL;
-  Real *sq_cum_grad = NULL;
-
+  Real *w = NULL;  // w + V
+  Real *sqc_grad = NULL;  // square root of the cumulative gradient
 };
 
 struct AdaGradHandle : public ISGDHandle {
-
   AdaGradHandle() {
-    CHECK_EQ(sizeof(Real*), sizeof(Real)*2) << " the reason see z_0()";
+    CHECK_EQ(sizeof(Real*), sizeof(Real)*2) << " see z_0() for reasons";
   }
 
   inline void Push(FeaID key, Blob<const Real> recv, AdaGradEntry& val) {
     if (push_count) {
       val.fea_cnt += (unsigned) recv[0];
-      // resize the larger dim first to avoid double resize
-      for (int i = 2; i > 0; --i) {
-        if (val.fea_cnt > group[i].thr &&
-            val.size < group[i].dim + 1 &&
-            val.w_0() != 0) {
-          int old_siz = val.size;
-          const auto& g = group[i];
-          val.Resize(g.dim + 1);
-          for (int j = old_siz; j < val.size; ++j) {
-            val.w[j] = rand() / (Real) RAND_MAX * (g.V_max - g.V_min) + g.V_min;
-            val.sq_cum_grad[j+1] = 0;
-          }
-          new_V += val.size - old_siz;
-        }
-      }
+      Resize(val);
     } else {
       CHECK_LE(recv.size, (size_t)val.size);
       CHECK_GE(recv.size, (size_t)0);
 
       // update w
-      Real old_w = val.w_0();
       UpdateW(val, recv[0]);
-      if (old_w == 0 && val.w_0() != 0) {
-        ++ new_w;
-      } else if (old_w != 0 && val.w_0() == 0) {
-        -- new_w;
-      }
 
       // update V
-      int rsz = recv.size;
-      int pos = 1;
+      int rsz = recv.size, pos = 1;
       for (int i = 1; i < 3; ++i) {
         if (rsz <= pos) break;
         int len = std::min(rsz - pos, group[i].dim);
-        UpdateV(val.w + pos,
-                val.sq_cum_grad + pos + 1,
-                recv.data + pos,
-                len, i);
+        UpdateV(val.w+pos, val.sqc_grad+pos+1, recv.data+pos, len, i);
         pos += len;
       }
     }
@@ -227,13 +180,28 @@ struct AdaGradHandle : public ISGDHandle {
     }
   }
 
+  inline void Resize(AdaGradEntry& val) {
+    // resize the larger dim first to avoid double resize
+    for (int i = 2; i > 0; --i) {
+      const auto& g = group[i];
+      if (val.fea_cnt > g.thr && val.size < g.dim + 1 && val.w_0() != 0) {
+        int old_siz = val.size;
+        val.Resize(g.dim + 1);
+        for (int j = old_siz; j < val.size; ++j) {
+          val.w[j] = rand() / (Real) RAND_MAX * (g.V_max - g.V_min) + g.V_min;
+          val.sqc_grad[j+1] = 0;
+        }
+        new_V += val.size - old_siz;
+      }
+    }
+  }
+
   // ftrl
   inline void UpdateW(AdaGradEntry& val, Real g) {
     auto const& g0 = group[0];
-
-    Real cg = val.sq_cum_grad_0();
+    Real cg = val.sqc_grad_0();
     Real cg_new = sqrt( cg * cg + g * g );
-    val.sq_cum_grad_0() = cg_new;
+    val.sqc_grad_0() = cg_new;
 
     Real w = val.w_0();
     val.z_0() -= g - (cg_new - cg) / g0.alpha * w;
@@ -243,8 +211,14 @@ struct AdaGradHandle : public ISGDHandle {
     if (z <= l1  && z >= - l1) {
       val.w_0() = 0;
     } else {
-      val.w_0() = (z > 0 ? z - l1 : z + l1) /
-                  ((g0.beta + cg_new) / g0.alpha + g0.lambda_l2);
+      Real eta = (g0.beta + cg_new) / g0.alpha + g0.lambda_l2;
+      val.w_0() = (z > 0 ? z - l1 : z + l1) / eta;
+    }
+
+    if (w == 0 && val.w_0() != 0) {
+      ++ new_w; Resize(val);
+    } else if (w != 0 && val.w_0() == 0) {
+      -- new_w;
     }
   }
 
@@ -266,9 +240,7 @@ class FMServer : public solver::AsyncSGDServer {
   FMServer(const Config& conf) : conf_(conf) {
     using Server = ps::OnlineServer<AdaGradEntry, Real, AdaGradHandle>;
     AdaGradHandle h;
-    h.reporter = [this](const Progress& prog) {
-      Report(&prog);
-    };
+    h.reporter = [this](const Progress& prog) { Report(&prog); };
 
     // for w
     auto& g     = h.group[0];
@@ -294,7 +266,6 @@ class FMServer : public solver::AsyncSGDServer {
 
     Server s(h);
     server_ = s.server();
-
   }
 
   virtual ~FMServer() { }
