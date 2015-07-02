@@ -10,6 +10,76 @@ template <typename T> using Blob = ps::Blob<T>;
 //   model
 ////////////////////////////////////////////////////////////
 
+/**
+ * \brief the base handle class
+ */
+struct ISGDHandle {
+
+  inline void Start(bool push, int timestamp, int cmd, void* msg) {
+    push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
+    perf.Start(push, cmd);
+    // if (push && !push_count) { // for debug
+    //   LL << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
+    // }
+  }
+
+  inline void Report() {
+    if (new_w + new_V > 10000) {
+      Progress prog; prog.nnz_w() = new_w; prog.nnz_V() = new_V;
+      if (reporter) reporter(prog);
+      new_w = 0; new_V = 0;
+    }
+  }
+
+  inline void Finish() { Report(); perf.Stop(); }
+
+  bool push_count;
+
+  static int64_t new_w;
+  static int64_t new_V;
+  std::function<void(const Progress& prog)> reporter;
+
+  struct Group {
+    int dim = 0;
+    unsigned thr;
+    Real lambda_l1 = 0;
+    Real lambda_l2 = 0;
+    Real alpha = .01;
+    Real beta = 1;
+    Real V_min = -.01;
+    Real V_max = .01;
+  };
+  std::array<Group, 3> group;
+
+  void Load(Stream* fi) { }
+  void Save(Stream *fo) const { }
+
+ private:
+  // performance monitor
+  class Perf {
+   public:
+    // Perf() { disp_ = ps::NumWorkers() * 5; }
+    void Start(bool push, int cmd) {
+      time_[0] = GetTime();
+      i_ = push ? ((cmd == kPushFeaCnt) ? 1 : 2) : 3;
+    }
+    void Stop() {
+      time_[i_] += GetTime() - time_[0];
+      ++ count_[i_]; ++ count_[0];
+      if ((count_[0] % disp_) == 0) {
+        LOG(INFO) << "push feacnt: " << count_[1] << " x " << time_[1]/count_[1]
+                  << ", push grad: " << count_[2] << " x " << time_[2]/count_[2]
+                  << ", pull: " << count_[3] << " x " << time_[3]/count_[3];
+      }
+    }
+   private:
+    std::array<double, 4> time_{};
+    std::array<int, 4> count_{};
+    int i_ = 0;
+    int disp_ = ps::NumWorkers() * 5;;
+  } perf;
+};
+
 struct AdaGradEntry {
   AdaGradEntry() { }
   ~AdaGradEntry() { Clear(); }
@@ -65,9 +135,9 @@ struct AdaGradEntry {
       sq_cum_grad = new Real[size+1];
       fi->Read(w, sizeof(Real)*size);
       fi->Read(sq_cum_grad, sizeof(Real)*(size+1));
-      new_V += size - 1;
+      ISGDHandle::new_V += size - 1;
     }
-    if (w_0() != 0) ++ new_w;
+    if (w_0() != 0) ++ ISGDHandle::new_w;
   }
 
   void Save(Stream *fo) const {
@@ -91,82 +161,6 @@ struct AdaGradEntry {
   Real *w = NULL;
   Real *sq_cum_grad = NULL;
 
-  static int64_t new_w;
-  static int64_t new_V;
-};
-
-////////////////////////////////////////////////////////////
-//  model updater
-////////////////////////////////////////////////////////////
-
-/**
- * \brief the base handle class
- */
-struct ISGDHandle {
-
-  inline void Start(bool push, int timestamp, int cmd, void* msg) {
-    push_count = (push && (cmd == kPushFeaCnt)) ? true : false;
-    perf.Start(push, cmd);
-    // if (push && !push_count) { // for debug
-    //   LL << ps::SArray<Real>(((ps::Message*)msg)->value[0]);
-    // }
-  }
-
-  inline void Report() {
-    if (new_w + new_V > 10000) {
-      Progress prog; prog.nnz_w() = new_w; prog.nnz_V() = new_V;
-      if (reporter) reporter(prog);
-      new_w = 0; new_V = 0;
-    }
-  }
-
-  inline void Finish() { Report(); perf.Stop(); }
-
-  bool push_count;
-
-  int64_t new_w = 0;
-  int64_t new_V = 0;
-  std::function<void(const Progress& prog)> reporter;
-
-  struct Group {
-    int dim = 0;
-    unsigned thr;
-    Real lambda_l1 = 0;
-    Real lambda_l2 = 0;
-    Real alpha = .01;
-    Real beta = 1;
-    Real V_min = -.01;
-    Real V_max = .01;
-  };
-  std::array<Group, 3> group;
-
-  void Load(Stream* fi) { }
-  void Save(Stream *fo) const { }
-
- private:
-  // performance monitor
-  class Perf {
-   public:
-    // Perf() { disp_ = ps::NumWorkers() * 5; }
-    void Start(bool push, int cmd) {
-      time_[0] = GetTime();
-      i_ = push ? ((cmd == kPushFeaCnt) ? 1 : 2) : 3;
-    }
-    void Stop() {
-      time_[i_] += GetTime() - time_[0];
-      ++ count_[i_]; ++ count_[0];
-      if ((count_[0] % disp_) == 0) {
-        LOG(INFO) << "push feacnt: " << count_[1] << " x " << time_[1]/count_[1]
-                  << ", push grad: " << count_[2] << " x " << time_[2]/count_[2]
-                  << ", pull: " << count_[3] << " x " << time_[3]/count_[3];
-      }
-    }
-   private:
-    std::array<double, 4> time_{};
-    std::array<int, 4> count_{};
-    int i_ = 0;
-    int disp_ = ps::NumWorkers() * 5;;
-  } perf;
 };
 
 struct AdaGradHandle : public ISGDHandle {
@@ -309,8 +303,8 @@ class FMServer : public solver::AsyncSGDServer {
     server_->Load(fi);
 
     Progress prog;
-    prog.nnz_w() = AdaGradEntry::new_w;
-    prog.nnz_V() = AdaGradEntry::new_V;
+    prog.nnz_w() = ISGDHandle::new_w;
+    prog.nnz_V() = ISGDHandle::new_V;
     Report(&prog);
   }
 

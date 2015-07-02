@@ -26,8 +26,8 @@ App* App::Create(int argc, char *argv[]) {
 }
 }  // namespace ps
 
-int64_t dmlc::fm::AdaGradEntry::new_w = 0;
-int64_t dmlc::fm::AdaGradEntry::new_V = 0;
+int64_t dmlc::fm::ISGDHandle::new_w = 0;
+int64_t dmlc::fm::ISGDHandle::new_V = 0;
 
 int main(int argc, char *argv[]) {
   return ps::RunSystem(&argc, &argv);
