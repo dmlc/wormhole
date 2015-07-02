@@ -11,7 +11,7 @@ template <typename T> using Blob = ps::Blob<T>;
 ////////////////////////////////////////////////////////////
 
 /**
- * \brief the base handle class
+ * \brief the base updater
  */
 struct ISGDHandle {
 
@@ -168,6 +168,7 @@ struct AdaGradHandle : public ISGDHandle {
   AdaGradHandle() {
     CHECK_EQ(sizeof(Real*), sizeof(Real)*2) << " the reason see z_0()";
   }
+
   inline void Push(FeaID key, Blob<const Real> recv, AdaGradEntry& val) {
     if (push_count) {
       val.fea_cnt += (unsigned) recv[0];
@@ -204,10 +205,12 @@ struct AdaGradHandle : public ISGDHandle {
       int pos = 1;
       for (int i = 1; i < 3; ++i) {
         if (rsz <= pos) break;
+        int len = std::min(rsz - pos, group[i].dim);
         UpdateV(val.w + pos,
                 val.sq_cum_grad + pos + 1,
                 recv.data + pos,
-                std::min(rsz - pos, group[i].dim), i);
+                len, i);
+        pos += len;
       }
     }
   }
