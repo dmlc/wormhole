@@ -228,9 +228,12 @@ struct AdaGradHandle : public ISGDHandle {
     Real beta = group[d].beta;
     Real l2 = group[d].lambda_l2;
     for (int i = 0; i < n; ++i) {
-      cg[i] = sqrt(cg[i] * cg[i] + g[i] * g[i]);
+      // cg[i] = sqrt(cg[i] * cg[i] + g[i] * g[i]);
+      Real grad = g[i] + l2 * w[i];
+      cg[i] = sqrt(cg[i] * cg[i] + grad * grad);
       Real eta = alpha / ( cg[i] + beta );
-      w[i] -= eta * ( g[i] + l2 * w[i] );
+      // w[i] -= eta * ( g[i] );
+      w[i] -= eta * grad;
     }
   }
 };
