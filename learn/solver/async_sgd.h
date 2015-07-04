@@ -42,6 +42,20 @@ class AsyncSGDScheduler : public ps::App {
     return false;
   }
 
+  template <typename Config>
+  void Init(const Config& conf) {
+    worker_local_data_ = conf.use_worker_local_data();
+    train_data_        = conf.train_data();
+    val_data_          = conf.val_data();
+    data_format_       = conf.data_format();
+    num_part_per_file_ = conf.num_parts_per_file();
+    max_data_pass_     = conf.max_data_pass();
+    disp_itv_          = conf.disp_itv();
+    save_model_        = conf.save_model();
+    load_model_        = conf.load_model();
+    if (save_model_) CHECK(conf.model_out().size()) << "empty model_out";
+    if (load_model_) CHECK(conf.model_in().size()) << "empty model_in";
+  }
  public:
   AsyncSGDScheduler() {
     sys_.manager().AddNodeFailureHandler([this](const std::string& id) {
@@ -257,6 +271,17 @@ class AsyncSGDWorker : public ps::App {
   std::string val_data_;
 
   double workload_time_;
+
+  template <typename Config>
+  void Init(const Config& conf) {
+    minibatch_size_ = conf.minibatch();
+    max_delay_      = conf.max_delay();
+    if (conf.use_worker_local_data()) {
+      train_data_        = conf.train_data();
+      val_data_          = conf.val_data();
+      worker_local_data_ = true;
+    }
+  }
   /// implement system APIs
  public:
   AsyncSGDWorker() { }

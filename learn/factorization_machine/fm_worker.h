@@ -267,14 +267,7 @@ class Objective {
 class FMWorker : public solver::AsyncSGDWorker {
  public:
   FMWorker(const Config& conf) : conf_(conf) {
-    minibatch_size_ = conf.minibatch();
-    max_delay_      = conf.max_delay();
-    if (conf.use_worker_local_data()) {
-      train_data_        = conf.train_data();
-      val_data_          = conf.val_data();
-      worker_local_data_ = true;
-    }
-
+    Init(conf);
     for (int i = 0; i < conf.embedding_size(); ++i) {
       if (conf.embedding(i).dim() > 0) {
         do_embedding_ = true; break;

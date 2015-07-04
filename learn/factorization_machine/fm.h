@@ -52,19 +52,7 @@ class Progress : public VectorProgress {
 
 class FMScheduler : public solver::AsyncSGDScheduler<Progress> {
  public:
-  FMScheduler(const Config& conf) {
-    worker_local_data_ = conf.use_worker_local_data();
-    train_data_        = conf.train_data();
-    val_data_          = conf.val_data();
-    data_format_       = conf.data_format();
-    num_part_per_file_ = conf.num_parts_per_file();
-    max_data_pass_     = conf.max_data_pass();
-    disp_itv_          = conf.disp_itv();
-    save_model_        = conf.save_model();
-    load_model_        = conf.load_model();
-    if (save_model_) CHECK(conf.model_out().size()) << "empty model_out";
-    if (load_model_) CHECK(conf.model_in().size()) << "empty model_in";
-  }
+  FMScheduler(const Config& conf) { Init(conf); }
   virtual ~FMScheduler() { }
 };
 
