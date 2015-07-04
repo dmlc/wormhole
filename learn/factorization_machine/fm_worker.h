@@ -150,9 +150,19 @@ class Objective {
           if ((Real)rand() / RAND_MAX > 1 - d.dropout) g = 0;
         }
       }
+      // normalize
+      Normalize(d.w);
     }
 
     for (const auto& d : data_) d.Save(grad);
+  }
+
+  void Normalize(std::vector<Real>& grad) {
+    Real norm = 0;
+    for (Real g : grad) norm += g * g;
+    if (norm < 1e-10) return;
+    norm = sqrt(norm);
+    for (Real& g : grad) g = g / norm;
   }
 
  private:
