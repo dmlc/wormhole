@@ -88,4 +88,5 @@ message Config {
 
   /// extra
 
+  optional bool l1_shrk = 100 [default = true];
 }

@@ -18,7 +18,8 @@ struct ISGDHandle {
   }
 
   inline void Report() {
-    if (new_w + new_V < 10000) return;  // reduce communication frequency
+    // reduce communication frequency
+    if (new_w + new_V < 10000 / ps::NumServers()) return;
     Progress prog; prog.nnz_w() = new_w; prog.nnz_V() = new_V;
     if (reporter) reporter(prog);
     new_w = 0; new_V = 0;
@@ -42,6 +43,8 @@ struct ISGDHandle {
     Real V_max = .01;
   };
   std::array<Group, 3> group;
+
+  bool l1_shrk;
 
   void Load(Stream* fi) { }
   void Save(Stream *fo) const { }
@@ -184,7 +187,8 @@ struct AdaGradHandle : public ISGDHandle {
     // resize the larger dim first to avoid double resize
     for (int i = 2; i > 0; --i) {
       const auto& g = group[i];
-      if (val.fea_cnt > g.thr && val.size < g.dim + 1 && val.w_0() != 0) {
+      if (val.fea_cnt > g.thr && val.size < g.dim + 1 &&
+          (!l1_shrk || val.w_0() != 0)) {
         int old_siz = val.size;
         val.Resize(g.dim + 1);
         for (int j = old_siz; j < val.size; ++j) {
@@ -199,11 +203,13 @@ struct AdaGradHandle : public ISGDHandle {
   // ftrl
   inline void UpdateW(AdaGradEntry& val, Real g) {
     auto const& g0 = group[0];
+    Real w = val.w_0();
+    g += g0.lambda_l2 * w;
+
     Real cg = val.sqc_grad_0();
     Real cg_new = sqrt( cg * cg + g * g );
     val.sqc_grad_0() = cg_new;
 
-    Real w = val.w_0();
     val.z_0() -= g - (cg_new - cg) / g0.alpha * w;
 
     Real z = val.z_0();
@@ -211,7 +217,7 @@ struct AdaGradHandle : public ISGDHandle {
     if (z <= l1  && z >= - l1) {
       val.w_0() = 0;
     } else {
-      Real eta = (g0.beta + cg_new) / g0.alpha + g0.lambda_l2;
+      Real eta = (g0.beta + cg_new) / g0.alpha;
       val.w_0() = (z > 0 ? z - l1 : z + l1) / eta;
     }
 
@@ -266,6 +272,8 @@ class FMServer : public solver::AsyncSGDServer {
       g.V_min       = - c.init_scale();
       g.V_max       = c.init_scale();
     }
+
+    h.l1_shrk = conf.l1_shrk();
 
     Server s(h);
     server_ = s.server();

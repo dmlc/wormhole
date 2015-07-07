@@ -11,7 +11,7 @@ static const int kPushFeaCnt = 1;
 
 class Progress : public VectorProgress {
  public:
-  Progress() : VectorProgress(4, 3) {}
+  Progress() : VectorProgress(4, 4) {}
   virtual ~Progress() { }
 
 
@@ -27,10 +27,10 @@ class Progress : public VectorProgress {
     double cnt = (double)count();
     double num = (double)num_ex();
     char buf[256];
-    snprintf(buf, 256, "%7.2g  %7.2g | %9.4g  %9.4g | %6.4lf  %6.4lf ",
+    snprintf(buf, 256, "%7.2g  %7.2g | %9.4g  %6.4lf | %9.4g  %6.4lf  %6.4lf ",
              (double)(p->num_ex() + num), num,
-             (double)(p->nnz_w() + nnz_w()), (double)(p->nnz_V() + nnz_V()),
-             objv() / num, auc() / cnt);
+             (double)(p->nnz_w() + nnz_w()), objv_w() / num,
+             (double)(p->nnz_V() + nnz_V()), objv() / num, auc() / cnt);
     return std::string(buf);
   }
 
@@ -39,7 +39,8 @@ class Progress : public VectorProgress {
   double objv() const { return fvec_[0]; }
   double& auc() { return fvec_[1]; }
 
-  double& copc() { return fvec_[2]; }
+  double& objv_w() { return fvec_[2]; }
+  double& copc() { return fvec_[3]; }
 
   int64_t& count() { return ivec_[0]; }
   int64_t& num_ex() { return ivec_[1]; }
