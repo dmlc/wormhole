@@ -147,13 +147,13 @@ class Objective {
         for (Real& g : d.w) g = g > gc ? gc : ( g < -gc ? -gc : g);
       }
 
-      Normalize(d.w);
       if (d.dropout > 0) {
         for (Real& g : d.w) {
           if ((Real)rand() / RAND_MAX > 1 - d.dropout) g = 0;
         }
       }
       // normalize
+      Normalize(d.w);
     }
 
     for (const auto& d : data_) d.Save(grad);
