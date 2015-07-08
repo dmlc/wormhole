@@ -260,6 +260,7 @@ class AsyncSGDWorker : public ps::App {
   }
 
   int minibatch_size_ = 10000;
+  int shuffle_ = 0;
   int max_delay_ = 4;
 
   // for validation test
@@ -275,6 +276,7 @@ class AsyncSGDWorker : public ps::App {
   template <typename Config>
   void Init(const Config& conf) {
     minibatch_size_ = conf.minibatch();
+    shuffle_        = conf.rand_shuffle();
     max_delay_      = conf.max_delay();
     if (conf.use_worker_local_data()) {
       train_data_        = conf.train_data();
@@ -315,9 +317,12 @@ class AsyncSGDWorker : public ps::App {
   void Process(const Workload& wl) {
     bool train = wl.type == Workload::TRAIN;
     int mb_size = train ? minibatch_size_ : val_minibatch_size_;
+    int shuffle = train ? minibatch_size_ * shuffle_ : 0;
     int max_delay = train ? max_delay_ : val_max_delay_;
     LOG(INFO) << ps::MyNodeID() << ": " << wl.ShortDebugString()
-              << ", minibatch = " << mb_size << ", max_delay = " <<  max_delay;
+              << ", minibatch = " << mb_size
+              << ", max_delay = " <<  max_delay
+              << ", shuffle size = " << shuffle;
 
     num_mb_fly_ = num_mb_done_ = 0;
     start_ = GetTime();
@@ -326,7 +331,8 @@ class AsyncSGDWorker : public ps::App {
     CHECK_EQ(wl.file.size(), (size_t)1);
     auto file = wl.file[0];
     dmlc::data::MinibatchIter<FeaID> reader(
-        file.filename.c_str(), file.k, file.n, file.format.c_str(), mb_size);
+        file.filename.c_str(), file.k, file.n, file.format.c_str(),
+        mb_size, shuffle);
     reader.BeforeFirst();
     while (reader.Next()) {
       // wait for data consistency

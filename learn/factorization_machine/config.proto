@@ -89,4 +89,5 @@ message Config {
   /// extra
 
   optional bool l1_shrk = 100 [default = true];
+  optional int32 rand_shuffle = 101;
 }
