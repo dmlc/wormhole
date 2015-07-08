@@ -64,7 +64,8 @@ class MinibatchIter {
   }
 
   void BeforeFirst(void) {
-    parser_->BeforeFirst();
+    if (parser_) parser_->BeforeFirst();
+    if (buf_reader_) buf_reader_->BeforeFirst();
   }
 
   bool Next(void) {
@@ -75,6 +76,7 @@ class MinibatchIter {
           // no random shuffle
           if (!parser_->Next()) break;
           in_blk_ = parser_->Value();
+
         } else {
           // do random shuffle
           if (!buf_reader_->Next()) break;
@@ -97,13 +99,14 @@ class MinibatchIter {
           mb_.Push(in_blk_[rdp_[i]]);
         }
       }
+      start_ += len;
     }
     out_blk_ = mb_.GetBlock();
     return out_blk_.size > 0;
   }
 
   size_t BytesRead(void) const {
-    return parser_->BytesRead();
+    return parser_ ? parser_->BytesRead() : buf_reader_->BytesRead();
   }
 
   const RowBlock<IndexType> &Value(void) const {

@@ -69,4 +69,7 @@ message Config {
   optional bool msg_compression = 52 [default = true];
   // 0 means no fixing
   optional int32 fixed_bytes = 53 [default = 1];
+
+
+  optional int32 rand_shuffle = 101;
 }
