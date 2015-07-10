@@ -266,11 +266,11 @@ class FMServer : public solver::AsyncSGDServer {
       auto& g       = h.group[i+1];
       g.dim         = c.dim();
       g.thr         = (unsigned)c.threshold();
-      g.alpha       = c.lr_eta();
-      g.beta        = c.lr_beta();
       g.lambda_l2   = c.lambda_l2();
       g.V_min       = - c.init_scale();
       g.V_max       = c.init_scale();
+      g.alpha       = c.has_lr_eta() ? c.lr_eta() : h.group[0].alpha;
+      g.beta        = c.has_lr_beta() ? c.lr_beta() : h.group[0].beta;
     }
 
     h.l1_shrk = conf.l1_shrk();

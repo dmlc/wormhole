@@ -62,20 +62,27 @@ class FMScheduler : public solver::AsyncSGDScheduler<Progress> {
   virtual ~FMScheduler() { }
 
   virtual bool Stop(const Progress& cur, const Progress& prev, bool train) {
+    double cur_objv = cur.objv() / cur.num_ex();
     if (train) {
-      if (conf_.has_max_objv() && cur.objv() > conf_.max_objv()) {
+      if (conf_.has_max_objv() && cur_objv > conf_.max_objv()) {
         return true;
       }
     } else {
-      if (conf_.early_stop()) {
-
+      double diff = pre_val_objv_ - cur_objv;
+      pre_val_objv_ = cur_objv;
+      if (conf_.early_stop() && diff < conf_.min_objv_decr()) {
+        std::cout << "the decrease of validation objective "
+                  << "is smaller than the minimal requirement: "
+                  << diff << " vs " << conf_.min_objv_decr()
+                  << std::endl;
+        return true;
       }
     }
-    if (!train && conf
+    return false;
   }
  private:
   Config conf_;
-  double pre_auc_ = 0;
+  double pre_val_objv_ = 100;
 };
 
 }  // namespace fm

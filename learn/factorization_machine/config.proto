@@ -91,4 +91,5 @@ message Config {
   optional int32 rand_shuffle = 101;
 
   optional bool early_stop = 102 [default = false];
+  optional float min_objv_decr = 103 [default = .00001];
 }
