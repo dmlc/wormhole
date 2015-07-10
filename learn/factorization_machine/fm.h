@@ -53,8 +53,29 @@ class Progress : public VectorProgress {
 
 class FMScheduler : public solver::AsyncSGDScheduler<Progress> {
  public:
-  FMScheduler(const Config& conf) { Init(conf); }
+  FMScheduler(const Config& conf) : conf_(conf) {
+    if (conf_.early_stop()) {
+      CHECK(conf_.val_data().size()) << "early stop needs validation dataset";
+    }
+    Init(conf);
+  }
   virtual ~FMScheduler() { }
+
+  virtual bool Stop(const Progress& cur, const Progress& prev, bool train) {
+    if (train) {
+      if (conf_.has_max_objv() && cur.objv() > conf_.max_objv()) {
+        return true;
+      }
+    } else {
+      if (conf_.early_stop()) {
+
+      }
+    }
+    if (!train && conf
+  }
+ private:
+  Config conf_;
+  double pre_auc_ = 0;
 };
 
 }  // namespace fm

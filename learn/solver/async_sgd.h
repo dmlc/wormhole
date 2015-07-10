@@ -38,7 +38,7 @@ class AsyncSGDScheduler : public ps::App {
   Workload::Type cur_type_;
   int disp_itv_ = 1;
 
-  virtual bool Stop(const Progress& cur, const Progress& prev) {
+  virtual bool Stop(const Progress& cur, const Progress& prev, bool train) {
     return false;
   }
 
@@ -131,7 +131,8 @@ class AsyncSGDScheduler : public ps::App {
     cur_type_ = type;
     bool stop = false;
     std::string data;
-    if (type == Workload::TRAIN) {
+    bool is_train = type == Workload::TRAIN;
+    if (is_train) {
       printf("training #iter = %d\n", cur_data_pass_);
       data = train_data_;
     } else {
@@ -153,26 +154,26 @@ class AsyncSGDScheduler : public ps::App {
     printf("  sec %s\n", prog_.HeadStr().c_str());
     while (!pool_.IsFinished()) {
       sleep(disp_itv_);
-      if (type == Workload::TRAIN) {
-        if (ShowProgress()) {
+      if (is_train) {
+        if (ShowProgress(is_train)) {
           stop = true;
           pool_.ClearRemain();
         }
       }
     }
-    if (type != Workload::TRAIN) stop = ShowProgress();
+    if (type != Workload::TRAIN) stop = ShowProgress(is_train);
     return stop;
   }
 
   // return true if it's time for stopping
-  bool ShowProgress() {
+  bool ShowProgress(bool is_train) {
     bool ret = false;
     Progress cur;
     monitor_.Get(&cur); monitor_.Clear();
     auto disp = cur.PrintStr(&prog_);
     if (disp.empty()) return ret;
     printf("%5.0lf  %s\n", GetTime() - start_time_, disp.c_str());
-    if (Stop(cur, prog_)) ret = true;
+    if (Stop(cur, prog_, is_train)) ret = true;
     prog_.Merge(&cur);
     return ret;
   }

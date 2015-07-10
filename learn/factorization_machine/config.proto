@@ -86,8 +86,9 @@ message Config {
   // number of threads used to process one minibatch
   optional int32 num_threads = 60 [default = 2];
 
-  /// extra
-
+  /// exmperimental
   optional bool l1_shrk = 100 [default = true];
   optional int32 rand_shuffle = 101;
+
+  optional bool early_stop = 102 [default = false];
 }
