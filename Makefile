@@ -41,6 +41,14 @@ repo/rabit/lib/librabit.a:  | repo/rabit
 learn/kmeans/kmeans.dmlc: learn/kmeans/kmeans.cc |repo/rabit/lib/librabit.a dmlc-core/libdmlc.a
 	+	cd learn/kmeans;make kmeans.dmlc; cd $(ROOTDIR)
 
+learn/linear/build/linear.dmlc:
+	make -C learn/linear
+
+learn/factorization_machine/buide/fm.dmlc:
+	make -C learn/factorization_machine
+
+deps:
+	make/build_deps.sh
 
 # toolkits
 xgboost.dmlc: repo/xgboost/xgboost
@@ -49,6 +57,11 @@ xgboost.dmlc: repo/xgboost/xgboost
 kmeans.dmlc: learn/kmeans/kmeans.dmlc
 	cp $+ $@
 
+linear.dmlc: learn/linear/build/linear.dmlc
+	cp $+ $@
+
+fm.dmlc: learn/factorization_machine/buide/fm.dmlc
+	cp $+ $@
 
 pull:
 	for prefix in $(REPOS); do \
