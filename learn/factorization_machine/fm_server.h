@@ -247,7 +247,7 @@ struct AdaGradHandle : public ISGDHandle {
 class FMServer : public solver::AsyncSGDServer {
  public:
   FMServer(const Config& conf) : conf_(conf) {
-    using Server = ps::OnlineServer<AdaGradEntry, Real, AdaGradHandle>;
+    using Server = ps::OnlineServer<Real, AdaGradEntry, AdaGradHandle>;
     AdaGradHandle h;
     h.reporter = [this](const Progress& prog) { Report(&prog); };
 

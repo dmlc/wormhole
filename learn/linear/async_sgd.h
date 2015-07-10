@@ -180,7 +180,7 @@ class AsgdServer : public solver::AsyncSGDServer {
     h.reporter = [this](const Progress& prog) {
       Report(&prog);
     };
-    ps::OnlineServer<Entry, Real, Handle> s(h);
+    ps::OnlineServer<Real, Entry, Handle> s(h);
     server_ = s.server();
   }
 
