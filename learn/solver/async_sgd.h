@@ -152,6 +152,8 @@ class AsyncSGDScheduler : public ps::App {
 
     // print every k sec for training, while print at the end for validation
     printf("  sec %s\n", prog_.HeadStr().c_str());
+    fflush(stdout);
+
     while (!pool_.IsFinished()) {
       sleep(disp_itv_);
       if (is_train) {
