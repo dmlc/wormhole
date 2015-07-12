@@ -1,5 +1,8 @@
 ![Wormhole](wormhole.png)
 
+[![Build Status](https://travis-ci.org/dmlc/xgboost.svg?branch=master)](https://travis-ci.org/dmlc/xgboost)
+[![Documentation Status](https://readthedocs.org/projects/wormhole/badge/?version=latest)](https://readthedocs.org/projects/wormhole/?badge=latest) 
+
 Portable, scalable and reliable distributed machine learning.
 
 Wormhole is a place where DMLC projects works together to provide
