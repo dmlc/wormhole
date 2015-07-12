@@ -175,6 +175,8 @@ class AsyncSGDScheduler : public ps::App {
     auto disp = cur.PrintStr(&prog_);
     if (disp.empty()) return ret;
     printf("%5.0lf  %s\n", GetTime() - start_time_, disp.c_str());
+    fflush(stdout);
+
     if (Stop(cur, prog_, is_train)) ret = true;
     prog_.Merge(&cur);
     return ret;
