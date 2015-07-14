@@ -110,6 +110,7 @@ class Objective {
 
     // grad_w = ...
     SpMV::TransTimes(d.X, py_, &d.w, nt_);
+    // Normalize(d.w);
 
     // grad_u = ...
     for (size_t k = 1; k < data_.size(); ++k) {
@@ -369,7 +370,7 @@ class FMWorker : public solver::AsyncSGDWorker {
       if (flag == 0) {
         // trancate the count to uint8
         opts->AddFilter(ps::Filter::TRUNCATE_FLOAT)->set_num_bytes(1);
-      } else if (flag == 2) {
+      } else {
         // randomly round the gradient
         opts->AddFilter(ps::Filter::FIXING_FLOAT)->set_num_bytes(
             conf_.fixed_bytes());
