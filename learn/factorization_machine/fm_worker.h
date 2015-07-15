@@ -34,6 +34,7 @@ class Objective {
 
       data_[i].dropout = eb.dropout();
       data_[i].grad_clipping = eb.grad_clipping();
+      data_[i].grad_normalization = eb.grad_normalization();
     }
   }
 
@@ -143,6 +144,7 @@ class Objective {
       // V += X' * d.XV
       SpMM::TransTimes(d.X, d.XV, (Real)1, d.w, &d.w, nt_);
 
+      // some preprocessing
       if (d.grad_clipping > 0) {
         Real gc = d.grad_clipping;
         for (Real& g : d.w) g = g > gc ? gc : ( g < -gc ? -gc : g);
@@ -153,8 +155,7 @@ class Objective {
           if ((Real)rand() / RAND_MAX > 1 - d.dropout) g = 0;
         }
       }
-      // normalize
-      Normalize(d.w);
+      if (d.grad_normalization) Normalize(d.w);
     }
 
     for (const auto& d : data_) d.Save(grad);
@@ -262,6 +263,7 @@ class Objective {
     std::vector<Real> XV;
     Real dropout = 0;
     Real grad_clipping = 0;
+    Real grad_normalization = 0;
    private:
     std::vector<Real> val, val2;
     std::vector<size_t> os;

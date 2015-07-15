@@ -50,6 +50,8 @@ message Config {
     // experimetal
     optional float dropout = 7;
     optional float grad_clipping = 8;
+
+    optional float grad_normalization = 9 [default = 0];
   }
 
   repeated Embedding embedding = 22;
@@ -88,8 +90,10 @@ message Config {
 
   /// exmperimental
   optional bool l1_shrk = 100 [default = true];
-  optional int32 rand_shuffle = 101;
+  optional int32 rand_shuffle = 101 [default = 10];
 
   optional bool early_stop = 102 [default = false];
   optional float min_objv_decr = 103 [default = .00001];
+
+  optional bool grad_normalization = 105 [default = false];
 }
