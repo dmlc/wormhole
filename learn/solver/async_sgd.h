@@ -145,6 +145,12 @@ class AsyncSGDScheduler : public ps::App {
     if (!worker_local_data_) {
       Workload wl; pool_.Match(data, &wl);
       pool_.Add(wl.file, num_part_per_file_);
+      size_t nwl = wl.file.size() * num_part_per_file_;
+      if (cur_data_pass_ == 1 && (nwl < ps::NumWorkers())) {
+        fprintf(stderr, "WARNING: # of data file (%d) < # of workers (%d)\n",
+                (int)nwl, (int)ps::NumWorkers());
+        fprintf(stderr, "         You may want to increase \"num_parts_per_file\"\n");
+      }
     }
 
     // send an empty workerload to all workers
