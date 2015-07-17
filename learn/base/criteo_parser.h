@@ -5,6 +5,7 @@
 #ifndef DMLC_DATA_CRITEO_PARSER_H_
 #define DMLC_DATA_CRITEO_PARSER_H_
 #include <limits>
+#include <city.h>
 #include "data/row_block.h"
 #include "data/parser.h"
 #include "data/strtonum.h"
@@ -46,8 +47,6 @@ class CriteoParser : public ParserImpl<IndexType> {
     data->resize(1);
     RowBlockContainer<IndexType>& blk = (*data)[0];
     blk.Clear();
-    IndexType kmax = std::numeric_limits<IndexType>::max();
-    IndexType itv = kmax / 13 + 1;
     char *pp = p;
     while (p != end) {
       while (*p == '\r' || *p == '\n') ++p;
@@ -60,11 +59,11 @@ class CriteoParser : public ParserImpl<IndexType> {
       p = pp + 1;
 
       // parse inter feature
-      for (IndexType i = 0,  os = 0; i < 13; ++i, os += itv) {
+      for (IndexType i = 0; i < 13; ++i) {
         pp = Find(p, end, '\t');
         CHECK_NOTNULL(pp);
         if (pp > p) {
-          blk.index.push_back(atol(p) + os);
+          blk.index.push_back((CityHash64(p, pp-p)<<6)+i);
         }
         p = pp + 1;
       }
@@ -76,7 +75,7 @@ class CriteoParser : public ParserImpl<IndexType> {
         }
         pp = p + 8; CHECK(isspace(*pp)) << *pp;
         size_t len = pp - p;
-        if (len) blk.index.push_back(CRC32HW(p, len));
+        if (len) blk.index.push_back((CityHash64(p, len)<<6)+i+13);
         p = pp + 1;
       }
       blk.offset.push_back(blk.index.size());
