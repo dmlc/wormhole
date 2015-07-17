@@ -17,7 +17,7 @@ class WorkloadPool {
     straggler_killer_ = new std::thread([this]() {
         while (!done_) {
           RemoveStraggler();
-          sleep(1);
+          sleep(2);
         }
       });
   }
@@ -111,6 +111,13 @@ class WorkloadPool {
                     << " in " << time << " sec.";
         }
         it = assigned_.erase(it);
+
+        size_t as = assigned_.size();
+        if (as < 5) {
+          std::string nodes;
+          for (const auto& a : assigned_) nodes += " " + a.node;
+          LOG(INFO) << "the last " << as << " jobs:" << nodes;
+        }
       } else {
         ++ it;
       }
@@ -151,7 +158,7 @@ class WorkloadPool {
         assigned_.push_back(a);
         wl->file.push_back(a.Get());
         LOG(INFO) << "assign " << id << " job " << a.DebugStr()
-                  << ". #jobs on processing: " << assigned_.size();
+                  << ". " << assigned_.size() << " #jobs on processing.";
         t.track[k] = 1;
         return;
       }
@@ -160,7 +167,7 @@ class WorkloadPool {
 
   void RemoveStraggler() {
     std::lock_guard<std::mutex> lk(mu_);
-    if (time_.size() < 10); return;
+    if (time_.size() < 10) return;
     double mean = 0;
     for (double t : time_) mean += t;
     mean /= time_.size();
