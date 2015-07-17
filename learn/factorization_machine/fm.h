@@ -17,7 +17,7 @@ class Progress : public VectorProgress {
 
   /// head string for printing
   virtual std::string HeadStr() {
-    return " ttl #ex  inc #ex |  |w|_0  logloss_w |   |V|_0    logloss    AUC";
+    return "  ttl #ex   inc #ex |  |w|_0  logloss_w |   |V|_0    logloss    AUC";
   }
 
   /// string for printing
@@ -27,7 +27,7 @@ class Progress : public VectorProgress {
     double cnt = (double)count();
     double num = (double)num_ex();
     char buf[256];
-    snprintf(buf, 256, "%7.2g  %7.2g | %9.4g  %6.4lf | %9.4g  %7.5lf  %7.5lf ",
+    snprintf(buf, 256, "%9.4g  %7.2g | %9.4g  %6.4lf | %9.4g  %7.5lf  %7.5lf ",
              (double)(p->num_ex() + num), num,
              (double)(p->nnz_w() + nnz_w()), objv_w() / num,
              (double)(p->nnz_V() + nnz_V()), objv() / num, auc() / cnt);
