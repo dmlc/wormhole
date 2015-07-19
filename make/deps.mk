@@ -42,7 +42,7 @@ ${DEPS_PATH}/include/zmq.h:
 	$(eval DIR=zeromq-4.1.0)
 	rm -rf $(FILE) $(DIR)
 	wget $(URL)/$(FILE) && tar -zxf $(FILE)
-	cd $(DIR) && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+	cd $(DIR) && ./configure -prefix=$(DEPS_PATH) --with-libsodium=no --with-libgssapi_krb5=no && $(MAKE) && $(MAKE) install
 	rm -rf $(FILE) $(DIR)
 
 zmq: | ${DEPS_PATH}/include/zmq.h
