@@ -11,8 +11,7 @@ if [ ${TASK} == "doc" ]; then
 fi
 
 if [ ${TASK} == "build" ]; then
-    # make ps guide DEPS_PATH=${CACHE_PREFIX} CXX=${CXX} || exit -1
-    echo TODO
+    make -j4 DEPS_PATH=${CACHE_PREFIX} CXX=${CXX} || exit -1
 fi
 
 if [ ${TASK} == "unittest_gtest" ]; then

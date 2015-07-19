@@ -4,7 +4,7 @@ sudo: false
 # Use Build Matrix to do lint and build seperately
 env:
   matrix:
-#    - TASK=build CXX=g++-4.8
+    - TASK=build CXX=g++-4.8
 #    - TASK=lint LINT_LANG=cpp
 #    - TASK=doc
 #    - TASK=unittest_gtest CXX=g++
@@ -27,7 +27,7 @@ before_install:
 
 install:
   - pip install cpplint pylint --user `whoami`
-  - make/install_deps.sh ${HOME}/.cache/usr
+  - make -j4 DEPS_PATH=${HOME}/.cache/usr
 
 
 script: ${TRAVIS}/travis_script.sh
