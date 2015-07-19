@@ -37,3 +37,5 @@ config.mk
 *.pb.*
 build
 guide
+deps
+tracker

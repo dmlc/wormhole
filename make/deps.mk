@@ -1,7 +1,9 @@
 # Install dependencies
 
 URL=https://raw.githubusercontent.com/mli/deps/master/build
+
 # gflags
+
 ${DEPS_PATH}/include/google/gflags.h:
 	$(eval FILE=gflags-2.0-no-svn-files.tar.gz)
 	$(eval DIR=gflags-2.0)
@@ -13,6 +15,7 @@ ${DEPS_PATH}/include/google/gflags.h:
 gflags: | ${DEPS_PATH}/include/google/gflags.h
 
 # glog
+
 ${DEPS_PATH}/include/glog/logging.h: | ${DEPS_PATH}/include/google/gflags.h
 	$(eval FILE=glog-0.3.3.tar.gz)
 	$(eval DIR=glog-0.3.3)
