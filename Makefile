@@ -28,18 +28,21 @@ repo/dmlc-core:
 	ln -s repo/dmlc-core/tracker .
 
 repo/dmlc-core/libdmlc.a: | repo/dmlc-core glog
-	+	$(MAKE) -C repo/dmlc-core libdmlc.a config=$(config) DEPS_PATH=$(DEPS_PATH)
+	+	$(MAKE) -C repo/dmlc-core libdmlc.a config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
-core: repo/dmlc-core/libdmlc.a
+core: 							# always build
+	+	$(MAKE) -C repo/dmlc-core libdmlc.a config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 # ps-lite
 repo/ps-lite:
 	git clone https://github.com/dmlc/ps-lite $@
 
 repo/ps-lite/build/libps.a: | repo/ps-lite deps
-	+	$(MAKE) -C repo/ps-lite ps config=$(config) DEPS_PATH=$(DEPS_PATH)
+	+	$(MAKE) -C repo/ps-lite ps config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
-ps-lite: repo/ps-lite/build/libps.a
+
+ps-lite:						# always build
+	+	$(MAKE) -C repo/ps-lite ps config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 # rabit
 repo/rabit:
@@ -79,11 +82,11 @@ bin/kmeans.dmlc: learn/kmeans/kmeans.dmlc
 kmeans: bin/kmeans.dmlc
 
 learn/base/base.a:
-	$(MAKE) -C learn/base DEPS_PATH=$(DEPS_PATH)
+	$(MAKE) -C learn/base DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 # linear
-learn/linear/build/linear.dmlc: repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
-	$(MAKE) -C learn/linear config=$(config) DEPS_PATH=$(DEPS_PATH)
+learn/linear/build/linear.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
+	$(MAKE) -C learn/linear config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 bin/linear.dmlc: learn/linear/build/linear.dmlc
 	cp $+ $@
@@ -91,8 +94,8 @@ bin/linear.dmlc: learn/linear/build/linear.dmlc
 linear: bin/linear.dmlc
 
 # FM
-learn/difacto/build/fm.dmlc: repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
-	make -C learn/difacto config=$(config) DEPS_PATH=$(DEPS_PATH)
+learn/difacto/build/fm.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
+	$(MAKE) -C learn/difacto config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 bin/fm.dmlc: learn/difacto/build/fm.dmlc
 	cp $+ $@
@@ -111,7 +114,7 @@ pull:
 clean:
 	for prefix in $(REPOS); do \
 		if [ -d $$prefix ]; then \
-			cd $$prefix; make clean; cd $(ROOTDIR); \
+			cd $$prefix; $(MAKE) clean; cd $(ROOTDIR); \
 		fi \
 	done
 	rm -rf $(BIN) *~ */*~
