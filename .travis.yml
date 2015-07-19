@@ -27,7 +27,7 @@ before_install:
 
 install:
   - pip install cpplint pylint --user `whoami`
-  - make -j4 DEPS_PATH=${HOME}/.cache/usr
+  - make -j4 deps DEPS_PATH=${HOME}/.cache/usr
 
 
 script: ${TRAVIS}/travis_script.sh

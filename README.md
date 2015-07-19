@@ -26,20 +26,19 @@ List of Tools
 
 Build
 ====
-* Requires a C++11 compiler such as `g++ >=4.8` and `git`
-  - On Ubuntu >= 13.10
-  ```
-  sudo apt-get update && sudo apt-get install -y build-essential git
-  ```
-  - On older Ubuntus
-  ```
-  sudo apt-get install python-software-properties
-  sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-  sudo apt-get update && sudo apt-get -y install gcc-4.8 git make
-  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 50
-  ```
-* Type `make` or `make xgboost` to selectly build one tool
+* Requires a C++11 compiler such as `g++ >=4.8` and `git`. You can install them via
+```
+sudo apt-get update && sudo apt-get install -y build-essential git
+```
+on Ubuntu >= 13.10. For
+[older Ubuntu](http://ubuntuhandbook.org/index.php/2013/08/install-gcc-4-8-via-ppa-in-ubuntu-12-04-13-04/),
+[Centos](http://linux.web.cern.ch/linux/devtoolset/),
+[Mac Os X](http://hpc.sourceforge.net/).
+
+* Type `make` to build all deps and tools, it takes several minutes in the fist time.
+
 * More options are available
+  - `make xgboost` to selectly build one tool
   - `make -j4` uses 4 threads
   - `make CXX=gcc-4.9` changes the compiler
   - `make DEPS_PATH=your_path` changes the path of the deps libaries
