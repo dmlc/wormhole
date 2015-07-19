@@ -1,34 +1,50 @@
 # common make for parameter server applications
 
+ifndef config
 ifneq ("$(wildcard ../../config.mk)","")
-	config = ../../config.mk
+config = ../../config.mk
 else
-	config = ../../make/config.ps.mk
+config = ../../make/config.mk
 endif
-include $(config)
+endif
 
-CORE_PATH=../../dmlc-core
-include $(CORE_PATH)/make/dmlc.mk
+ifndef DEPS_PATH
+DEPS_PATH = ../../deps
+endif
 
 PS_PATH=../../repo/ps-lite
+CORE_PATH=../../repo/dmlc-core
+
+include $(config)
 include $(PS_PATH)/make/ps.mk
-ifndef DEPS_PATH
-DEPS_PATH = $(PS_PATH)/deps
-endif
+include $(CORE_PATH)/make/dmlc.mk
+
+INCLUDE=-I./ -I../ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
+
+CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(INCLUDE) $(DMLC_CFLAGS) $(PS_CFLAGS) $(EXTRA_CFLAGS)
+LDFLAGS = $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
 
 .DEFAULT_GOAL := all
 
-ROOTDIR = $(CURDIR)
-core:
-	make -C $(CORE_PATH) -j4 config=$(ROOTDIR)/$(config)
-clean_core:
-	make -C $(CORE_PATH) clean
-ps:
-	make -C $(PS_PATH) -j4 ps config=$(ROOTDIR)/$(config)
-clean_ps:
-	make -C $(PS_PATH) clean
+$(CORE_PATH)/libdmlc.a:
+	$(MAKE) -C ../.. core
 
-base:
-	make -C ../base -j4 all config=$(ROOTDIR)/$(config)
+$(PS_PATH)/build/libps.a:
+	$(MAKE) -C ../.. ps-lite
 
-INCLUDE=-I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
+../base/base.a:
+	$(MAKE) -C ../.. learn/base/base.a
+
+DMLC_SLIB = $(CORE_PATH)/libdmlc.a $(PS_PATH)/build/libps.a ../base/base.a
+
+build:
+	@mkdir -p build
+
+build/%.o: %.cc | build
+	$(CXX) $(CFLAGS) -MM -MT build/$*.o $< >build/$*.d
+	$(CXX) $(CFLAGS) -c $< -o $@
+
+%.pb.cc %.pb.h : %.proto
+	${DEPS_PATH}/bin/protoc --cpp_out=. --proto_path=. $<
+
+-include build/*.d

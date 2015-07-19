@@ -39,3 +39,4 @@ build
 guide
 deps
 tracker
+*.d

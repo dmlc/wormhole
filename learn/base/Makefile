@@ -1,13 +1,5 @@
 include $(config)
 
-ifndef DEPS_PATH
-DEPS_PATH = ../../repo/ps-lite/deps
-endif
-
-ifndef CXX
-CXX = g++
-endif
-
 all: base.a
 clean:
 	rm -rf base.a proto/*.pb.*
