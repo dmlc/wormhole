@@ -14,11 +14,17 @@ export CC = gcc
 export CXX = g++
 export MPICXX = mpicxx
 
-# whether use HDFS support during compile
-USE_HDFS = 0
+# whether use google logging
+USE_GLOG = 1
 
-# whether use AWS S3 support during compile
+# whether use AWS S3 support during compile, which depends libcurl4-openssl-dev
+# you can install it on ubuntu via
+#   sudo apt-get install libcurl4-openssl-dev
+
 USE_S3 = 0
+
+# whether use HDFS support during compile. libhdfs is required
+USE_HDFS = 0
 
 # path to libjvm.so
 LIBJVM=$(JAVA_HOME)/jre/lib/amd64/server
