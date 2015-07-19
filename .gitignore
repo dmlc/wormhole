@@ -36,7 +36,6 @@ dmlc-core
 config.mk
 *.pb.*
 build
-guide
 deps
 tracker
 *.d

@@ -91,10 +91,10 @@ bin/linear.dmlc: learn/linear/build/linear.dmlc
 linear: bin/linear.dmlc
 
 # FM
-learn/factorization_machine/build/fm.dmlc: repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
-	make -C learn/factorization_machine config=$(config) DEPS_PATH=$(DEPS_PATH)
+learn/difacto/build/fm.dmlc: repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
+	make -C learn/difacto config=$(config) DEPS_PATH=$(DEPS_PATH)
 
-bin/fm.dmlc: learn/factorization_machine/build/fm.dmlc
+bin/fm.dmlc: learn/difacto/build/fm.dmlc
 	cp $+ $@
 
 fm: bin/fm.dmlc

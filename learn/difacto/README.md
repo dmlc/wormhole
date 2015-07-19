@@ -56,18 +56,14 @@ stochastic gradient descent.
 
 ## Build and Run
 
-First run `../../make/build_deps.sh` if you didn't run it before. Then
-`make`. (Only tested on linux with gcc >= 4.8).
-
-Train a small dataset in local machine by 1 worker and 1 server:
+First to go the root directory of `wormhole`, then build by `make linear`. Now
+train a small dataset in local machine by 1 worker and 1 server:
 
 ```
-cd guide
-../../../dmlc-core/tracker/dmlc_local.py -n 1 -s 1 ../build/fm.dmlc demo.conf
+tracker/dmlc_local.py -n 1 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
 ```
 
 More documents:
 
-- [Use bigger datasets](../../doc/data.md)
-- [Launch jobs in multiple machines](../../doc/run.md)
-- [FAQ for build](https://github.com/dmlc/ps-lite/tree/master/make#faq)
+- [Use bigger datasets](../../docs/data.md)
+- [Launch jobs in multiple machines](../../docs/run.md)
