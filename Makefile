@@ -30,7 +30,7 @@ repo/dmlc-core:
 repo/dmlc-core/libdmlc.a: | repo/dmlc-core glog
 	+	$(MAKE) -C repo/dmlc-core libdmlc.a config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
-core: 							# always build
+core: | repo/dmlc-core glog					# always build
 	+	$(MAKE) -C repo/dmlc-core libdmlc.a config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 # ps-lite
@@ -41,7 +41,7 @@ repo/ps-lite/build/libps.a: | repo/ps-lite deps
 	+	$(MAKE) -C repo/ps-lite ps config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 
-ps-lite:						# always build
+ps-lite: | repo/ps-lite deps 	# awlays build
 	+	$(MAKE) -C repo/ps-lite ps config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 # rabit
