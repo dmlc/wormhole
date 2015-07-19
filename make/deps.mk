@@ -40,12 +40,20 @@ protobuf: | ${DEPS_PATH}/include/google/protobuf/message.h
 
 # zmq
 
+# ${DEPS_PATH}/include/zmq.h:
+# 	$(eval FILE=zeromq-4.1.2.tar.gz)
+# 	$(eval DIR=zeromq-4.1.2)
+# 	rm -rf $(FILE) $(DIR)
+# 	wget $(URL)/$(FILE) && tar -zxf $(FILE)
+# 	cd $(DIR) && ./configure -prefix=$(DEPS_PATH) --with-libsodium=no --with-libgssapi_krb5=no && $(MAKE) && $(MAKE) install
+# 	rm -rf $(FILE) $(DIR)
+
 ${DEPS_PATH}/include/zmq.h:
-	$(eval FILE=zeromq-4.1.2.tar.gz)
-	$(eval DIR=zeromq-4.1.2)
+	$(eval FILE=zeromq-4.1.0-rc1.tar.gz)
+	$(eval DIR=zeromq-4.1.0)
 	rm -rf $(FILE) $(DIR)
 	wget $(URL)/$(FILE) && tar -zxf $(FILE)
-	cd $(DIR) && ./configure -prefix=$(DEPS_PATH) --with-libsodium=no --with-libgssapi_krb5=no && $(MAKE) && $(MAKE) install
+	cd $(DIR) && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
 	rm -rf $(FILE) $(DIR)
 
 zmq: | ${DEPS_PATH}/include/zmq.h
