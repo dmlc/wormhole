@@ -12,9 +12,7 @@ endif
 DEPS_PATH=$(CURDIR)/deps
 
 ROOTDIR = $(CURDIR)
-REPOS = dmlc-core repo/xgboost
-# BIN = $(addprefix bin/, xgboost.dmlc kmeans.dmlc linear.dmlc
-# CPBIN = xgboost.dmlc kmeans.dmlc
+REPOS = $(addprefix repo/, dmlc-core xgboost ps-lite rabit)
 
 .PHONY: clean all test pull
 
@@ -114,7 +112,7 @@ pull:
 clean:
 	for prefix in $(REPOS); do \
 		if [ -d $$prefix ]; then \
-			cd $$prefix; $(MAKE) clean; cd $(ROOTDIR); \
+			$(MAKE) -C $$prefix clean; \
 		fi \
 	done
-	rm -rf $(BIN) *~ */*~
+	rm -rf bin/*
