@@ -10,14 +10,21 @@ where *ℓ* is the loss function such as logistic loss and hinge loss.
 
 ## Build and Run
 
-First to go the root directory of `wormhole`, then build by `make linear`. Now
-train a small dataset in local machine by 1 worker and 1 server:
+1. First to go the root directory of `wormhole`, then build by `make linear`. It
+may take several minutes in the first time due to building all dependency libraries.
+
+2. Try a small dataset in local machine by 1 worker and 1 server:
 
 ```
 tracker/dmlc_local.py -n 1 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
 ```
 
-More documents:
+3. More documents:
 
 - [Use bigger datasets](../../docs/data.md)
-- [Launch jobs in multiple machines](../../docs/run.md)
+- [Launch jobs over multiple machines](../../docs/run.md)
+- More are coming soon
+
+## Performance
+
+More are coming soon
