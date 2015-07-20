@@ -48,9 +48,14 @@ on Ubuntu >= 13.10. For
 
 How to Submit Jobs
 ====
-* make sure `repo/dmlc-core` exist
-  - type ```make repo/dmlc-core``` to get it
-* Use the submission script in ```tracker/``` to submit job to the platform of your choice
+* All tools can run both in your laptop and in a cluster. For example, the following
+command runs linear logistic regression using single worker and server on a
+small dataset.
+```
+tracker/dmlc_local.py -n 1 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
+```
+
+* See more trackers in ```tracker/```
 
 Contributing
 ====

@@ -1,7 +1,7 @@
 # Linear Method
 
-Given data pairs *(x,y)*, the linear method learn the model vector *w* by minizing the
-following objective function
+Given data pairs *(x,y)*, the linear method learns the model vector *w* by minizing the
+following objective function:
 
 ![obj](guide/obj.png)
 
