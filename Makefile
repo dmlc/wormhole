@@ -72,7 +72,7 @@ xgboost: bin/xgboost.dmlc
 
 # kmeans
 learn/kmeans/kmeans.dmlc: learn/kmeans/kmeans.cc | repo/rabit/lib/librabit.a repo/dmlc-core/libdmlc.a
-	+	$(MAKE) -C learn/kmeans kmeans.dmlc
+	+	$(MAKE) -C learn/kmeans kmeans.dmlc DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 bin/kmeans.dmlc: learn/kmeans/kmeans.dmlc
 	cp $+ $@
