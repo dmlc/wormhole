@@ -115,4 +115,4 @@ clean:
 			$(MAKE) -C $$prefix clean; \
 		fi \
 	done
-	rm -rf bin/*
+	rm -rf bin/*.dmlc
