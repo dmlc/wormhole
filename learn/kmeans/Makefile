@@ -9,7 +9,7 @@ endif
 include $(config)
 include ../../repo/dmlc-core/make/dmlc.mk
 
-export LDFLAGS= -L../../lib -pthread -lm -lrt $(DMLC_LDFLAGS)
+export LDFLAGS= -L../../lib $(DEPS_PATH)/lib/libglog.a $(DEPS_PATH)/lib/libgflags.a -pthread -lm -lrt $(DMLC_LDFLAGS)
 export CFLAGS = -Wall  -msse2  -Wno-unknown-pragmas -fPIC -I../../repo/rabit/include  -I../../repo/dmlc-core/include -std=c++11
 
 BIN = kmeans.dmlc
