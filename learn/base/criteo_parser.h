@@ -24,7 +24,7 @@ namespace data {
 template <typename IndexType>
 class CriteoParser : public ParserImpl<IndexType> {
  public:
-  static const int kNumBitForFeaGrp = 6;
+  static const int kNumBitForFeaGrp = 10;
   explicit CriteoParser(InputSplit *source)
       : bytes_read_(0), source_(source) { }
   virtual ~CriteoParser() {
