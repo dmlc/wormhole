@@ -92,7 +92,7 @@ class CompressedRowBlock {
     dst->resize(len);
     int dst_size = len * sizeof(T);
     CHECK_EQ(dst_size, LZ4_decompress_safe(
-        cdata_ + cur_len_, dst->data(), cp_size, dst_size));
+        cdata_ + cur_len_, (char*)dst->data(), cp_size, dst_size));
     cur_len_ += cp_size;
   }
 

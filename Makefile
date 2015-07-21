@@ -79,11 +79,11 @@ bin/kmeans.dmlc: learn/kmeans/kmeans.dmlc
 
 kmeans: bin/kmeans.dmlc
 
-learn/base/base.a:
-	$(MAKE) -C learn/base DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
+# learn/base/base.a:
+# 	$(MAKE) -C learn/base DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 # linear
-learn/linear/build/linear.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
+learn/linear/build/linear.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
 	$(MAKE) -C learn/linear config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 bin/linear.dmlc: learn/linear/build/linear.dmlc
@@ -92,7 +92,7 @@ bin/linear.dmlc: learn/linear/build/linear.dmlc
 linear: bin/linear.dmlc
 
 # FM
-learn/difacto/build/fm.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a learn/base/base.a
+learn/difacto/build/fm.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
 	$(MAKE) -C learn/difacto config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
 bin/fm.dmlc: learn/difacto/build/fm.dmlc

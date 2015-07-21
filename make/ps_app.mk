@@ -32,10 +32,7 @@ $(CORE_PATH)/libdmlc.a:
 $(PS_PATH)/build/libps.a:
 	$(MAKE) -C ../.. ps-lite
 
-../base/base.a:
-	$(MAKE) -C ../.. learn/base/base.a
-
-DMLC_SLIB = $(CORE_PATH)/libdmlc.a $(PS_PATH)/build/libps.a ../base/base.a
+DMLC_SLIB = $(CORE_PATH)/libdmlc.a $(PS_PATH)/build/libps.a
 
 build:
 	@mkdir -p build

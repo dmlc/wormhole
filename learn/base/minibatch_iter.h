@@ -12,6 +12,7 @@
 #include "data/libsvm_parser.h"
 #include "base/adfea_parser.h"
 #include "base/criteo_parser.h"
+#include "base/crb_parser.h"
 #include "base/utils.h"
 namespace dmlc {
 namespace data {
@@ -38,18 +39,15 @@ class MinibatchIter {
       if (!strcmp(type, "libsvm")) {
         parser_ = new LibSVMParser<IndexType>(
             InputSplit::Create(uri, part_index, num_parts, "text"), 1);
-      } else if (!strcmp(type, "criteo_rec")) {
-        parser_ = new CriteoRecParser<IndexType>(
-            InputSplit::Create(uri, part_index, num_parts, "recordio"));
       } else if (!strcmp(type, "criteo")) {
         parser_ = new CriteoParser<IndexType>(
             InputSplit::Create(uri, part_index, num_parts, "text"));
-      } else if (!strcmp(type, "adfea_rec")) {
-        parser_ = new AdfeaRecParser<IndexType>(
-            InputSplit::Create(uri, part_index, num_parts, "recordio"));
       } else if (!strcmp(type, "adfea")) {
         parser_ = new AdfeaParser<IndexType>(
             InputSplit::Create(uri, part_index, num_parts, "text"));
+      } else if (!strcmp(type, "crb")) {
+        parser_ = new CRBParser<IndexType>(
+            InputSplit::Create(uri, part_index, num_parts, "recordio"));
       } else {
         LOG(FATAL) << "unknown datatype " << type;
       }
