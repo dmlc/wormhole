@@ -13,7 +13,7 @@
 #include "base/adfea_parser.h"
 #include "base/criteo_parser.h"
 #include "base/crb_parser.h"
-#include "base/utils.h"
+#include "base/debug.h"
 namespace dmlc {
 namespace data {
 

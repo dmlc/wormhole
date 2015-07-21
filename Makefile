@@ -16,7 +16,7 @@ REPOS = $(addprefix repo/, dmlc-core xgboost ps-lite rabit)
 
 .PHONY: clean all test pull
 
-all: xgboost kmeans linear fm
+all: xgboost kmeans linear fm bin/text2crb
 
 ### repos and deps
 
@@ -79,9 +79,6 @@ bin/kmeans.dmlc: learn/kmeans/kmeans.dmlc
 
 kmeans: bin/kmeans.dmlc
 
-# learn/base/base.a:
-# 	$(MAKE) -C learn/base DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
-
 # linear
 learn/linear/build/linear.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
 	$(MAKE) -C learn/linear config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
@@ -100,6 +97,11 @@ bin/fm.dmlc: learn/difacto/build/fm.dmlc
 
 fm: bin/fm.dmlc
 
+# tools
+
+bin/text2crb:
+	$(MAKE) -C learn/tool text2crb config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
+	cp learn/tool/text2crb $@
 
 
 pull:
