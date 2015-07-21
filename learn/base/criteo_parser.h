@@ -23,8 +23,9 @@ template <typename IndexType>
 class CriteoParser : public ParserImpl<IndexType> {
  public:
   static const int kNumBitForFeaGrp = 10;
-  explicit CriteoParser(InputSplit *source)
-      : bytes_read_(0), source_(source) { }
+  explicit CriteoParser(InputSplit *source, bool is_train)
+      : bytes_read_(0), source_(source), is_train_(is_train) {
+  }
   virtual ~CriteoParser() {
     delete source_;
   }
@@ -52,10 +53,14 @@ class CriteoParser : public ParserImpl<IndexType> {
       if (p == end) break;
 
       // parse label
-      pp = Find(p, end, '\t');
-      CHECK_NE(pp, p) << "cannot parse criteo test data";
-      blk.label.push_back(atof(p));
-      p = pp + 1;
+      if (is_train_) {
+        pp = Find(p, end, '\t');
+        CHECK_NE(p, pp) << "no label.., try criteo_test";
+        blk.label.push_back(atof(p));
+        p = pp + 1;
+      } else {
+        blk.label.push_back(0);
+      }
 
       // parse inter feature
       for (IndexType i = 0; i < 13; ++i) {
@@ -69,13 +74,13 @@ class CriteoParser : public ParserImpl<IndexType> {
 
       // parse categorty feature
       for (int i = 0; i < 26; ++i) {
-        if (isspace(*p)) {
-          ++ p; continue;
-        }
-        pp = p + 8; CHECK(isspace(*pp)) << *pp;
+        if (p == end) break;
+        if (isspace(*p)) { ++ p; continue; }
+        pp = p + 8; CHECK(isspace(*pp)) << i << " " << end - p << " " << *p;
         size_t len = pp - p;
         if (len) blk.index.push_back((CityHash64(p, len)<<kNumBitForFeaGrp)+i+13);
         p = pp + 1;
+        if (*pp == '\n' || *pp == '\r') break;
       }
       blk.offset.push_back(blk.index.size());
     }
@@ -94,6 +99,7 @@ class CriteoParser : public ParserImpl<IndexType> {
   size_t bytes_read_;
   // source split that provides the data
   InputSplit *source_;
+  bool is_train_;
 };
 
 }  // namespace data

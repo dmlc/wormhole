@@ -41,7 +41,10 @@ class MinibatchIter {
             InputSplit::Create(uri, part_index, num_parts, "text"), 1);
       } else if (!strcmp(type, "criteo")) {
         parser_ = new CriteoParser<IndexType>(
-            InputSplit::Create(uri, part_index, num_parts, "text"));
+            InputSplit::Create(uri, part_index, num_parts, "text"), true);
+      } else if (!strcmp(type, "criteo_test")) {
+        parser_ = new CriteoParser<IndexType>(
+            InputSplit::Create(uri, part_index, num_parts, "text"), false);
       } else if (!strcmp(type, "adfea")) {
         parser_ = new AdfeaParser<IndexType>(
             InputSplit::Create(uri, part_index, num_parts, "text"));

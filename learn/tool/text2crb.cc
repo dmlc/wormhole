@@ -36,7 +36,9 @@ with each part <= part_size MB \n");
   if (!strcmp(type, "libsvm")) {
     parser = new LibSVMParser<IndexType>(in, 1);
   } else if (!strcmp(type, "criteo")) {
-    parser = new CriteoParser<IndexType>(in);
+    parser = new CriteoParser<IndexType>(in, true);
+  } else if (!strcmp(type, "criteo_test")) {
+    parser = new CriteoParser<IndexType>(in, false);
   } else if (!strcmp(type, "adfea")) {
     parser = new AdfeaParser<IndexType>(in);
   } else {
