@@ -4,72 +4,108 @@
 package dmlc.linear;
 
 message Config {
-  //
-  // data
-  //
+
+  /////////////////////////////////////////////////
+  //       basic settings - input & output
+  /////////////////////////////////////////////////
+
+  // data. can be either a directory or a wildcard filename such as
+  // "part-[0-9].*". also support hdfs:// and s3://
   optional string train_data = 1;
   optional string val_data = 2;
+  // libsvm, crb, criteo, adfea, ...
   optional string data_format = 4 [default = "libsvm"];
-  // partition a file into npart
-  optional int32 num_parts_per_file = 5 [default = 1];
-  optional bool use_worker_local_data = 3;
 
-  //
-  // model
-  //
+  // virtually partition a file into nparts for better loadbalance.
+  optional int32 num_parts_per_file = 5 [default = 10];
+
+  // input and output model diretory.
   optional string model_in = 10;
   optional string model_out = 11;
+
+  // output results diretory
+  optional string res_out = 12;
+
+  // for TRAIN, train_data must be given
+  // for RPEDICT, val_data, model_in, and res_out must be given
+  enum Task {
+    TRAIN = 1;
+    PREDICT = 2;
+  }
+  optional Task task = 13 [default = TRAIN];
+
+  ////////////////////////////////////////////////////////////
+  //       basic settings - objective and optimization
+  ///////////////////////////////////////////////////////////
 
   // objective function
   enum Loss {
     SQUARE = 1;
     LOGIT = 2;
-    // HINGE = 3;
     SQUARE_HINGE = 4;
+    // HINGE = 3;
   }
   optional Loss loss = 20 [default = LOGIT];
 
   // regularizer: lambda_l1 * ||w||_1 + .5 * lambda_l2 * ||w||_F^2
-  optional float lambda_l1 = 21;
-  optional float lambda_l2 = 22;
+  optional float lambda_l1 = 21 [default = 1];
+  optional float lambda_l2 = 22 [default = 0];
 
-  //
   // optimization methods
-  //
   enum Algo {
-    // (minibatch) online methods
+    // minibatch SGD
     SGD = 1;     // standard sgd
     ADAGRAD = 2; // adaptive gradient descent
     FTRL = 3;
   }
   optional Algo algo = 30 [default = FTRL];
 
-  // the size of minibatch for online methods
+  // the size of minibatch for minibatch SGD. a small value improves the
+  // convergence rate, but may decrease the system performance
   optional int32 minibatch = 31 [default = 1000];
 
   // the maximal number of data passes
   optional int32 max_data_pass = 32 [default = 10];
 
+  // learning rate, often in the format lr_eta / (lr_beta + x), where x depends
+  // on the updater, such as sqrt(iter), or the cumulative gradient on adagrad
+  optional float lr_eta = 41 [default = .01];
+
+  //////////////////////////////////////
+  //      advanced settings
+  //////////////////////////////////////
+
+  // each worker reads the data in local if the data have been
+  // dispatched into workers' local disks. it can reduce the cost to access data
+  // remotely
+  optional bool use_worker_local_data = 3;
+
+  // randomly shuffle data for minibatch SGD. a minibatch is randomly pick from
+  // rand_shuffle * minibatch_size examples.
+  optional int32 rand_shuffle = 101 [default = 10];
+
   // print the progress every n sec
   optional float disp_itv = 33 [default = 1];
 
-  // learning rate, often in the format lr_eta / (lr_beta + x), where x is
-  // user-defined, such as sqrt(iter), or the cumulative gradient on adagrad
-  optional float lr_eta = 41;
-  optional float lr_beta = 42;
+  // learning rate
+  optional float lr_beta = 42 [default = 1];
 
+  // number of threads used within a worker and a server
   optional int32 num_threads = 60 [default = 2];
-  //
-  // to reduce sync cost
-  //
-  // maximal allowed delay during synchronization
+
+  // maximal allowed delay during synchronization. it is the maximal number of
+  // parallel minibatches for SGD, and parallel block for block CD.
   optional int32 max_delay = 50 [default = 0];
-  // communication filters
+
+  // cache the key list on both sender and receiver to reduce communication
+  // cost. it may increase the memory usage
   optional bool key_cache = 51 [default = true];
+
+  // compression the message to reduce communication cost. it may increase the
+  // computation cost.
   optional bool msg_compression = 52 [default = true];
-  // 0 means no fixing
-  optional int32 fixed_bytes = 53 [default = 1];
 
-
-  optional int32 rand_shuffle = 101;
+  // convert floating-points into fixed-point integers with n bytes. n can be 1,
+  // 2 and 3. 0 means no compression.
+  optional int32 fixed_bytes = 53 [default = 0];
 }
