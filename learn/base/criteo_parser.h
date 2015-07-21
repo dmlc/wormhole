@@ -24,6 +24,7 @@ namespace data {
 template <typename IndexType>
 class CriteoParser : public ParserImpl<IndexType> {
  public:
+  static const int kNumBitForFeaGrp = 6;
   explicit CriteoParser(InputSplit *source)
       : bytes_read_(0), source_(source) { }
   virtual ~CriteoParser() {
@@ -63,7 +64,7 @@ class CriteoParser : public ParserImpl<IndexType> {
         pp = Find(p, end, '\t');
         CHECK_NOTNULL(pp);
         if (pp > p) {
-          blk.index.push_back((CityHash64(p, pp-p)<<6)+i);
+          blk.index.push_back((CityHash64(p, pp-p)<<kNumBitForFeaGrp)+i);
         }
         p = pp + 1;
       }
@@ -75,7 +76,7 @@ class CriteoParser : public ParserImpl<IndexType> {
         }
         pp = p + 8; CHECK(isspace(*pp)) << *pp;
         size_t len = pp - p;
-        if (len) blk.index.push_back((CityHash64(p, len)<<6)+i+13);
+        if (len) blk.index.push_back((CityHash64(p, len)<<kNumBitForFeaGrp)+i+13);
         p = pp + 1;
       }
       blk.offset.push_back(blk.index.size());

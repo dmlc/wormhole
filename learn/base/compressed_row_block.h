@@ -14,31 +14,39 @@ namespace data {
  */
 class CompressedRowBlock {
  public:
+  template <typename IndexType>
   void Compress(RowBlock<IndexType> blk, std::string* str) {
-    str->resize(MaxCompressionSize());
-    data_ = str->data(); cur_len_ = 0; max_len_ = str->size();
+    str->clear();
+    str->reserve(MaxCompressionSize(blk));
+    str_ = str;
+    // data_ = str->data(); cur_len_ = 0; max_len_ = str->size();
 
     int nrows = blk.size;
-    int nnz = blk.offset[nrow] - blk.offset[0];
+    int nnz = blk.offset[nrows] - blk.offset[0];
 
+    Write(kMagicNumber);
+    Write(sizeof(IndexType));
     Write(nrows);
-    Compress(blk.label, nrows * sizeof(real_t));
-    Compress(blk.offset, (nrows+1) * sizeof(size_t));
-    Compress(blk.index, nnz * sizeof(IndexType));
-    Compress(blk.value, nnz * sizeof(real_t));
-    Compress(blk.weight, nrows * sizeof(real_t));
-
-    str->resize(cur_len_);
+    Compress((const char*)blk.label, nrows * sizeof(real_t));
+    Compress((const char*)blk.offset, (nrows+1) * sizeof(size_t));
+    Compress((const char*)blk.index, nnz * sizeof(IndexType));
+    Compress((const char*)blk.value, nnz * sizeof(real_t));
+    Compress((const char*)blk.weight, nrows * sizeof(real_t));
   }
 
+  template <typename IndexType>
   void Decompress(const std::string&str,
                   RowBlockContainer<IndexType>* blk) {
     Decompress(str.data(), str.size(), blk);
   }
 
-  void Decompress(const char const* data, size_t size,
+  template <typename IndexType>
+  void Decompress(char const* data, size_t size,
                   RowBlockContainer<IndexType>* blk) {
     cdata_ = data; cur_len_ = 0; max_len_ = size;
+    CHECK_EQ(Read(), kMagicNumber) << "wrong data format";
+    CHECK_EQ(Read(), (int)sizeof(IndexType)) << "wrong indextype";
+
     int nrows = Read();
     Decompress(&blk->label, nrows);
     Decompress(&blk->offset, nrows + 1);
@@ -51,9 +59,10 @@ class CompressedRowBlock {
   }
 
  private:
+  template <typename IndexType>
   size_t MaxCompressionSize(RowBlock<IndexType> blk) {
     int nrows = blk.size;
-    int nnz = blk.offset[nrow] - blk.offset[0];
+    int nnz = blk.offset[nrows] - blk.offset[0];
     size_t size = 6 * sizeof(int)  // size
                   + LZ4_compressBound((nrows+1)*sizeof(size_t));  // offset
     if (blk.label) size += LZ4_compressBound(nrows*sizeof(size_t));
@@ -63,16 +72,16 @@ class CompressedRowBlock {
     return size;
   }
 
-  void Compress(const char* data, char* size) {
+  void Compress(const char* data, size_t size) {
+    if (data == NULL) { Write(0); return; }
+
     int dst_size = LZ4_compressBound(size);
     char *dst = new char[dst_size];
     int actual_size = LZ4_compress_default(data, dst, size, dst_size);
     CHECK_NE(actual_size, 0);
 
     Write(actual_size);
-    CHECK_LE(actual_size + cur_len_, max_len_);
-    memcpy(data_ + cur_len_, dst, actual_size);
-    cur_len_ + actual_size;
+    str_->append(dst, actual_size);
   }
 
   template <typename T>
@@ -88,9 +97,7 @@ class CompressedRowBlock {
   }
 
   void Write(int num) {
-    CHECK_LE(cur_len_ + sizeof(int), max_len_);
-    memcpy(data_+cur_len_, &num, sizeof(int));
-    cur_len_ += sizeof(int);
+    str_->append((const char*)&num, sizeof(int));
   }
 
   int Read() {
@@ -98,11 +105,14 @@ class CompressedRowBlock {
     int ret;
     memcpy(&ret, cdata_+cur_len_, sizeof(int));
     cur_len_ += sizeof(int);
+    return ret;
   }
 
-  char* data_;
+  // char* data_;
+  std::string* str_;
   char const* cdata_;
   size_t max_len_, cur_len_;
+  static const int kMagicNumber = 1196140743;
 };
 
 
