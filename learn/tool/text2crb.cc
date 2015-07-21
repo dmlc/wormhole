@@ -46,26 +46,48 @@ with each part <= part_size MB \n");
 
   // output
 
-  size_t part_size = -1;
+
+  std::string outbase = argv[2];
+
+  size_t part_size = (size_t)-1;
+  size_t nwrite = (size_t)-1;
+  int ipart = 0;
   if (argc > 4) part_size = atoi(argv[4]) * 1000000;
 
-  Stream *out = CHECK_NOTNULL(Stream::Create(argv[2], "wb"));
-  RecordIOWriter writer(out);
+
+  Stream *out = NULL;
+  RecordIOWriter* writer = NULL;
+  char outfile[1000];
 
   // convert
   parser->BeforeFirst();
 
-  size_t nwrite = 0;
   std::string str;
   CompressedRowBlock cblk;
   while (parser->Next()) {
+
+    if (nwrite >= part_size) {
+      if (part_size == (size_t)-1) {
+        snprintf(outfile, 1000, "%s", argv[2]);
+      } else {
+        snprintf(outfile, 1000, "%s-part_%02d", argv[2], ipart);
+        ipart ++;
+      }
+      delete out;
+      delete writer;
+      out = CHECK_NOTNULL(Stream::Create(outfile, "wb"));
+      nwrite = 0;
+      writer = new RecordIOWriter(out);
+    }
+
     cblk.Compress(parser->Value(), &str);
-    writer.WriteRecord(str);
+    writer->WriteRecord(str);
     nwrite += str.size();
   }
 
-  delete out;
   delete in;
+  delete out;
+  delete writer;
 
   return 0;
 }
