@@ -58,7 +58,7 @@ class AsyncSGDScheduler : public ps::App {
     load_model_        = conf.load_model();
     model_in_          = conf.model_in();
     model_out_         = conf.model_out();
-    predict_           = conf.task() == Config::PREDICT;
+    predict_           = conf.pred_out().size() > 0;
   }
 
  public:
@@ -102,7 +102,7 @@ class AsyncSGDScheduler : public ps::App {
     }
 
     if (model_in_.size()) {
-      if (load_model_ >= 0) {
+      if (load_model_ > 0) {
         printf("loading model from #iter = %d\n", load_model_);
         cur_data_pass_ = load_model_;
       } else {
@@ -339,7 +339,7 @@ class AsyncSGDWorker : public ps::App {
     minibatch_size_ = conf.minibatch();
     shuffle_        = conf.rand_shuffle();
     max_delay_      = conf.max_delay();
-    predict_        = conf.task() == Config::PREDICT;
+    predict_        = conf.pred_out().size() > 0;
     if (conf.use_worker_local_data()) {
       train_data_        = conf.train_data();
       val_data_          = conf.val_data();

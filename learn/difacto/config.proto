@@ -27,6 +27,8 @@ message Config {
   // save model for every *save_model* data pass
   optional int32 save_model = 13;
 
+  optional string pred_out = 15;
+
   // for w
   optional float lambda_l2 = 20;
   optional float lambda_l1 = 21;
@@ -34,12 +36,6 @@ message Config {
   // user-defined, such as sqrt(iter), or the cumulative gradient on adagrad
   optional float lr_eta = 41;
   optional float lr_beta = 42;
-
-  enum Task {
-    TRAIN = 1;
-    PREDICT = 2;
-  }
-  optional Task task = 15 [default = TRAIN];
 
   // for V
   message Embedding {

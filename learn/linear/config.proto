@@ -33,14 +33,6 @@ message Config {
   // output results diretory
   optional string pred_out = 13;
 
-  // for TRAIN, train_data must be given
-  // for RPEDICT, val_data, model_in, and res_out must be given
-  enum Task {
-    TRAIN = 1;
-    PREDICT = 2;
-  }
-  optional Task task = 15 [default = TRAIN];
-
   ////////////////////////////////////////////////////////////
   //       basic settings - objective and optimization
   ///////////////////////////////////////////////////////////
