@@ -120,8 +120,13 @@ class AsyncSGDScheduler : public ps::App {
   void SaveModel(bool force) {
     if (save_model_ == 0) return;
     if (force || cur_data_pass_ % save_model_ == 0) {
-      printf("saving model #iter = %d\n", cur_data_pass_);
-      ps::Task task; task.set_cmd(kSaveModel + cur_data_pass_ * kMaxNumCmd);
+      int iter = force ? -1 : cur_data_pass_;
+      if (iter == -1) {
+        printf("saving final model\n");
+      } else {
+        printf("saving model #iter = %d\n", iter);
+      }
+      ps::Task task; task.set_cmd(kSaveModel + iter * kMaxNumCmd);
       Wait(Submit(task, ps::kServerGroup));
     }
   }
@@ -209,14 +214,21 @@ class AsyncSGDScheduler : public ps::App {
  **************************************************************************/
 class AsyncSGDServer : public ps::App {
  protected:
-  virtual void SaveModel(int iter) = 0;
-  virtual void LoadModel(int iter) = 0;
-
   /**
    * \brief Report the progress to the scheduler
    */
   void Report(const IProgress* const prog) {
     reporter_.Report(prog);
+  }
+
+  virtual void SaveModel(int iter) = 0;
+  virtual void LoadModel(int iter) = 0;
+
+  std::string ModelName(const std::string& base, int iter) {
+    CHECK(base.size()) << "empty model name";
+    std::string name = base;
+    if (iter >= 0) name += "_iter-" + std::to_string(iter);
+    return name + "_part-" + std::to_string(ps::MyRank());
   }
 
  public:
@@ -237,6 +249,7 @@ class AsyncSGDServer : public ps::App {
 
  private:
   ProgressReporter reporter_;
+
 };
 
 /*****************************************************************************

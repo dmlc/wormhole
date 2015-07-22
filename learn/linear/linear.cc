@@ -24,6 +24,8 @@ App* App::Create(int argc, char *argv[]) {
 }
 }  // namespace ps
 
+int64_t dmlc::linear::ISGDHandle::new_w = 0;
+
 int main(int argc, char *argv[]) {
   return ps::RunSystem(&argc, &argv);
 }

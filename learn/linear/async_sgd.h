@@ -22,18 +22,18 @@ struct ISGDHandle {
   inline void Start(bool push, int timestamp, int cmd, void* msg) { }
   // report
   inline void Finish() {
-    if (new_w_nnz > 1000) {
-      Progress prog; prog.nnz_w() = new_w_nnz;
+    if (new_w > 1000) {
+      Progress prog; prog.nnz_w() = new_w;
       if (reporter) reporter(prog);
-      new_w_nnz = 0;
+      new_w = 0;
     }
   }
 
-  inline void Report(Real cur_w, Real old_w) {
+  inline static void Report(Real cur_w, Real old_w) {
     if (old_w == 0 && cur_w != 0) {
-      ++ new_w_nnz;
+      ++ new_w;
     } else if (old_w != 0 && cur_w == 0) {
-      -- new_w_nnz;
+      -- new_w;
     }
   }
 
@@ -46,14 +46,27 @@ struct ISGDHandle {
   Real alpha = 0.1, beta = 1;
 
   std::function<void(const Progress& prog)> reporter;
-  int64_t new_w_nnz = 0;
-
+  static int64_t new_w;
 };
 
+template <typename T> inline void TLoad(Stream* fi, T* ptr) {
+  fi->Read(ptr, sizeof(T));
+  ISGDHandle::Report(ptr->w, 0);
+}
+
+template <typename T> inline void TSave(Stream* fo, T* const ptr) {
+
+}
 /*********************************************************************
  * \brief Standard SGD
  * use alpha / ( beta + sqrt(t)) as the learning rate
  *********************************************************************/
+struct SGDEntry {
+  Real w = 0;
+  inline void Load(Stream *fi) { TLoad(fi, this); }
+  inline void Save(Stream *fo) const { TSave(fo, this); }
+};
+
 struct SGDHandle : public ISGDHandle {
  public:
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
@@ -62,14 +75,14 @@ struct SGDHandle : public ISGDHandle {
       t += 1;
     }
   }
-  inline void Push(FeaID key, Blob<const Real> grad, Real& w) {
-    Real old_w = w;
-    w = penalty.Solve(eta * w - grad[0], eta);
-    Report(w, old_w);
+  inline void Push(FeaID key, Blob<const Real> grad, SGDEntry& w) {
+    Real old_w = w.w;
+    w.w = penalty.Solve(eta * w.w - grad[0], eta);
+    Report(w.w, old_w);
   }
 
-  inline void Pull(FeaID key, const Real& w, Blob<Real>& send) {
-    send[0] = w;
+  inline void Pull(FeaID key, const SGDEntry& w, Blob<Real>& send) {
+    send[0] = w.w;
   }
   // iteration count
   int t = 1;
@@ -86,8 +99,8 @@ struct SGDHandle : public ISGDHandle {
 
 struct AdaGradEntry {
   Real w = 0; Real sq_cum_grad = 0;
-  void Load(Stream* fi) { }
-  void Save(Stream *fo) const { }
+  inline void Load(Stream *fi) { TLoad(fi, this); }
+  inline void Save(Stream *fo) const { TSave(fo, this); }
 };
 
 struct AdaGradHandle : public ISGDHandle {
@@ -122,8 +135,8 @@ struct AdaGradHandle : public ISGDHandle {
 
 struct FTRLEntry {
   Real w = 0; Real z = 0; Real sq_cum_grad = 0;
-  void Load(Stream* fi) { }
-  void Save(Stream *fo) const { }
+  inline void Load(Stream *fi) { TLoad(fi, this); }
+  inline void Save(Stream *fo) const { TSave(fo, this); }
 };
 
 struct FTRLHandle : public ISGDHandle {
@@ -158,7 +171,7 @@ class AsgdServer : public solver::AsyncSGDServer {
   AsgdServer(const Config& conf) : conf_(conf) {
     auto algo = conf_.algo();
     if (algo == Config::SGD) {
-      // CreateServer<Real, SGDHandle>();
+      CreateServer<SGDEntry, SGDHandle>();
     } else if (algo == Config::ADAGRAD) {
       CreateServer<AdaGradEntry, AdaGradHandle>();
     } else if (algo == Config::FTRL) {
@@ -166,6 +179,8 @@ class AsgdServer : public solver::AsyncSGDServer {
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }
+
+
   }
   virtual ~AsgdServer() { }
  protected:
@@ -184,10 +199,24 @@ class AsgdServer : public solver::AsyncSGDServer {
     server_ = s.server();
   }
 
-  Config conf_;
+  void LoadModel(int iter) {
+    auto filename = ModelName(conf_.model_in(), iter);
+    Stream* fi = CHECK_NOTNULL(Stream::Create(filename.c_str(), "r"));
+    server_->Load(fi);
 
-  void LoadModel(int iter) {}
-  void SaveModel(int iter) {}
+    Progress prog;
+    prog.nnz_w() = ISGDHandle::new_w;
+    Report(&prog);
+  }
+
+  void SaveModel(int iter) {
+    auto filename = ModelName(conf_.model_out(), iter);
+    LOG(INFO) << filename;
+    Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
+    server_->Save(fo);
+  }
+
+  Config conf_;
   ps::KVStore* server_;
 };
 
