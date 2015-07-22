@@ -24,6 +24,16 @@ class CompressedRowBlock {
     int nrows = blk.size;
     int nnz = blk.offset[nrows] - blk.offset[0];
 
+    if (blk.value) {
+      bool bin = true;
+      for (int i = 0; i < nnz; ++i) {
+        if (blk.value[i] != 1) {
+          bin = false; break;
+        }
+      }
+      if (bin) blk.value = NULL;
+    }
+
     Write(kMagicNumber);
     Write(sizeof(IndexType));
     Write(nrows);
