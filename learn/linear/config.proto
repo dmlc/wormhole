@@ -19,12 +19,19 @@ message Config {
   // virtually partition a file into nparts for better loadbalance.
   optional int32 num_parts_per_file = 5 [default = 10];
 
-  // input and output model diretory.
+  // input and output model filename.
   optional string model_in = 10;
-  optional string model_out = 11;
+  optional string model_out = 12;
+
+  // load model from iter = *load_model*. if -1, then load the last one
+  optional int32 load_model = 11 [default = -1];
+
+  // save model for every *save_model* data pass. if 0, then only save the last
+  // one
+  optional int32 save_model = 14 [default = 0];
 
   // output results diretory
-  optional string res_out = 12;
+  optional string res_out = 13;
 
   // for TRAIN, train_data must be given
   // for RPEDICT, val_data, model_in, and res_out must be given
@@ -32,7 +39,7 @@ message Config {
     TRAIN = 1;
     PREDICT = 2;
   }
-  optional Task task = 13 [default = TRAIN];
+  optional Task task = 15 [default = TRAIN];
 
   ////////////////////////////////////////////////////////////
   //       basic settings - objective and optimization

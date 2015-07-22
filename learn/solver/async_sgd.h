@@ -29,6 +29,9 @@ class AsyncSGDScheduler : public ps::App {
   std::string train_data_;
   std::string val_data_;
   std::string data_format_;
+  std::string model_in_;
+  std::string model_out_;
+
   bool worker_local_data_ = false;
   int load_model_ = 0;
   int save_model_ = 0;
@@ -53,9 +56,10 @@ class AsyncSGDScheduler : public ps::App {
     disp_itv_          = conf.disp_itv();
     save_model_        = conf.save_model();
     load_model_        = conf.load_model();
-    if (save_model_) CHECK(conf.model_out().size()) << "empty model_out";
-    if (load_model_) CHECK(conf.model_in().size()) << "empty model_in";
+    model_in_          = conf.model_in();
+    model_out_         = conf.model_out();
   }
+
  public:
   AsyncSGDScheduler() {
     sys_.manager().AddNodeFailureHandler([this](const std::string& id) {
@@ -92,10 +96,15 @@ class AsyncSGDScheduler : public ps::App {
            ps::NumServers(), ps::NumWorkers());
     start_time_ = GetTime();
 
-    if (load_model_ > 0) {
-      printf("loading model from #iter = %d\n", load_model_);
-      cur_data_pass_ = load_model_;
-      ps::Task task; task.set_cmd(kLoadModel + cur_data_pass_ * kMaxNumCmd);
+    if (model_in_.size()) {
+      if (load_model_ >= 0) {
+        printf("loading model from #iter = %d\n", load_model_);
+        cur_data_pass_ = load_model_;
+      } else {
+        printf("loading the last model\n");
+        cur_data_pass_ = 0;
+      }
+      ps::Task task; task.set_cmd(kLoadModel + load_model_ * kMaxNumCmd);
       Wait(Submit(task, ps::kServerGroup));
       Iterate(Workload::VAL);
       ++ cur_data_pass_;
@@ -118,10 +127,10 @@ class AsyncSGDScheduler : public ps::App {
 
  private:
   void SaveModel(bool force) {
-    if (save_model_ == 0) return;
-    if (force || cur_data_pass_ % save_model_ == 0) {
-      int iter = force ? -1 : cur_data_pass_;
-      if (iter == -1) {
+    if (model_out_.size() == 0) return;
+    if (force || (save_model_ > 0 && cur_data_pass_ % save_model_ == 0)) {
+      int iter = force ? 0 : cur_data_pass_;
+      if (iter == 0) {
         printf("saving final model\n");
       } else {
         printf("saving model #iter = %d\n", iter);
@@ -205,7 +214,6 @@ class AsyncSGDScheduler : public ps::App {
   bool done_ = false;
   Progress prog_;
   ProgressMonitor<Progress> monitor_;
-  int last_save_ = -1;
 };
 
 /**************************************************************************
@@ -227,7 +235,7 @@ class AsyncSGDServer : public ps::App {
   std::string ModelName(const std::string& base, int iter) {
     CHECK(base.size()) << "empty model name";
     std::string name = base;
-    if (iter >= 0) name += "_iter-" + std::to_string(iter);
+    if (iter > 0) name += "_iter-" + std::to_string(iter);
     return name + "_part-" + std::to_string(ps::MyRank());
   }
 

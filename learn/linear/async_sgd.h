@@ -49,22 +49,26 @@ struct ISGDHandle {
   static int64_t new_w;
 };
 
-template <typename T> inline void TLoad(Stream* fi, T* ptr) {
-  fi->Read(ptr, sizeof(T));
+template <typename T> inline bool TLoad(Stream* fi, T* ptr) {
+  if (fi->Read(&ptr->w, sizeof(Real)) == 0) return false;
   ISGDHandle::Report(ptr->w, 0);
+  return true;
 }
 
-template <typename T> inline void TSave(Stream* fo, T* const ptr) {
-
+template <typename T> inline bool TSave(Stream* fo, T* const ptr) {
+  if (ptr->w == 0) return false;
+  fo->Write(&ptr->w, sizeof(Real));
+  return true;
 }
+
 /*********************************************************************
  * \brief Standard SGD
  * use alpha / ( beta + sqrt(t)) as the learning rate
  *********************************************************************/
 struct SGDEntry {
   Real w = 0;
-  inline void Load(Stream *fi) { TLoad(fi, this); }
-  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline bool Load(Stream *fi) { return TLoad(fi, this); }
+  inline bool Save(Stream *fo) const { return TSave(fo, this); }
 };
 
 struct SGDHandle : public ISGDHandle {
@@ -99,8 +103,8 @@ struct SGDHandle : public ISGDHandle {
 
 struct AdaGradEntry {
   Real w = 0; Real sq_cum_grad = 0;
-  inline void Load(Stream *fi) { TLoad(fi, this); }
-  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline bool Load(Stream *fi) { return TLoad(fi, this); }
+  inline bool Save(Stream *fo) const { return TSave(fo, this); }
 };
 
 struct AdaGradHandle : public ISGDHandle {
@@ -135,8 +139,8 @@ struct AdaGradHandle : public ISGDHandle {
 
 struct FTRLEntry {
   Real w = 0; Real z = 0; Real sq_cum_grad = 0;
-  inline void Load(Stream *fi) { TLoad(fi, this); }
-  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline bool Load(Stream *fi) { return TLoad(fi, this); }
+  inline bool Save(Stream *fo) const { return TSave(fo, this); }
 };
 
 struct FTRLHandle : public ISGDHandle {
@@ -179,9 +183,8 @@ class AsgdServer : public solver::AsyncSGDServer {
     } else {
       LOG(FATAL) << "unknown algo: " << algo;
     }
-
-
   }
+
   virtual ~AsgdServer() { }
  protected:
   template <typename Entry, typename Handle>
@@ -201,6 +204,7 @@ class AsgdServer : public solver::AsyncSGDServer {
 
   void LoadModel(int iter) {
     auto filename = ModelName(conf_.model_in(), iter);
+    LL << filename;
     Stream* fi = CHECK_NOTNULL(Stream::Create(filename.c_str(), "r"));
     server_->Load(fi);
 
@@ -211,7 +215,7 @@ class AsgdServer : public solver::AsyncSGDServer {
 
   void SaveModel(int iter) {
     auto filename = ModelName(conf_.model_out(), iter);
-    LOG(INFO) << filename;
+    LL << filename;
     Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
     server_->Save(fo);
   }
@@ -302,15 +306,7 @@ class AsgdWorker : public solver::AsyncSGDWorker {
 
 class AsgdScheduler : public solver::AsyncSGDScheduler<Progress> {
  public:
-  AsgdScheduler(const Config& conf) {
-    worker_local_data_ = conf.use_worker_local_data();
-    train_data_        = conf.train_data();
-    val_data_          = conf.val_data();
-    data_format_       = conf.data_format();
-    num_part_per_file_ = conf.num_parts_per_file();
-    max_data_pass_     = conf.max_data_pass();
-    disp_itv_          = conf.disp_itv();
-  }
+  AsgdScheduler(const Config& conf) { Init(conf); }
   virtual ~AsgdScheduler() { }
 };
 
