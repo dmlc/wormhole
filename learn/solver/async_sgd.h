@@ -161,10 +161,10 @@ class AsyncSGDScheduler : public ps::App {
       data = train_data_;
     } else {
       if (predict_) {
-        printf("validating #iter = %d\n", cur_data_pass_);
-      } else {
         CHECK(val_data_.size()) << "should provide val_data for prediction";
-        printf("predicting");
+        printf("predicting\n");
+      } else {
+        printf("validating #iter = %d\n", cur_data_pass_);
       }
       data = val_data_;
     }
