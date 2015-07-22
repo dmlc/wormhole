@@ -21,9 +21,9 @@ tracker/dmlc_local.py -n 1 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
 
 3. More documents:
 
+- [Tutorial on using Criteo Kaggle CTR competition dataset](guide/criteo_kaggle.md)
 - [Use bigger datasets](../../docs/data.md)
 - [Launch jobs over multiple machines](../../docs/run.md)
-- More are coming soon
 
 ## Performance
 
