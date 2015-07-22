@@ -209,6 +209,7 @@ class AsgdServer : public solver::AsyncSGDServer {
 
     Progress prog;
     prog.nnz_w() = ISGDHandle::new_w;
+    ISGDHandle::new_w = 0;
     Report(&prog);
   }
 
@@ -225,19 +226,14 @@ class AsgdServer : public solver::AsyncSGDServer {
 class AsgdWorker : public solver::AsyncSGDWorker {
  public:
   AsgdWorker(const Config& conf) : conf_(conf) {
-    minibatch_size_ = conf.minibatch();
-    max_delay_      = conf.max_delay();
-    nt_             = conf.num_threads();
-    if (conf.use_worker_local_data()) {
-      train_data_        = conf.train_data();
-      val_data_          = conf.val_data();
-      worker_local_data_ = true;
-    }
+    Init(conf_);
   }
-  virtual ~AsgdWorker() { }
+  virtual ~AsgdWorker() {
+    delete pred_out_;
+  }
 
  protected:
-  virtual void ProcessMinibatch(const Minibatch& mb, int data_pass, bool train) {
+  virtual void ProcessMinibatch(const Minibatch& mb, const Workload& wl) {
     // find the unique feature ids in this minibatch
     auto data = new dmlc::data::RowBlockContainer<unsigned>();
     auto feaid = std::make_shared<std::vector<FeaID>>();
@@ -253,11 +249,24 @@ class AsgdWorker : public solver::AsyncSGDWorker {
 
     // this callback will be called when the weight has been actually pulled
     // back
-    pull_w_opt.callback = [this, data, feaid, val, train]() {
+    int k = wl.file[0].k;
+    bool train = wl.type == Workload::TRAIN;
+    pull_w_opt.callback = [this, data, feaid, val, k, train]() {
       double start = GetTime();
       // eval the objective, and report progress to the scheduler
       auto loss = CreateLoss(conf_.loss());
       loss->Init(data->GetBlock(), *val, nt_);
+      if (predict_) {
+        // save prediction
+        if (pred_out_ == NULL || k != cur_pred_part_) {
+          delete pred_out_;
+          auto fname = PredictName(conf_.pred_out(), k);
+          pred_out_ = CHECK_NOTNULL(Stream::Create(fname.c_str(), "w"));
+          cur_pred_part_ = k;
+        }
+        loss->SavePrediction(pred_out_);
+      }
+
       Progress prog; loss->Evaluate(&prog);
       Report(&prog);
 
@@ -299,6 +308,8 @@ class AsgdWorker : public solver::AsyncSGDWorker {
   Config conf_;
   ps::KVWorker<Real> server_;
   int nt_ = 2;
+  Stream* pred_out_ = NULL;
+  int cur_pred_part_ = -1;
 };
 
 

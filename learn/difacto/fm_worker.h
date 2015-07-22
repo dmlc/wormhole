@@ -297,7 +297,9 @@ class FMWorker : public solver::AsyncSGDWorker {
     return stop;
   }
 
-  virtual void ProcessMinibatch(const Minibatch& mb, int data_pass, bool train) {
+  virtual void ProcessMinibatch(const Minibatch& mb, const Workload& wl) {
+    bool train = wl.type == Workload::TRAIN;
+    int data_pass = wl.data_pass;
     auto data = new dmlc::data::RowBlockContainer<unsigned>();
     auto feaid = std::make_shared<std::vector<FeaID>>();
     auto feacnt = std::make_shared<std::vector<Real>>();

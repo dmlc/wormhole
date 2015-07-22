@@ -23,15 +23,15 @@ message Config {
   optional string model_in = 10;
   optional string model_out = 12;
 
-  // load model from iter = *load_model*. if -1, then load the last one
-  optional int32 load_model = 11 [default = -1];
+  // load model from iter = *load_model*. if 0, then load the last one
+  optional int32 load_model = 11 [default = 0];
 
   // save model for every *save_model* data pass. if 0, then only save the last
   // one
   optional int32 save_model = 14 [default = 0];
 
   // output results diretory
-  optional string res_out = 13;
+  optional string pred_out = 13;
 
   // for TRAIN, train_data must be given
   // for RPEDICT, val_data, model_in, and res_out must be given

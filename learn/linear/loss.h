@@ -1,5 +1,6 @@
 #pragma once
 #include <dmlc/data.h>
+#include <dmlc/io.h>
 #include <math.h>
 #include "config.pb.h"
 #include "base/spmv.h"
@@ -41,6 +42,12 @@ class ScalarLoss {
 
   /*! \brief compute the gradients */
   virtual void CalcGrad(std::vector<Real>* grad) = 0;
+
+  void SavePrediction(Stream* fo) {
+    CHECK(init_);
+    ostream os(fo);
+    for (auto p : Xw_) os << p << "\n";
+  }
 
  protected:
   bool init_;

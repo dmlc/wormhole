@@ -115,7 +115,10 @@ class AsyncSGDScheduler : public ps::App {
       ++ cur_data_pass_;
     }
 
-    if (predict_) return true;
+    if (predict_) {
+      printf("prediction is done!\n");
+      return true;
+    }
 
     for (; cur_data_pass_ <= max_data_pass_; ++cur_data_pass_) {
       if (Iterate(Workload::TRAIN) || Iterate(Workload::VAL)) {
@@ -171,6 +174,10 @@ class AsyncSGDScheduler : public ps::App {
     if (!worker_local_data_) {
       Workload wl; pool_.Match(data, &wl);
       pool_.Add(wl.file, num_part_per_file_);
+      if (predict_) {
+        CHECK_EQ(wl.file.size(), (size_t)1)
+            << "use single file for prediction";
+      }
       size_t nwl = wl.file.size() * num_part_per_file_;
       if (cur_data_pass_ == 1 && (nwl < ps::NumWorkers())) {
         fprintf(stderr, "WARNING: # of data file (%d) < # of workers (%d)\n",
@@ -289,8 +296,7 @@ class AsyncSGDWorker : public ps::App {
   /**
    * \brief Process one minibatch
    */
-  virtual void ProcessMinibatch(
-      const Minibatch& mb, int data_pass, bool train) = 0;
+  virtual void ProcessMinibatch(const Minibatch& mb, const Workload& wl) = 0;
 
   /**
    * \brief Mark one minibatch is finished
@@ -305,13 +311,22 @@ class AsyncSGDWorker : public ps::App {
     reporter_.Report(prog);
   }
 
+  std::string PredictName(const std::string& base, int part) {
+    CHECK(base.size());
+    char* fname = new char[1000];
+    snprintf(fname, 1000, "%s_part-%02d", base.c_str(), part);
+    return std::string(fname);
+  }
+
   int minibatch_size_ = 10000;
   int shuffle_ = 0;
-  int max_delay_ = 4;
+  int max_delay_ = 0;
 
   // for validation test
   int val_minibatch_size_ = 1000000;
   int val_max_delay_ = 10;
+
+  bool predict_ = false;
 
   bool worker_local_data_ = false;
   std::string train_data_;
@@ -324,6 +339,7 @@ class AsyncSGDWorker : public ps::App {
     minibatch_size_ = conf.minibatch();
     shuffle_        = conf.rand_shuffle();
     max_delay_      = conf.max_delay();
+    predict_        = conf.task() == Config::PREDICT;
     if (conf.use_worker_local_data()) {
       train_data_        = conf.train_data();
       val_data_          = conf.val_data();
@@ -364,7 +380,8 @@ class AsyncSGDWorker : public ps::App {
     bool train = wl.type == Workload::TRAIN;
     int mb_size = train ? minibatch_size_ : val_minibatch_size_;
     int shuffle = train ? minibatch_size_ * shuffle_ : 0;
-    int max_delay = train ? max_delay_ : val_max_delay_;
+    int max_delay = predict_ ? 0 : (train ? max_delay_ : val_max_delay_);
+
     LOG(INFO) << ps::MyNodeID() << ": " << wl.ShortDebugString()
               << ", minibatch = " << mb_size
               << ", max_delay = " <<  max_delay
@@ -384,7 +401,7 @@ class AsyncSGDWorker : public ps::App {
       // wait for data consistency
       WaitMinibatch(max_delay);
 
-      ProcessMinibatch(reader.Value(), wl.data_pass, train);
+      ProcessMinibatch(reader.Value(), wl);
 
       mb_mu_.lock(); ++ num_mb_fly_; mb_mu_.unlock();
     }
