@@ -40,7 +40,7 @@ class AsyncSGDScheduler : public ps::App {
   int cur_data_pass_ = 1;  // start from 1
   Workload::Type cur_type_;
   int disp_itv_ = 1;
-
+  bool predict_ = false;
   virtual bool Stop(const Progress& cur, const Progress& prev, bool train) {
     return false;
   }
@@ -58,6 +58,7 @@ class AsyncSGDScheduler : public ps::App {
     load_model_        = conf.load_model();
     model_in_          = conf.model_in();
     model_out_         = conf.model_out();
+    predict_           = conf.task() == Config::PREDICT;
   }
 
  public:
@@ -96,6 +97,10 @@ class AsyncSGDScheduler : public ps::App {
            ps::NumServers(), ps::NumWorkers());
     start_time_ = GetTime();
 
+    if (predict_) {
+      CHECK(model_in_.size()) << "should provide model_in for prediction";
+    }
+
     if (model_in_.size()) {
       if (load_model_ >= 0) {
         printf("loading model from #iter = %d\n", load_model_);
@@ -110,6 +115,8 @@ class AsyncSGDScheduler : public ps::App {
       ++ cur_data_pass_;
     }
 
+    if (predict_) return true;
+
     for (; cur_data_pass_ <= max_data_pass_; ++cur_data_pass_) {
       if (Iterate(Workload::TRAIN) || Iterate(Workload::VAL)) {
         printf("hit stop critera\n"); break;
@@ -121,7 +128,7 @@ class AsyncSGDScheduler : public ps::App {
     }
 
     SaveModel(true);
-    printf("async_sgd is done!\n");
+    printf("training is done!\n");
     return true;
   }
 
@@ -131,9 +138,9 @@ class AsyncSGDScheduler : public ps::App {
     if (force || (save_model_ > 0 && cur_data_pass_ % save_model_ == 0)) {
       int iter = force ? 0 : cur_data_pass_;
       if (iter == 0) {
-        printf("saving final model\n");
+        printf("saving final model to %s\n", model_out_.c_str());
       } else {
-        printf("saving model #iter = %d\n", iter);
+        printf("saving model to %s-iter_%d\n", model_out_.c_str(), iter);
       }
       ps::Task task; task.set_cmd(kSaveModel + iter * kMaxNumCmd);
       Wait(Submit(task, ps::kServerGroup));
@@ -150,7 +157,12 @@ class AsyncSGDScheduler : public ps::App {
       printf("training #iter = %d\n", cur_data_pass_);
       data = train_data_;
     } else {
-      printf("validating #iter = %d\n", cur_data_pass_);
+      if (predict_) {
+        printf("validating #iter = %d\n", cur_data_pass_);
+      } else {
+        CHECK(val_data_.size()) << "should provide val_data for prediction";
+        printf("predicting");
+      }
       data = val_data_;
     }
     if (data.empty()) return stop;
@@ -183,7 +195,9 @@ class AsyncSGDScheduler : public ps::App {
         }
       }
     }
-    if (type != Workload::TRAIN) stop = ShowProgress(is_train);
+    if (type != Workload::TRAIN) {
+      stop = ShowProgress(is_train);
+    }
     return stop;
   }
 

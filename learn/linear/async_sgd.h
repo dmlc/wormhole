@@ -204,7 +204,6 @@ class AsgdServer : public solver::AsyncSGDServer {
 
   void LoadModel(int iter) {
     auto filename = ModelName(conf_.model_in(), iter);
-    LL << filename;
     Stream* fi = CHECK_NOTNULL(Stream::Create(filename.c_str(), "r"));
     server_->Load(fi);
 
@@ -215,7 +214,6 @@ class AsgdServer : public solver::AsyncSGDServer {
 
   void SaveModel(int iter) {
     auto filename = ModelName(conf_.model_out(), iter);
-    LL << filename;
     Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
     server_->Save(fo);
   }

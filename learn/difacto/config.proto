@@ -35,6 +35,12 @@ message Config {
   optional float lr_eta = 41;
   optional float lr_beta = 42;
 
+  enum Task {
+    TRAIN = 1;
+    PREDICT = 2;
+  }
+  optional Task task = 15 [default = TRAIN];
+
   // for V
   message Embedding {
     optional int32 dim = 1;
