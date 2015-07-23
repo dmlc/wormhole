@@ -83,6 +83,8 @@ message Config {
   // rand_shuffle * minibatch_size examples.
   optional int32 rand_shuffle = 101 [default = 10];
 
+  optional float neg_sampling = 102 [default = 1.0];
+
   // print the progress every n sec
   optional float disp_itv = 33 [default = 1];
 

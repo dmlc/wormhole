@@ -14,7 +14,7 @@ message Config {
   optional bool use_worker_local_data = 6 [default = false];
 
   // partition a file into npart
-  optional int32 num_parts_per_file = 5 [default = 1];
+  optional int32 num_parts_per_file = 5 [default = 10];
 
   //
   // model
@@ -85,7 +85,7 @@ message Config {
   optional bool key_cache = 51 [default = true];
   optional bool msg_compression = 52 [default = true];
   // 0 means no fixing
-  optional int32 fixed_bytes = 53 [default = 1];
+  optional int32 fixed_bytes = 53 [default = 0];
 
   // number of threads used to process one minibatch
   optional int32 num_threads = 60 [default = 2];
@@ -98,4 +98,6 @@ message Config {
   optional float min_objv_decr = 103 [default = .00001];
 
   optional bool grad_normalization = 105 [default = false];
+
+  optional float neg_sampling = 109 [default = 1.0];
 }

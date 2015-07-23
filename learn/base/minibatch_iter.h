@@ -27,8 +27,11 @@ template<typename IndexType>
 class MinibatchIter {
  public:
   MinibatchIter(const char* uri, unsigned part_index, unsigned num_parts,
-                const char* type, unsigned minibatch_size, unsigned shuf_buf = 0)
-      : mb_size_(minibatch_size), shuf_buf_(shuf_buf), start_(0), end_(0) {
+                const char* type, unsigned minibatch_size,
+                unsigned shuf_buf = 0,
+                float negative_sampling = 1.0)
+      : mb_size_(minibatch_size), shuf_buf_(shuf_buf),
+        negative_sampling_(negative_sampling), start_(0), end_(0) {
     if (shuf_buf) {
       CHECK_GT(shuf_buf, minibatch_size);
       buf_reader_ =
@@ -97,7 +100,13 @@ class MinibatchIter {
         Push(start_, len);
       } else {
         for (size_t i = start_; i < start_ + len; ++i) {
-          mb_.Push(in_blk_[rdp_[i]]);
+          int j = rdp_[i];
+          if (negative_sampling_ < 1.0 &&
+              in_blk_.label[j] <= 0 &&
+              (float)rand() / (float)RAND_MAX > 1 - negative_sampling_) {
+              continue;
+          }
+          mb_.Push(in_blk_[j]);
         }
       }
       start_ += len;
@@ -136,6 +145,9 @@ class MinibatchIter {
   unsigned mb_size_, shuf_buf_;
   ParserImpl<IndexType> *parser_;
 
+  // sampling negative examples
+  float negative_sampling_;
+
   size_t start_, end_;
   RowBlock<IndexType> in_blk_;
   RowBlockContainer<IndexType> mb_;
@@ -144,6 +156,7 @@ class MinibatchIter {
   // random pertubation
   std::vector<unsigned> rdp_;
   MinibatchIter<IndexType>* buf_reader_;
+
 };
 
 }  // namespace data
