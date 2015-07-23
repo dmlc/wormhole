@@ -5,9 +5,7 @@ package dmlc.linear;
 
 message Config {
 
-  /////////////////////////////////////////////////
-  //       basic settings - input & output
-  /////////////////////////////////////////////////
+  // --  basic settings - input & output  --
 
   // Both train_data and val_data can be either a directory or a wildcard
   // filename such as "part-[0-9].*". also support hdfs:// and s3://
@@ -35,9 +33,7 @@ message Config {
   // prediction. otherwise run the training job.
   optional string pred_out = 9;
 
-  ////////////////////////////////////////////////////////////
-  //       basic settings - objective and optimization
-  ///////////////////////////////////////////////////////////
+  // --  basic settings - objective and optimization  --
 
   // the loss function
   enum Loss {
@@ -49,7 +45,7 @@ message Config {
   optional Loss loss = 11 [default = LOGIT];
 
   // elastic-net regularizer:
-  //   lambda_l1 * ||w||_1 + .5 * lambda_l2 * ||w||_F^2
+  //   lambda_l1 * ||w||_1 + .5 * lambda_l2 * ||w||_2^2
   optional float lambda_l1 = 12 [default = 1];
   optional float lambda_l2 = 13 [default = 0];
 
@@ -73,11 +69,9 @@ message Config {
   // on the updater, such as sqrt(iter), or the cumulative gradient on adagrad
   optional float lr_eta = 24 [default = .01];
 
-  //////////////////////////////////////
-  //      advanced settings
-  //////////////////////////////////////
+  // --  advanced settings --
 
-  // -- data --
+  // - data -
 
   // each worker reads the data in local if the data have been
   // dispatched into workers' local disks. it can reduce the cost to access data
@@ -94,7 +88,7 @@ message Config {
   // down sampling negative examples in the training data
   optional float neg_sampling = 104 [default = 1.0];
 
-  // -- learning --
+  // - learning -
 
   // print the progress every n sec
   optional float disp_itv = 111 [default = 1];
@@ -103,7 +97,7 @@ message Config {
   optional float lr_beta = 112 [default = 1];
 
 
-  // -- system performance --
+  // - system performance -
 
   // number of threads used within a worker and a server
   optional int32 num_threads = 121 [default = 2];

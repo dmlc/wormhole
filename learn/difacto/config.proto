@@ -1,103 +1,163 @@
 //  @file   config.proto
 //  @brief  configuration for factorization machine
+
 package dmlc.fm;
 
 message Config {
-  //
-  // data
-  //
+
+  // --  basic settings - input & output  --
+
+  // Both train_data and val_data can be either a directory or a wildcard
+  // filename such as "part-[0-9].*". also support hdfs:// and s3://
   optional string train_data = 1;
   optional string val_data = 2;
-  optional string test_data = 3;
+
+  // data format. support libsvm, crb, criteo, adfea, ...
   optional string data_format = 4 [default = "libsvm"];
 
-  optional bool use_worker_local_data = 6 [default = false];
+  // model output
+  optional string model_out = 5;
 
-  // partition a file into npart
-  optional int32 num_parts_per_file = 5 [default = 10];
+  // save model for every *save_model* data pass. if 0, then only save the last
+  // one
+  optional int32 save_model = 6 [default = 0];
 
-  //
-  // model
-  //
-  optional string model_in = 10;
-  // load model from iter = *load_model*
-  optional int32 load_model = 11;
+  // model input
+  optional string model_in = 7;
 
-  optional string model_out = 12;
-  // save model for every *save_model* data pass
-  optional int32 save_model = 13;
+  // load model from iter = *load_model*. if 0, then load the last one
+  optional int32 load_model = 8 [default = 0];
 
-  optional string pred_out = 15;
 
-  // for w
-  optional float lambda_l2 = 20;
-  optional float lambda_l1 = 21;
-  // learning rate, often in the format lr_eta / (lr_beta + x), where x is
-  // user-defined, such as sqrt(iter), or the cumulative gradient on adagrad
-  optional float lr_eta = 41;
-  optional float lr_beta = 42;
+  // output of the prediction results. if specified, then do
+  // prediction. otherwise run the training job.
+  optional string pred_out = 9;
 
-  // for V
+
+  // --  basic settings - objective and optimization  --
+
+  // - w -
+
+  // elastic-net regularizer:
+  //   lambda_l1 * ||w||_1 + .5 * lambda_l2 * ||w||_2^2
+  optional float lambda_l1 = 11 [default = 1];
+  optional float lambda_l2 = 12 [default = 0];
+
+  // learning rate, often in the format lr_eta / (lr_beta + x), where x depends
+  // on the updater, such as sqrt(iter), or the cumulative gradient on adagrad
+  optional float lr_eta = 14 [default = .01];
+
+  // - V -
+
   message Embedding {
+    // -- model --
+
+    // the dimension k
     optional int32 dim = 1;
+
+    // features with occur frequency < threshold are ignored in the
+    // embeding. namely k = 0
     optional int32 threshold = 2;
 
+    // the regularizer lambda_l2 * ||V_i||_2^2
     optional float lambda_l2 = 3;
+
+    // -- learning --
+
     // learning rate
     optional float lr_eta = 4 [default = .01];
-    optional float lr_beta = 5 [default = 1];
-    // uniformly random weight in [-init_scale, +init_scale]
+
+    // V is initialized by uniformly random weight in
+    //   [-init_scale, +init_scale]
     optional float init_scale = 6 [default = .01];
 
-    // experimetal
-    optional float dropout = 7;
-    optional float grad_clipping = 8;
+    // -- advanced --
 
+    // leanring rate
+    optional float lr_beta = 5 [default = 1];
+
+    // if > 0, apply dropout on the gradient of V
+    optional float dropout = 7 [default = 0];
+
+    // if > 0, project the gradient of V into [-gc +gc]
+    optional float grad_clipping = 8 [default = 0];
+
+    // if > 0, normalized the gradient of V to 1 l2-norm
     optional float grad_normalization = 9 [default = 0];
   }
 
-  repeated Embedding embedding = 22;
+  repeated Embedding embedding = 13;
 
-  //
-  // optimization methods
-  //
+  // - learning -
 
-  // the size of minibatch for online methods
-  optional int32 minibatch = 31 [default = 1000];
+  // the size of minibatch for minibatch SGD. a small value improves the
+  // convergence rate, but may decrease the system performance
+  optional int32 minibatch = 21 [default = 1000];
 
   // the maximal number of data passes
-  optional int32 max_data_pass = 32 [default = 10];
+  optional int32 max_data_pass = 22 [default = 10];
+
+  // stop the training early if the decrease of objective on the validation data
+  // is less than *min_objv_decr*
+  optional bool early_stop = 23 [default = false];
+
+  optional float min_objv_decr = 24 [default = .00001];
+
+
+  // -- advanced --
+
+  // - data -
+
+  // each worker reads the data in local if the data have been
+  // dispatched into workers' local disks. it can reduce the cost to access data
+  // remotely
+  optional bool use_worker_local_data = 101;
+
+  // virtually partition a file into nparts for better loadbalance.
+  optional int32 num_parts_per_file = 102 [default = 10];
+
+  // randomly shuffle data for minibatch SGD. a minibatch is randomly pick from
+  // rand_shuffle * minibatch_size examples.
+  optional int32 rand_shuffle = 103 [default = 10];
+
+  // down sampling negative examples in the training data
+  optional float neg_sampling = 104 [default = 1.0];
+
+  // - learning -
 
   // print the progress every n sec
-  optional float disp_itv = 33 [default = 1];
+  optional float disp_itv = 111 [default = 1];
+
+  // learning rate for w, see lr_eta
+  optional float lr_beta = 112 [default = 1];
 
   // stop if the objective values exceeds *max_objv* (often used in parameter
   // tuning)
-  optional float max_objv = 34;
+  optional float max_objv = 113;
 
-  //
-  // system performance
-  //
+  // force V_i = 0 if w_i = 0
+  optional bool l1_shrk = 114 [default = true];
 
-  // maximal allowed delay during synchronization
-  optional int32 max_delay = 50 [default = 0];
-  // communication filters
-  optional bool key_cache = 51 [default = true];
-  optional bool msg_compression = 52 [default = true];
-  // 0 means no fixing
-  optional int32 fixed_bytes = 53 [default = 0];
+  // optional bool grad_normalization = 115 [default = false];
 
-  // number of threads used to process one minibatch
-  optional int32 num_threads = 60 [default = 2];
+  // - system performance -
 
-  /// exmperimental
-  optional bool l1_shrk = 100 [default = true];
-  optional int32 rand_shuffle = 101 [default = 10];
+  // number of threads used within a worker and a server
+  optional int32 num_threads = 121 [default = 2];
 
-  optional bool early_stop = 102 [default = false];
-  optional float min_objv_decr = 103 [default = .00001];
+  // maximal allowed delay during synchronization. it is the maximal number of
+  // parallel minibatches for SGD, and parallel block for block CD.
+  optional int32 max_delay = 122 [default = 0];
 
-  optional bool grad_normalization = 105 [default = false];
+  // cache the key list on both sender and receiver to reduce communication
+  // cost. it may increase the memory usage
+  optional bool key_cache = 123 [default = true];
 
-  optional float neg_sampling = 109 [default = 1.0];
+  // compression the message to reduce communication cost. it may increase the
+  // computation cost.
+  optional bool msg_compression = 124 [default = true];
+
+  // convert floating-points into fixed-point integers with n bytes. n can be 1,
+  // 2 and 3. 0 means no compression.
+  optional int32 fixed_bytes = 125 [default = 0];
 }
