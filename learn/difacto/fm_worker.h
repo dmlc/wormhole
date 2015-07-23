@@ -169,6 +169,11 @@ class Objective {
     for (Real& g : grad) g = g / norm;
   }
 
+  void SavePrediction(Stream* fo) {
+    ostream os(fo);
+    for (auto p : py_) os << p << "\n";
+  }
+
  private:
   // store w (dim==0) and V (dim >= 1)
   struct Data {
@@ -324,15 +329,28 @@ class FMWorker : public solver::AsyncSGDWorker {
     auto val = new std::vector<Real>();
     auto val_siz = new std::vector<int>();
 
+    int k = wl.file[0].k;
     // this callback will be called when the weight has been actually pulled
     // back
-    pull_w_opt.callback = [this, data, feaid, val, val_siz, train]() {
+
+    pull_w_opt.callback = [this, data, feaid, val, val_siz, train, k]() {
       double start = GetTime();
       // eval the objective, and report progress to the scheduler
       Objective obj(data->GetBlock(), *val, *val_siz, conf_);
       Progress prog;
       obj.Evaluate(&prog);
       Report(&prog);
+
+      if (predict_) {
+        // save prediction
+        if (pred_out_ == NULL || k != cur_pred_part_) {
+          delete pred_out_;
+          auto fname = PredictName(conf_.pred_out(), k);
+          pred_out_ = CHECK_NOTNULL(Stream::Create(fname.c_str(), "w"));
+          cur_pred_part_ = k;
+        }
+        obj.SavePrediction(pred_out_);
+      }
 
       if (train) {
         // calculate and push the gradients
@@ -388,6 +406,9 @@ class FMWorker : public solver::AsyncSGDWorker {
   Config conf_;
   bool do_embedding_ = false;
   ps::KVWorker<Real> server_;
+
+  Stream* pred_out_ = NULL;
+  int cur_pred_part_ = -1;
 };
 
 }  // namespace fm

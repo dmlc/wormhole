@@ -77,6 +77,13 @@ struct AdaGradEntry {
   AdaGradEntry() { }
   ~AdaGradEntry() { Clear(); }
 
+  AdaGradEntry& operator=(AdaGradEntry&& other) {
+    std::swap(fea_cnt, other.fea_cnt);
+    std::swap(size, other.size);
+    std::swap(w, other.w);
+    std::swap(sqc_grad, other.sqc_grad);
+  }
+
   inline void Clear() {
     if ( size > 1 ) { delete [] w; delete [] sqc_grad; }
     size = 0; w = NULL; sqc_grad = NULL;
@@ -124,6 +131,7 @@ struct AdaGradEntry {
   }
 
   bool Save(Stream *fo) const {
+    if (w_0() == 0) return false;
     fo->Write(&size, sizeof(size));
     if (size == 1) {
       fo->Write(&w, sizeof(Real*));
@@ -300,12 +308,6 @@ class FMServer : public solver::AsyncSGDServer {
     LOG(INFO) << filename;
     Stream* fo = Stream::Create(filename.c_str(), "w");
     server_->Save(fo);
-  }
-
-  std::string ModelName(const std::string& base, int iter) {
-    CHECK(base.size()) << "empty model name";
-    return base + "_iter-" + std::to_string(iter)
-        + "_S" + std::to_string(ps::MyRank()) + ".model";
   }
 
   ps::KVStore* server_;
