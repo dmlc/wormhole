@@ -16,7 +16,7 @@ REPOS = $(addprefix repo/, dmlc-core xgboost ps-lite rabit)
 
 .PHONY: clean all test pull
 
-all: xgboost kmeans linear fm bin/text2crb
+all: xgboost kmeans linear fm bin/text2crb.dmlc
 
 ### repos and deps
 
@@ -99,7 +99,7 @@ fm: bin/fm.dmlc
 
 # tools
 
-bin/text2crb:
+bin/text2crb.dmlc:
 	$(MAKE) -C learn/tool text2crb config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 	cp learn/tool/text2crb $@
 

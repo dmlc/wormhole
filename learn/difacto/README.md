@@ -1,4 +1,4 @@
-# Factorization Machine (FM)
+# Distributed Factorization Machine
 
 For a *p* dimension example *x*, FM models the data by
 
