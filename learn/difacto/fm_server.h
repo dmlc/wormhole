@@ -308,6 +308,7 @@ class FMServer : public solver::AsyncSGDServer {
     LOG(INFO) << filename;
     Stream* fo = Stream::Create(filename.c_str(), "w");
     server_->Save(fo);
+    delete fo;
   }
 
   ps::KVStore* server_;

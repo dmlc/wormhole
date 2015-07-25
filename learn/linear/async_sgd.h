@@ -217,6 +217,7 @@ class AsgdServer : public solver::AsyncSGDServer {
     auto filename = ModelName(conf_.model_out(), iter);
     Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
     server_->Save(fo);
+    delete fo;
   }
 
   Config conf_;
