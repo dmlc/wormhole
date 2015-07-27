@@ -1,6 +1,8 @@
 ![Wormhole](wormhole.png)
 
-[![Build Status](https://travis-ci.org/dmlc/xgboost.svg?branch=master)](https://travis-ci.org/dmlc/xgboost)
+[[wormhole.png|width=400px]]
+
+[![Build Status](https://travis-ci.org/dmlc/wormhole.svg?branch=master)](https://travis-ci.org/dmlc/wormhole)
 [![Documentation Status](https://readthedocs.org/projects/wormhole/badge/?version=latest)](https://readthedocs.org/projects/wormhole/?badge=latest)
 
 Portable, scalable and reliable distributed machine learning.
