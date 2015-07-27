@@ -1,6 +1,4 @@
-![Wormhole](wormhole.png)
-
-[[wormhole.png|width=400px]]
+<img src=wormhole.png width=400/>
 
 [![Build Status](https://travis-ci.org/dmlc/wormhole.svg?branch=master)](https://travis-ci.org/dmlc/wormhole)
 [![Documentation Status](https://readthedocs.org/projects/wormhole/badge/?version=latest)](https://readthedocs.org/projects/wormhole/?badge=latest)
