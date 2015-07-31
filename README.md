@@ -70,4 +70,4 @@ Project Structure
 * Depending DMLC Libraries
   - [dmlc-core](https://github.com/dmlc/dmlc-core) gives the core modules of most DMLC projects.
   - [rabit](https://github.com/dmlc/rabit) provides reliable BSP Allreduce communication.
-  - [parameter-server](https://github.com/dmlc/parameter-server) provides asynchronize parameter server abstraction.
+  - [parameter-server](https://github.com/dmlc/parameter_server) provides asynchronize parameter server abstraction.
