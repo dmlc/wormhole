@@ -23,7 +23,7 @@ Example
 
 Documentation  
 ====
-* See [Document of xgboost](https://github.com/dmlc/xgboost/doc/README.md)
+* See [Document of xgboost](https://github.com/dmlc/xgboost/doc/index.md)
   - The distributed version is essetially the same as CLI version of xgboost
   - The only difference is change data path to path in hdfs (or s3) and submit with dmlc_yarn.py script  
 * It is highly recommended to try single machine version first
