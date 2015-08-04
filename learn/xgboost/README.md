@@ -23,7 +23,7 @@ Example
 
 Documentation  
 ====
-* See [Document of xgboost](https://github.com/dmlc/xgboost/doc/index.md)
+* See [Document of xgboost](https://github.com/dmlc/xgboost/tree/master/doc/index.md)
   - The distributed version is essetially the same as CLI version of xgboost
   - The only difference is change data path to path in hdfs (or s3) and submit with dmlc_yarn.py script  
 * It is highly recommended to try single machine version first
@@ -48,7 +48,7 @@ Notes
 External Memory Version
 ====
 XGBoost supports external memory, this will make each process cache data into local disk during computation, without taking up all the memory for storing the data.
-See [external memory](https://github.com/dmlc/xgboost/doc/external_memory.md) for syntax using external memory.
+See [external memory](https://github.com/dmlc/xgboost/tree/master/doc/external_memory.md) for syntax using external memory.
 
 You only need to add cacheprefix to the input file to enable external memory mode. For example set training data as 
 ```
