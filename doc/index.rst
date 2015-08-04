@@ -7,9 +7,8 @@ User Guide
 .. toctree::
    :maxdepth: 2
 
-   common/input
-
    common/build
+   common/input
 
    learn/linear
    learn/difacto

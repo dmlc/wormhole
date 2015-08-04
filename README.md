@@ -48,13 +48,7 @@ on Ubuntu >= 13.10. For
 
 How to Submit Jobs
 ====
-* All tools can run both in your laptop and in a cluster. For example, the following
-command runs linear logistic regression using single worker and server on a
-small dataset.
-```
-tracker/dmlc_local.py -n 1 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
-```
-
+* All tools can run both in your laptop and in a cluster. For example,
 * See more trackers in ```tracker/```
 
 Contributing
