@@ -1,8 +1,21 @@
-Build the system
+Build & Run
 ================
-
-Requires
---------
 
 Build
 -----
+
+Rquires
+
+Make
+
+Run
+---
+
+Local machine
+~~~~~~~~~~~~~
+
+Yarn
+~~~~
+
+MPI
+~~~
