@@ -4,8 +4,8 @@ Factorization Machine
 Difacto is refined factorization machine (FM) with sparse memory adaptive
 constraints.
 
-Model
------
+Model & Optimization
+--------------------
 
 Given an example :math:`x \in \mathbb{R}^d` and an embedding
 dimension  :math:`k`, FM models the example by
@@ -34,18 +34,12 @@ Furthermore, Difacto adds two heuristics constraints
   words, Difacto does not learn an embedding for tail features. (You can specify
   the threshold via ``threshold = 10``)
 
-Optimization method
--------------------
+Train by Asynchronous SGD. *w* is updated via FTRL while *V* via adagrad.
 
-Asynchronous SGD. *w* is updated via FTRL while *V* via adagrad.
-
-Configuration
--------------
+Running Configuration
+---------------------
 
 The configure is defined in the protobuf file `config.proto <https://github.com/dmlc/wormhole/blob/master/learn/difacto/config.proto>`_
 
 Performance
------------
-
-What's Next
 -----------
