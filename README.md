@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/dmlc/wormhole.svg?branch=master)](https://travis-ci.org/dmlc/wormhole)
 [![Documentation Status](https://readthedocs.org/projects/wormhole/badge/?version=latest)](http://wormhole.readthedocs.org/en/latest/)
-[![GitHub license](https://raw.githubusercontent.com/dmlc/dmlc.github.io/master/img/apache2.0.svg)](./LICENSE)
+[![GitHub license](http://dmlc.github.io/img/apache2.svg)](./LICENSE)
 
 Portable, scalable and reliable distributed machine learning.
 
