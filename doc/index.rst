@@ -1,6 +1,14 @@
 Wormhole documentation
 ======================
 
+Tutorial
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   tutorial/criteo_kaggle
+
 User Guide
 ----------
 

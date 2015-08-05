@@ -16,5 +16,6 @@ where *ℓ* is the loss function such as logistic loss and hinge loss.
 tracker/dmlc_local.py -n 1 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
 ```
 
-- [User Document](http://wormhole.readthedocs.org/en/latest/learn/linear.html)
+- [User Guide](http://wormhole.readthedocs.org/en/latest/learn/linear.html)
+
 - [Tutorial on using the Criteo Kaggle CTR competition dataset](guide/criteo_kaggle.md)
