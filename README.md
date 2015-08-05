@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/dmlc/wormhole.svg?branch=master)](https://travis-ci.org/dmlc/wormhole)
 [![Documentation Status](https://readthedocs.org/projects/wormhole/badge/?version=latest)](http://wormhole.readthedocs.org/en/latest/)
+[![GitHub license](https://raw.githubusercontent.com/dmlc/dmlc.github.io/master/img/apache2.0.svg)](./LICENSE)
 
 Portable, scalable and reliable distributed machine learning.
 
@@ -11,8 +12,7 @@ scalable and reliable machine learning toolkits that can run on various platform
 Features
 ====
 * Portable:
-  - Supported platforms: YARN, MPI and Sungrid Engine
-  - Planned: docker support
+  - Supported platforms: local machine, Apache YARN, MPI and Sungrid Engine
 * Rich support of Data Source
   - All projects can read data from HDFS, S3 or local filesystem
 * Scalable and Reliable
@@ -24,44 +24,39 @@ List of Tools
 * Linear method: [Asynchrouns SGD](learn/linear) [L-BFGS](learn/lbfgs-linear)
 * Factorization Machine: [DiFacto](learn/difacto)
 
-Build
+Build & Run
 ====
-* Requires a C++11 compiler such as `g++ >=4.8` and `git`. You can install them via
+
+* Requires a C++11 compiler (e.g.~`g++ >=4.8`) and `git`. Install them on Ubuntu
+  >= 13.10
+
 ```
 sudo apt-get update && sudo apt-get install -y build-essential git
 ```
-on Ubuntu >= 13.10. For
-[older Ubuntu](http://ubuntuhandbook.org/index.php/2013/08/install-gcc-4-8-via-ppa-in-ubuntu-12-04-13-04/),
-[Centos](http://linux.web.cern.ch/linux/devtoolset/),
-[Mac Os X](http://hpc.sourceforge.net/).
 
-* Type `make` to build all deps and tools, it takes several minutes in the fist time.
+* Type `make` to build all deps and tools
 
-* More options are available
-  - `make xgboost` to selectly build one tool
-  - `make -j4` uses 4 threads
-  - `make CXX=gcc-4.9` changes the compiler
-  - `make DEPS_PATH=your_path` changes the path of the deps libaries
-  - `make USE_HDFS=1` to enable read/write HDFS. Make sure hadoop is installed.
-  - `make USE_S3=1` to enable read/write AWS S3 files. You may need to install
-    `libcurl4-openssl-dev` first via `sudo apt-get install libcurl4-openssl-dev`
+* All tools can run both in a laptop and in a cluster. For example, train
+logisitic regression using 2 workers and one servers in local machine
 
-How to Submit Jobs
+```
+tracker/dmlc_local.py -n 2 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
+```
+
+* [More tutorials and documents](http://wormhole.readthedocs.org/en/latest/index.html)
+
+Support
 ====
-* All tools can run both in your laptop and in a cluster. For example,
-* See more trackers in ```tracker/```
 
-Contributing
-====
-* We believe that we can create machine learning tools that are portable and works with each other.
-* Contributing of machine learning projects, tutorials and to core dmlc projects are welcomed.
-  - All machine learning projects can depends on dmlc-core, rabit or parameter-server
+If you are having issues, please let us [know](https://github.com/dmlc/wormhole/issues).
 
-Project Structure
+
+Contribute
 ====
-* [learn](learn) contains simple but powerful learning tools in wormhole
-* [repo](repo) is used to clone other DMLC repos that wormhole can depend on
-* Depending DMLC Libraries
-  - [dmlc-core](https://github.com/dmlc/dmlc-core) gives the core modules of most DMLC projects.
+- We are actively building new tools. The source codes of all tools are available under [learn/](learn).
+- Wormhole depends on other DMLC projects, which are also under active developing
+  - [dmlc-core](https://github.com/dmlc/dmlc-core) provides I/O modules and job
+    trackers
   - [rabit](https://github.com/dmlc/rabit) provides reliable BSP Allreduce communication.
-  - [parameter-server](https://github.com/dmlc/parameter_server) provides asynchronize parameter server abstraction.
+  - [ps-lite](https://github.com/dmlc/ps-lite) provides the asynchronous key-value
+    push and pull for the parameter server framework.
