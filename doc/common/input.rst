@@ -1,7 +1,7 @@
 Input Data
 ==========
 
-Wormhole supports various input data formats and sources.
+Wormhole supports various input data sources and formats.
 
 Data Formats
 ------------
@@ -78,4 +78,36 @@ An example filename of a S3 file ::
 Microsoft Azure
 ~~~~~~~~~~~~~~~
 
-TODO
+
+To supports Amazon S3, compile with the flag ``USE_AZURE=1``, which needs to
+install SDK (TODO: move to make/deps.mk) ::
+
+  sudo apt-get -y install libboost1.54-all-dev libssl-dev cmake libxml++2.6-dev libxml++2.6-doc uuid-dev
+
+  cd deps && mkdir -p lib include
+
+  git clone https://git.codeplex.com/casablanca
+  cd casablanca/Release
+  mkdir build.release
+  cd build.release
+  CXX=g++ cmake .. -DCMAKE_BUILD_TYPE=Release
+  make -j8
+  cp -r ../include/* ../../../include/
+  cd ../../..
+
+  git clone https://github.com/Azure/azure-storage-cpp
+  cd azure-storage-cpp/Microsoft.WindowsAzure.Storage
+  mkdir build.release
+  cd build.release
+  CASABLANCA_DIR=.././../../casablanca/ CXX=g++ cmake .. -DCMAKE_BUILD_TYPE=Release
+  make -j8
+  cp Binaries/libazurestorage* ../../../lib
+  cp -r ../includes/* ../../../include/
+  cd ../../../..
+
+One also need to
+set the environment variables properly
+(`About Azure storage account <https://azure.microsoft.com/en-us/documentation/articles/storage-create-storage-account/>`_)::
+
+  export AZURE_STORAGE_ACCOUNT=mystorageaccount
+  export AZURE_STORAGE_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
