@@ -49,16 +49,13 @@ struct ISGDHandle {
   static int64_t new_w;
 };
 
-template <typename T> inline bool TLoad(Stream* fi, T* ptr) {
-  if (fi->Read(&ptr->w, sizeof(Real)) == 0) return false;
+template <typename T> inline void TLoad(Stream* fi, T* ptr) {
+  CHECK_EQ(fi->Read(&ptr->w, sizeof(Real)), sizeof(Real));
   ISGDHandle::Report(ptr->w, 0);
-  return true;
 }
 
-template <typename T> inline bool TSave(Stream* fo, T* const ptr) {
-  if (ptr->w == 0) return false;
+template <typename T> inline void TSave(Stream* fo, T* const ptr) {
   fo->Write(&ptr->w, sizeof(Real));
-  return true;
 }
 
 /*********************************************************************
@@ -67,8 +64,9 @@ template <typename T> inline bool TSave(Stream* fo, T* const ptr) {
  *********************************************************************/
 struct SGDEntry {
   Real w = 0;
-  inline bool Load(Stream *fi) { return TLoad(fi, this); }
-  inline bool Save(Stream *fo) const { return TSave(fo, this); }
+  inline void Load(Stream *fi) { TLoad(fi, this); }
+  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline bool Empty() const { return w == 0; }
 };
 
 struct SGDHandle : public ISGDHandle {
@@ -103,8 +101,10 @@ struct SGDHandle : public ISGDHandle {
 
 struct AdaGradEntry {
   Real w = 0; Real sq_cum_grad = 0;
-  inline bool Load(Stream *fi) { return TLoad(fi, this); }
-  inline bool Save(Stream *fo) const { return TSave(fo, this); }
+
+  inline void Load(Stream *fi) { TLoad(fi, this); }
+  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline bool Empty() const { return w == 0; }
 };
 
 struct AdaGradHandle : public ISGDHandle {
@@ -139,8 +139,10 @@ struct AdaGradHandle : public ISGDHandle {
 
 struct FTRLEntry {
   Real w = 0; Real z = 0; Real sq_cum_grad = 0;
-  inline bool Load(Stream *fi) { return TLoad(fi, this); }
-  inline bool Save(Stream *fo) const { return TSave(fo, this); }
+
+  inline void Load(Stream *fi) { TLoad(fi, this); }
+  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline bool Empty() const { return w == 0; }
 };
 
 struct FTRLHandle : public ISGDHandle {

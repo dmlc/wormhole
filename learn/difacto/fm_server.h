@@ -114,8 +114,8 @@ struct AdaGradEntry {
     return size == 1 ? *(((Real *)&sqc_grad)+1) : sqc_grad[1];
   }
 
-  bool Load(Stream* fi) {
-    if (fi->Read(&size, sizeof(size)) == 0) return false;
+  void Load(Stream* fi) {
+    fi->Read(&size, sizeof(size)) ;
     if (size == 1) {
       fi->Read(&w, sizeof(Real*));
       fi->Read(&sqc_grad, sizeof(Real*));
@@ -127,11 +127,9 @@ struct AdaGradEntry {
       ISGDHandle::new_V += size - 1;
     }
     if (w_0() != 0) ++ ISGDHandle::new_w;
-    return true;
   }
 
-  bool Save(Stream *fo) const {
-    if (w_0() == 0) return false;
+  void Save(Stream *fo) const {
     fo->Write(&size, sizeof(size));
     if (size == 1) {
       fo->Write(&w, sizeof(Real*));
@@ -140,7 +138,10 @@ struct AdaGradEntry {
       fo->Write(w, sizeof(Real)*size);
       fo->Write(sqc_grad, sizeof(Real)*(size+1));
     }
-    return true;
+  }
+
+  bool Empty() const {
+    return (w_0() == 0 && size == 1);
   }
 
   // #appearence of this feature in the data
