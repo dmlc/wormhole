@@ -9,14 +9,23 @@
 
 namespace dmlc {
 
+/**
+ * \brief a workload the scheduler assigns to workers
+ */
 struct Workload : public Serializable {
   enum Type { TRAIN, VAL } type;
+  /// \brief current pass of data, start from 1
   int data_pass;
+
   struct File {
+    /// \brief filename
     std::string filename;
-    std::string format;  // data format
-    int n = 1;  // num of part
-    int k = 0;  // the k-th parf
+    /// \brief data format: libsvm, crb, ...
+    std::string format;
+    /// \brief number of virtual parts of this file
+    int n = 1;
+    /// \brief the workload only needs to process the k-th part
+    int k = 0;
 
     std::string ShortDebugString() const {
       std::string ret
@@ -24,6 +33,8 @@ struct Workload : public Serializable {
       return ret;
     }
   };
+
+  /// \brief files needed to be processed
   std::vector<File> file;
 
   std::string ShortDebugString() const {
@@ -35,6 +46,8 @@ struct Workload : public Serializable {
     }
     return ss.str();
   }
+
+  /// \brief empty workload
   bool Empty() { return file.size() == 0; }
 
   virtual void Load(Stream* fi) {
