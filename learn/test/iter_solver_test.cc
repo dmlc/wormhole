@@ -62,7 +62,7 @@ class IterTestWorker : public solver::IterWorker {
     int t = (rand_r(&seedp_) % 100000) + 500000;
     usleep(t);
     std::vector<double> p(1, t);
-    Report(p);
+    ReportToScheduler(p);
   }
  private:
   unsigned int seedp_ = 0;

@@ -344,7 +344,7 @@ class IterServer : public ps::App {
   virtual void LoadModel(Stream* fi) = 0;
 
   /// \brief Report the progress to the scheduler
-  void Report(const std::vector<double>& prog) { reporter_.Push(prog); }
+  void ReportToScheduler(const Progress& prog) { reporter_.Push(prog); }
 
   // implementation
  public:
@@ -383,7 +383,7 @@ class IterWorker : public ps::App {
   virtual void Process(const Workload& wl) = 0;
 
   /// \brief Report the progress to the scheduler
-  void Report(const std::vector<double>& prog) { reporter_.Push(prog); }
+  void ReportToScheduler(const Progress& prog) { reporter_.Push(prog); }
 
   // implementation
  public:
