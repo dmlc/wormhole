@@ -7,6 +7,7 @@
  seq 0 3 | xargs -I {} touch data/part-{}
  tracker/dmlc_local.py -s 2 -n 4 learn/test/build/data_parallel_test -data data/
  \endcode
+ * one can also use `data/part-[0-1]` or `data/part.*`
  */
 
 #include "solver/data_parallel.h"
