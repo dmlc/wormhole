@@ -158,7 +158,7 @@ class IterScheduler : public ps::App {
 
     if (model_in_.size()) {
       if (load_iter_ > 0) {
-        printf("Loading model from #iter = %d\n", load_iter_);
+        printf("Loading model from iter = %d\n", load_iter_);
         cur_data_pass_ = load_iter_;
       } else {
         printf("Loading the last model\n");
@@ -172,7 +172,7 @@ class IterScheduler : public ps::App {
     }
 
     if (is_predict) {
-      printf("Prediction finished!\n");
+      printf("Prediction is finished!\n");
       return true;
     }
 
@@ -181,13 +181,14 @@ class IterScheduler : public ps::App {
         printf("Hit stop critera\n"); break;
       }
       if (cur_data_pass_ == max_data_pass_ - 1) {
-        printf("Hit max number of data passes\n"); break;
+        printf("Hit max number of data passes %d\n", max_data_pass_);
+        break;
       }
       SaveModel(false);
     }
 
     SaveModel(true);
-    printf("Training finished!\n");
+    printf("Training is finished!\n");
     return true;
   }
 
@@ -226,13 +227,13 @@ class IterScheduler : public ps::App {
     bool is_predict = predict_out_.size();
     if (is_train) {
       data = train_data_;
-      printf("Training #iter = %d\n", cur_data_pass_);
+      printf("Training: iter = %d\n", cur_data_pass_);
     } else {
       data = val_data_;
       if (is_predict) {
         printf("Predicting\n");
       } else {
-        printf("Validating #iter = %d\n", cur_data_pass_);
+        printf("Validating: iter = %d\n", cur_data_pass_);
         if (data.empty()) return stop;
       }
     }

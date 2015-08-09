@@ -30,7 +30,7 @@ class IterTestScheduler : public solver::IterScheduler {
   virtual ~IterTestScheduler() { }
 
   virtual std::string ProgHeader() const {
-    return "tic";
+    return "   tic";
   }
 
   virtual std::string ProgString(const std::vector<double>& prog) const {
@@ -53,16 +53,19 @@ class IterTestServer : public solver::IterServer {
 
 class IterTestWorker : public solver::IterWorker {
  public:
-  IterTestWorker() { srand(ps::NodeInfo::MyRank()); }
+  IterTestWorker() { }
   virtual ~IterTestWorker() { }
 
   virtual void Process(const Workload& wl) {
     printf("worker %d: %s\n", ps::NodeInfo::MyRank(), wl.ShortDebugString().c_str());
-    int t = (rand() % 100000) + 10000;
+    if (seedp_ == 0) seedp_ = ps::NodeInfo::MyRank();
+    int t = (rand_r(&seedp_) % 100000) + 500000;
     usleep(t);
-    std::vector<double> p(1, t); LOG(ERROR) << p[0];
+    std::vector<double> p(1, t);
     Report(p);
   }
+ private:
+  unsigned int seedp_ = 0;
 };
 }  // namespace dmlc
 
