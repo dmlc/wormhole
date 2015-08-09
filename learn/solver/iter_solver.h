@@ -3,9 +3,6 @@
  * @brief  Template for an iterate solver
  */
 #include "ps.h"
-#include "base/string_stream.h"
-#include "base/workload.h"
-#include "base/workload_pool.h"
 namespace dmlc {
 namespace solver {
 
@@ -131,11 +128,6 @@ class IterScheduler : public ps::App {
 
   // implementation
  public:
-
-  static const int kProcess = 1;
-  static const int kSaveModel = 2;
-  static const int kLoadModel = 3;
-  static const int kMaxNumCmd = 10;
 
   IterScheduler() {
     sys_.manager().AddNodeFailureHandler([this](const std::string& id) {

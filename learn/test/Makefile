@@ -1,9 +1,10 @@
 include ../../make/ps_app.mk
+include build.mk
 
-all: build/iter_solver_test
+all: $(TEST)
 
 clean:
 	rm -rf build
 
-build/iter_solver_test: build/iter_solver_test.o $(DMLC_SLIB)
+%: %.o $(DMLC_SLIB)
 	$(CXX) $(CFLAGS) $(filter %.o %.a, $^) $(LDFLAGS) -o $@
