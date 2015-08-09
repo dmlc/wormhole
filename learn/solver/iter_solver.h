@@ -2,8 +2,10 @@
  * @file   iter_solver.h
  * @brief  Template for an iterate solver
  */
-#include "base/workload.h"
 #include "ps.h"
+#include "base/string_stream.h"
+#include "base/workload.h"
+#include "base/workload_pool.h"
 namespace dmlc {
 namespace solver {
 
@@ -145,7 +147,7 @@ class IterScheduler : public ps::App {
   /// \brief run iterations
   virtual bool Run() {
     printf("Connected %d servers and %d workers\n",
-           ps::NodeInfo()::NumServers(), ps::NodeInfo()::NumWorkers());
+           ps::NodeInfo::NumServers(), ps::NodeInfo::NumWorkers());
 
     start_time_ = GetTime();
 
@@ -185,27 +187,27 @@ class IterScheduler : public ps::App {
     }
 
     SaveModel(true);
-    Printf("Training finished!\n");
+    printf("Training finished!\n");
     return true;
   }
 
-
   virtual void ProcessResponse(ps::Message* response) {
-    if (response->task.cmd() == kProcess) {
+    IterCmd cmd(response->task.cmd());
+    if (cmd.process()) {
       auto id = response->sender;
-      pool_.Finish(id);
 
       if (response->task.msg().size()) {
-        CHECK(worker_local_data_);
+        CHECK(use_worker_local_data_);
         StringStream ss(response->task.msg());
         Workload wl; wl.Load(&ss);
-        pool_.Add(wl.file, num_part_per_file_, id);
+        pool_.Add(wl.file, num_parts_per_file_, id);
+        return;
       }
 
+      pool_.Finish(id);
       Workload wl; pool_.Get(id, &wl);
       if (!wl.Empty()) {
-        CHECK_EQ(wl.file.size(), (size_t)1);
-        wl.type = cur_type_;
+        wl.type = cur_task_;
         wl.data_pass = cur_data_pass_;
         wl.file[0].format = data_format_;
         SendWorkload(id, wl);
@@ -238,29 +240,31 @@ class IterScheduler : public ps::App {
 
     pool_.Clear(); pool_.Init(shuffle_, straggler_);
 
-    if (!use_worker_local_data_) {
+    if (use_worker_local_data_) {
+      // ask the workers to match the files
+      Workload wl;
+      wl.file.resize(1);
+      wl.file[0].filename = data;
+      wl.file[0].n = 0;
+      Wait(SendWorkload(ps::kWorkerGroup, wl));
+    } else {
+      // i will do it
       Workload wl; pool_.Match(data, &wl);
-      pool_.Add(wl.file, num_part_per_file_);
+      pool_.Add(wl.file, num_parts_per_file_);
       if (is_predict) {
         CHECK_EQ(wl.file.size(), (size_t)1)
             << "use single file for prediction";
       }
-      int npart = wl.file.size() * num_part_per_file_;
-      if (cur_data_pass_ == 0 && (npart < ps::NodeInfo()::NumWorkers())) {
+      int npart = wl.file.size() * num_parts_per_file_;
+      if (cur_data_pass_ == 0 && (npart < ps::NodeInfo::NumWorkers())) {
         fprintf(stderr, "WARNING: # of data parts (%d) < # of workers (%d)\n",
-                npart, ps::NodeInfo()::NumWorkers());
+                npart, ps::NodeInfo::NumWorkers());
         fprintf(stderr, "         You may want to increase \"num_parts_per_file\"\n");
       }
     }
 
-    // ask all workers to start
-    Workload wl;
-    if (use_worker_local_data_) {
-      wl.file.resize(1);
-      wl.file[0].filename = data;
-      wl.file[0].n = 0;
-    }
-    SendWorkload(ps::kWorkerGroup, wl);
+    // ask all workers to start by sending an empty workload
+    Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
     // print every k sec for training
     printf("  sec %s\n", ProgHeader().c_str());
@@ -295,14 +299,29 @@ class IterScheduler : public ps::App {
     return Stop(prog, is_train);
   }
 
-  void SendWorkload(const std::string id, const Workload& wl) {
+  int SendWorkload(const std::string id, const Workload& wl) {
     StringStream ss; wl.Save(&ss);
     ps::Task task; task.set_msg(ss.str());
     IterCmd cmd; cmd.set_process();
-    task.set_cmd(cmd.cmd); Submit(task, id);
+    task.set_cmd(cmd.cmd); return Submit(task, id);
   }
 
-  Root<double> monitor_;
+  void SaveModel(bool force) {
+    if (model_out_.size() == 0) return;
+    if (force || (save_iter_ > 0 && (cur_data_pass_+1) % save_iter_ == 0)) {
+      int iter = force ? 0 : cur_data_pass_;
+      if (iter == 0) {
+        printf("Saving final model to %s\n", model_out_.c_str());
+      } else {
+        printf("Saving model to %s-iter_%d\n", model_out_.c_str(), iter);
+      }
+      IterCmd cmd; cmd.set_save_model(); cmd.set_iter(iter);
+      ps::Task task; task.set_cmd(cmd.cmd); task.set_msg(model_out_);
+      Wait(Submit(task, ps::kServerGroup));
+    }
+  }
+
+  ps::Root<double> monitor_;
   WorkloadPool pool_;
   double start_time_;
 };
@@ -333,7 +352,7 @@ class IterServer : public ps::App {
     auto filename = ModelName(request->task.msg(), cmd.iter());
     if (cmd.save_model()) {
       Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
-      SaveModel(fi);
+      SaveModel(fo);
     } else if (cmd.load_model()) {
       Stream* fi = CHECK_NOTNULL(Stream::Create(filename.c_str(), "r"));
       LoadModel(fi);
@@ -344,11 +363,11 @@ class IterServer : public ps::App {
     CHECK(base.size()) << "empty model name";
     std::string name = base;
     if (iter > 0) name += "_iter-" + std::to_string(iter);
-    return name + "_part-" + std::to_string(ps::NodeInfo()::MyRank());
+    return name + "_part-" + std::to_string(ps::NodeInfo::MyRank());
   }
 
  public:
-  Slave<double> reporter_;
+  ps::Slave<double> reporter_;
 };
 
 /**
@@ -388,7 +407,7 @@ class IterWorker : public ps::App {
     }
   }
  private:
-  Slave<double> reporter_;
+  ps::Slave<double> reporter_;
 };
 
 }  // namespace solver

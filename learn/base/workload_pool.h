@@ -6,6 +6,9 @@
 #include <sstream>
 #include <vector>
 #include <list>
+#include <unordered_set>
+#include <unordered_map>
+#include <mutex>
 namespace dmlc {
 
 /**
@@ -13,11 +16,20 @@ namespace dmlc {
  */
 class WorkloadPool {
  public:
-  WorkloadPool(bool shuffle = true) : shuffle_(shuffle) {
+  static void Match(const std::string& pattern, Workload* wl) {
+    std::vector<std::string> files;
+    MatchFile(pattern, &files);
+    wl->file.resize(files.size());
+    for (size_t i = 0; i < files.size(); ++i) {
+      wl->file[i].filename = files[i];
+    }
+  }
+
+  WorkloadPool() {
     straggler_killer_ = new std::thread([this]() {
         while (!done_) {
-          RemoveStraggler();
-          sleep(2);
+          // detecter straggler for every 2 second
+          RemoveStraggler(); sleep(2);
         }
       });
   }
@@ -29,13 +41,9 @@ class WorkloadPool {
     }
   }
 
-  static void Match(const std::string& pattern, Workload* wl) {
-    std::vector<std::string> files;
-    MatchFile(pattern, &files);
-    wl->file.resize(files.size());
-    for (size_t i = 0; i < files.size(); ++i) {
-      wl->file[i].filename = files[i];
-    }
+
+  void Init(bool shuffle, int timeout) {
+    // TODO
   }
 
   void Add(const std::vector<Workload::File>& files, int npart,

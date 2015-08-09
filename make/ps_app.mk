@@ -21,8 +21,8 @@ include $(CORE_PATH)/make/dmlc.mk
 
 INCLUDE=-I./ -I../ -I$(PS_PATH)/src -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
 
-CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(INCLUDE) $(DMLC_CFLAGS) $(PS_CFLAGS) $(EXTRA_CFLAGS)
-LDFLAGS = $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
+CFLAGS  += -O3 -ggdb -Wall -std=c++11 $(INCLUDE) $(DMLC_CFLAGS) $(PS_CFLAGS) $(EXTRA_CFLAGS)
+LDFLAGS += $(DMLC_LDFLAGS) $(PS_LDFLAGS) $(EXTRA_LDFLAGS)
 
 .DEFAULT_GOAL := all
 

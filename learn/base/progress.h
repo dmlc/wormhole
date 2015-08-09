@@ -10,40 +10,6 @@
 #include "dmlc/logging.h"
 
 namespace dmlc {
-namespace wormhole {
-
-/**
- * \brief  Serializable progress for objective value, accuracy, ...
- */
-class Progress : public Serializable {
- public:
-  Progress() { }
-  virtual ~Progress() { }
-
-  /// \brief merge from another progress
-  virtual void Merge(const Progress* const other) {
-    CHECK_EQ(other->vec_.size(), vec_.size());
-    for (size_t i = 0; i < vec_.size(); ++i) {
-      vec_[i] += other->vec_[i];
-    }
-  }
-
-  /// \brief Returns a header string for printing
-  virtual std::string HeadStr() = 0;
-
-  /// \brief Returns a string for printing
-  virtual std::string PrintStr() = 0;
-
-  virtual void Load(Stream* fi) { fi->Read(&vec_); }
-  virtual void Save(Stream *fo) const { fo->Write(vec_); }
-
-  double& objv() { return vec_[0]; }
-  double objv() const { return vec_[0]; }
- protected:
-  std::vector<double> vec_;
-};
-
-}  // namespace wormhole
 
 /// DEPRECATED
 
@@ -120,3 +86,38 @@ class VectorProgress : public IProgress {
 };
 
 }  // namespace dmlc
+
+// namespace wormhole {
+
+// /**
+//  * \brief  Serializable progress for objective value, accuracy, ...
+//  */
+// class Progress : public Serializable {
+//  public:
+//   Progress() { }
+//   virtual ~Progress() { }
+
+//   /// \brief merge from another progress
+//   virtual void Merge(const Progress* const other) {
+//     CHECK_EQ(other->vec_.size(), vec_.size());
+//     for (size_t i = 0; i < vec_.size(); ++i) {
+//       vec_[i] += other->vec_[i];
+//     }
+//   }
+
+//   /// \brief Returns a header string for printing
+//   virtual std::string HeadStr() = 0;
+
+//   /// \brief Returns a string for printing
+//   virtual std::string PrintStr() = 0;
+
+//   virtual void Load(Stream* fi) { fi->Read(&vec_); }
+//   virtual void Save(Stream *fo) const { fo->Write(vec_); }
+
+//   double& objv() { return vec_[0]; }
+//   double objv() const { return vec_[0]; }
+//  protected:
+//   std::vector<double> vec_;
+// };
+
+// }  // namespace wormhole
