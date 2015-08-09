@@ -103,6 +103,16 @@ bin/text2crb.dmlc:
 	$(MAKE) -C learn/tool text2crb config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 	cp learn/tool/text2crb $@
 
+# test
+TEST=learn/test/build/iter_solver_test
+
+learn/test/%: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
+	$(MAKE) -C learn/test $* config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
+
+test: $(TEST)
+
+linear: bin/linear.dmlc
+
 
 pull:
 	for prefix in $(REPOS); do \

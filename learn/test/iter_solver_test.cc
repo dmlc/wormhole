@@ -1,15 +1,21 @@
 /**
  * @file   iter_solver_test.cc
  * @brief
- *
- * run: tracker/dmlc_local.py -s 2 -n 4 learn/test/build/iter_solver_test
+ * on wormhole's root directory:
+ \code
+ make test
+ seq 0 3 | xargs -I {} touch data/part-{}
+ tracker/dmlc_local.py -s 2 -n 4 learn/test/build/iter_solver_test \
+   -train_data data/part-[0-1] -val_data data/part-[2-3]
+ \endcode
+ * run:
  */
 
 #include "solver/iter_solver.h"
 
 DEFINE_string(train_data, "", "");
 DEFINE_string(val_data, "", "");
-DEFINE_bool(batch, false, "");
+DEFINE_bool(batch, false, "batch or online model");
 
 namespace dmlc {
 
@@ -23,6 +29,14 @@ class IterTestScheduler : public solver::IterScheduler {
   }
   virtual ~IterTestScheduler() { }
 
+  virtual std::string ProgHeader() const {
+    return "tic";
+  }
+
+  virtual std::string ProgString(const std::vector<double>& prog) const {
+    if (prog.size()) return std::to_string(prog[0]);
+    return "";
+  }
 };
 
 class IterTestServer : public solver::IterServer {
@@ -39,15 +53,14 @@ class IterTestServer : public solver::IterServer {
 
 class IterTestWorker : public solver::IterWorker {
  public:
-  IterTestWorker() { }
+  IterTestWorker() { srand(ps::NodeInfo::MyRank()); }
   virtual ~IterTestWorker() { }
 
   virtual void Process(const Workload& wl) {
     printf("worker %d: %s\n", ps::NodeInfo::MyRank(), wl.ShortDebugString().c_str());
-    srand(time(NULL));
-    int t = rand() % 10000;
+    int t = (rand() % 100000) + 10000;
     usleep(t);
-    std::vector<double> p(1, t);
+    std::vector<double> p(1, t); LOG(ERROR) << p[0];
     Report(p);
   }
 };

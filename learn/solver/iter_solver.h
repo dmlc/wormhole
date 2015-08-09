@@ -267,8 +267,11 @@ class IterScheduler : public ps::App {
     Workload wl; SendWorkload(ps::kWorkerGroup, wl);
 
     // print every k sec for training
-    printf("  sec %s\n", ProgHeader().c_str());
-    fflush(stdout);
+    auto disp = ProgHeader();
+    if (disp.size()) {
+      printf("  sec %s\n", disp.c_str());
+      fflush(stdout);
+    }
 
     while (!pool_.IsFinished()) {
       sleep(print_sec_);
