@@ -179,10 +179,27 @@ class DataParWorker : public ps::App {
    */
   virtual void Process(const Workload& wl) = 0;
 
+  /**
+   * \brief Returns stream for output prediction
+   */
+  Stream* PredictStream(const Workload& wl) {
+    return NULL;  // TODO
+    CHECK_EQ(wl.type, Workload::PRED);
+    CHECK_GE(wl.file.size(), (size_t)1);
+
+      //   // save prediction
+      //   if (pred_out_ == NULL || k != cur_pred_part_) {
+      //     delete pred_out_;
+      //     auto fname = PredictName(conf_.pred_out(), k);
+      //     pred_out_ = CHECK_NOTNULL(Stream::Create(fname.c_str(), "w"));
+      //     cur_pred_part_ = k;
+      //   }
+  }
+
   // implementation
  public:
   DataParWorker() { }
-  virtual ~DataParWorker() { }
+  virtual ~DataParWorker() { delete pred_out_; }
 
   virtual void ProcessRequest(ps::Message* request) {
     DataParCmd cmd(request->task.cmd());
@@ -203,6 +220,8 @@ class DataParWorker : public ps::App {
       }
     }
   }
+ private:
+  Stream* pred_out_;
 };
 
 }  // namespace solver

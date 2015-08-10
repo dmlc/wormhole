@@ -1,120 +1,134 @@
-//  @file   config.proto
-//  @brief  configuration for linear method
+///  @file   config.proto
+///  @brief  configuration for linear method
 
 package dmlc.linear;
 
 message Config {
 
-  // --  basic settings - input & output  --
+  /// --  basic settings - input & output  --
 
-  // Both train_data and val_data can be either a directory or a wildcard
-  // filename such as "part-[0-9].*". also support hdfs:// and s3://
+  /// The training data, can be either a directory or a wildcard filename
   optional string train_data = 1;
+
+  /// The validation or test data, can be either a directory or a wildcard filename
   optional string val_data = 2;
 
-  // data format. support libsvm, crb, criteo, adfea, ...
+  /// data format. supports libsvm, crb, criteo, adfea, ...
   optional string data_format = 4 [default = "libsvm"];
 
-  // model output
+  /// model output filename
   optional string model_out = 5;
 
-  // save model for every *save_model* data pass. if 0, then only save the last
-  // one
-  optional int32 save_model = 6 [default = 0];
-
-  // model input
+  /// model input filename
   optional string model_in = 7;
 
-  // load model from iter = *load_model*. if 0, then load the last one
-  optional int32 load_model = 8 [default = 0];
+  /// the filename for prediction output. if specified, then run
+  /// prediction. otherwise run training
+  optional string predict_out = 9;
 
+  /// --  basic settings - objective and optimization  --
 
-  // output of the prediction results. if specified, then do
-  // prediction. otherwise run the training job.
-  optional string pred_out = 9;
-
-  // --  basic settings - objective and optimization  --
-
-  // the loss function
+  /// the loss function
   enum Loss {
+    /// square loss: :math:`\frac12 (p-y)^2`
     SQUARE = 1;
+    /// logistic loss: :math:`\log(1+\exp(-yp))`
     LOGIT = 2;
+    /// squared hinge loss: :math:`\max\left(0, (1-yp)^2\right)`
     SQUARE_HINGE = 4;
-    // HINGE = 3;
   }
+
+  /// the loss function. default is LOGIT
   optional Loss loss = 11 [default = LOGIT];
 
-  // elastic-net regularizer:
-  //   lambda_l1 * ||w||_1 + .5 * lambda_l2 * ||w||_2^2
+  /// l1 regularizer: :math:`\lambda_1 |w|_1`
   optional float lambda_l1 = 12 [default = 1];
+
+  /// l2 regularizer: :math:`\lambda_2 \|w\|_2^2`
   optional float lambda_l2 = 13 [default = 0];
 
-  // the learning  method
+  /// the learning method
   enum Algo {
-    // minibatch SGD
-    SGD = 1;     // standard sgd
-    ADAGRAD = 2; // adaptive gradient descent
+    /// asynchronous minibatch SGD
+    SGD = 1;
+    /// similar to SGD, but use adagrad
+    ADAGRAD = 2;
+    /// similar to ADAGRAD, but use FTRL for better sparsity
     FTRL = 3;
   }
+
+  /// the learning method, default is FTRL
   optional Algo algo = 21 [default = FTRL];
 
-  // the size of minibatch for minibatch SGD. a small value improves the
-  // convergence rate, but may decrease the system performance
+  /// the size of minibatch. the smaller, the faster the convergence, but the
+  /// slower the system performance
   optional int32 minibatch = 22 [default = 1000];
 
-  // the maximal number of data passes
-  optional int32 max_data_pass = 23 [default = 10];
+  /// the maximal number of data passes
+  optional int32 max_data_pass= 23 [default = 10];
 
-  // learning rate, often in the format lr_eta / (lr_beta + x), where x depends
-  // on the updater, such as sqrt(iter), or the cumulative gradient on adagrad
+  /// the learning rate :math:`\eta` (or :math:`\alpha`). often uses the largest
+  /// value when not diverged
   optional float lr_eta = 24 [default = .01];
 
-  // --  advanced settings --
+  /// --  advanced settings --
 
-  // - data -
+  /// - data -
 
-  // each worker reads the data in local if the data have been
-  // dispatched into workers' local disks. it can reduce the cost to access data
-  // remotely
-  optional bool use_worker_local_data = 101;
+  /// save model for every k data pass. default is -1, which only saves for the
+  /// last iteration
+  optional int32 save_iter = 6 [default = -1];
 
-  // virtually partition a file into nparts for better loadbalance.
+  /// load model from the k-th iteration. default is -1, which loads the last
+  /// iteration model
+  optional int32 load_iter = 8 [default = -1];
+
+  /// give a worker the data only if it can access. often used when the data has
+  /// been dispatched to workers' local filesystem
+  optional bool local_data = 101 [default = false];
+
+  /// virtually partition a file into n parts for better loadbalance. default is 10
   optional int32 num_parts_per_file = 102 [default = 10];
 
-  // randomly shuffle data for minibatch SGD. a minibatch is randomly pick from
-  // rand_shuffle * minibatch_size examples.
+  /// randomly shuffle data for minibatch SGD. a minibatch is randomly picked from
+  /// rand_shuffle * minibatch examples. default is 10.
   optional int32 rand_shuffle = 103 [default = 10];
 
-  // down sampling negative examples in the training data
+  /// down sampling negative examples in the training data. no in default
   optional float neg_sampling = 104 [default = 1.0];
 
-  // - learning -
+  /// if true, then outputs a probability prediction. otherwise :math:`\langle  x, y \rangle`
+  optional bool prob_predict = 105 [default = true];
 
-  // print the progress every n sec
-  optional float disp_itv = 111 [default = 1];
+  /// - learning -
 
-  // learning rate, see lr_eta
+  /// the probably to set a gradient to 0. no in default
+  optional float dropout = 110 [default = 0];
+
+  /// print the progress every n sec during training. 1 sec in default
+  optional float print_sec = 111 [default = 1];
+
+  /// learning rate :math:`\beta`, 1 in default
   optional float lr_beta = 112 [default = 1];
 
+  /// - system performance -
 
-  // - system performance -
-
-  // number of threads used within a worker and a server
+  /// number of threads used by a worker / a server. 2 in default
   optional int32 num_threads = 121 [default = 2];
 
-  // maximal allowed delay during synchronization. it is the maximal number of
-  // parallel minibatches for SGD, and parallel block for block CD.
-  optional int32 max_delay = 122 [default = 0];
+  /// the maximal concurrent minibatches being processing at the same time for
+  /// sgd, and the maximal concurrent blocks for block CD. 2 in default.
+  optional int32 max_concurrency = 122 [default = 2];
 
-  // cache the key list on both sender and receiver to reduce communication
-  // cost. it may increase the memory usage
+  /// cache the key list on both sender and receiver to reduce communication
+  /// cost. it may increase the memory usage
   optional bool key_cache = 123 [default = true];
 
-  // compression the message to reduce communication cost. it may increase the
-  // computation cost.
+  /// compression the message to reduce communication cost. it may increase the
+  /// computation cost.
   optional bool msg_compression = 124 [default = true];
 
-  // convert floating-points into fixed-point integers with n bytes. n can be 1,
-  // 2 and 3. 0 means no compression.
+  /// convert floating-points into fixed-point integers with n bytes. n can be 1,
+  /// 2 and 3. 0 means no compression.
   optional int32 fixed_bytes = 125 [default = 0];
 }

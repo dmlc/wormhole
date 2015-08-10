@@ -222,11 +222,12 @@ class AsgdServer : public solver::MinibatchServer {
 class AsgdWorker : public solver::MinibatchWorker {
  public:
   AsgdWorker(const Config& conf) : conf_(conf) {
-    // Init(conf_);
+    mb_size_       = conf_.minibatch();
+    shuffle_       = conf_.rand_shuffle();
+    concurrent_mb_ = conf_.max_concurrency();
+    neg_sampling_  = conf_.neg_sampling();
   }
-  virtual ~AsgdWorker() {
-    delete pred_out_;
-  }
+  virtual ~AsgdWorker() { }
 
  protected:
   virtual void ProcessMinibatch(const Minibatch& mb, const Workload& wl) {
@@ -246,27 +247,19 @@ class AsgdWorker : public solver::MinibatchWorker {
     // this callback will be called when the weight has been actually pulled
     // back
     int k = wl.file[0].k;
-    bool train = wl.type == Workload::TRAIN;
-    pull_w_opt.callback = [this, data, feaid, val, k, train]() {
+    pull_w_opt.callback = [this, data, feaid, val, k, wl]() {
       double start = GetTime();
       // eval the objective, and report progress to the scheduler
       auto loss = CreateLoss<float>(conf_.loss());
       loss->Init(data->GetBlock(), *val, nt_);
 
-      // if (predict_) {
-      //   // save prediction
-      //   if (pred_out_ == NULL || k != cur_pred_part_) {
-      //     delete pred_out_;
-      //     auto fname = PredictName(conf_.pred_out(), k);
-      //     pred_out_ = CHECK_NOTNULL(Stream::Create(fname.c_str(), "w"));
-      //     cur_pred_part_ = k;
-      //   }
-      //   loss->SavePrediction(pred_out_);
-      // }
+      if (wl.type == Workload::PRED) {
+        loss->Predict(PredictStream(wl));
+      }
 
-      // Progress prog; loss->Evaluate(&prog);
-      // Update(&prog);
+      Progress prog; loss->Evaluate(&prog); ReportToScheduler(prog.data);
 
+      bool train = wl.type == Workload::TRAIN;
       if (train) {
         // calculate and push the gradients
         loss->CalcGrad(val);
@@ -277,7 +270,7 @@ class AsgdWorker : public solver::MinibatchWorker {
         // this callback will be called when the gradients have been actually
         // pushed
         push_grad_opt.callback = [this]() { FinishMinibatch(); };
-        server_.ZPush(
+        kv_.ZPush(
             feaid, std::shared_ptr<std::vector<float>>(val), push_grad_opt);
       } else {
         FinishMinibatch();
@@ -287,7 +280,7 @@ class AsgdWorker : public solver::MinibatchWorker {
       delete data;
       workload_time_ += GetTime() - start;
     };
-    server_.ZPull(feaid, val, pull_w_opt);
+    kv_.ZPull(feaid, val, pull_w_opt);
   }
  private:
   void SetFilters(bool push, ps::SyncOpts* opts) {
@@ -303,10 +296,8 @@ class AsgdWorker : public solver::MinibatchWorker {
     }
   }
   Config conf_;
-  ps::KVWorker<float> server_;
   int nt_ = 2;
-  Stream* pred_out_ = NULL;
-  int cur_pred_part_ = -1;
+  ps::KVWorker<float> kv_;
 };
 
 

@@ -66,15 +66,15 @@ class MinibatchScheduler : public IterScheduler {
     train_data_            = conf.train_data();
     val_data_              = conf.val_data();
     data_format_           = conf.data_format();
-    num_parts_per_file_     = conf.num_parts_per_file();
-    use_worker_local_data_ = conf.use_worker_local_data();
+    num_parts_per_file_    = conf.num_parts_per_file();
+    use_worker_local_data_ = conf.local_data();
     max_data_pass_         = conf.max_data_pass();
-    print_sec_             = conf.disp_itv();
-    save_iter_             = conf.save_model();
-    load_iter_             = conf.load_model();
+    print_sec_             = conf.print_sec();
+    save_iter_             = conf.save_iter();
+    load_iter_             = conf.load_iter();
     model_in_              = conf.model_in();
     model_out_             = conf.model_out();
-    predict_out_           = conf.pred_out();
+    predict_out_           = conf.predict_out();
   }
 
  public:
@@ -292,7 +292,7 @@ class MinibatchWorker : public IterWorker {
     start_ = GetTime();
     workload_time_ = 0;
 
-    CHECK_EQ(wl.file.size(), (size_t)1);
+    CHECK_GE(wl.file.size(), (size_t)1);
     auto file = wl.file[0];
     dmlc::data::MinibatchIter<FeaID> reader(
         file.filename.c_str(), file.k, file.n, file.format.c_str(),

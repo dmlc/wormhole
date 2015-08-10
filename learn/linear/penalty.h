@@ -22,7 +22,7 @@ class L1L2 {
 
   /**
    * \brief Solve the proximal operator:
-   * \f$ \argmin_x 0.5 * \beta * (x - z / \beta )^2 + h(x)\f$
+   * \f$ \arg\min_x 0.5 * \beta * (x - z / \beta )^2 + h(x)\f$
    * where h denotes this penatly.
    *
    * No virtual function for performance consideration.
