@@ -16,11 +16,11 @@ endif
 CORE_PATH=../../repo/dmlc-core
 include $(CORE_PATH)/make/dmlc.mk
 
-INCLUDE = -I.. -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
+INCLUDE += -I.. -I$(CORE_PATH)/include -I$(CORE_PATH)/src -I$(DEPS_PATH)/include
 
-CFLAGS  = -O3 -ggdb -Wall -std=c++11 $(INCLUDE) $(DMLC_CFLAGS)
+CFLAGS  += -O3 -ggdb -Wall -std=c++11 $(INCLUDE) $(DMLC_CFLAGS)
 
-LDFLAGS = $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(addprefix $(DEPS_PATH)/lib/, libglog.a libgflags.a libcityhash.a liblz4.a)
+LDFLAGS += $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(addprefix $(DEPS_PATH)/lib/, libglog.a libgflags.a libcityhash.a liblz4.a)
 
 all: text2crb
 

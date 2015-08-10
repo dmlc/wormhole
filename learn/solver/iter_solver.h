@@ -16,14 +16,14 @@ struct IterCmd : public DataParCmd {
   IterCmd(int c) : DataParCmd(c) {}
 
   // mutators
-  void set_iter(int iter) { cmd += (iter+1) << 16; }
+  void set_iter(int iter) { cmd |= (iter+1) << 16; }
   void set_load_model() { cmd |= 1<<1; }
   void set_save_model() { cmd |= 1<<2; }
 
   // accessors
   bool load_model() const { return cmd & 1<<1; }
   bool save_model() const { return cmd & 1<<2; }
-  bool iter() const { return (cmd >> 16)-1; }
+  int iter() const { return (cmd >> 16)-1; }
 };
 
 /**
@@ -113,6 +113,7 @@ class IterServer : public ps::App {
 
  private:
   std::string ModelName(const std::string& base, int iter) {
+    LL << base << " " << iter;
     std::string name = base;
     if (iter >= 0) name += "_iter-" + std::to_string(iter);
     return name + "_part-" + std::to_string(ps::NodeInfo::MyRank());

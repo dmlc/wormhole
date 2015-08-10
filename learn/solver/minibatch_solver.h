@@ -93,13 +93,14 @@ class MinibatchScheduler : public IterScheduler {
       CHECK(model_in_.size()) << "should provide model_in for predicting";
     }
 
-    int cur_iter = -1;
+    int cur_iter = 0;
     if (model_in_.size()) {
       if (load_iter_ > 0) {
         printf("Loading model from iter = %d\n", load_iter_);
         cur_iter = load_iter_;
       } else {
         printf("Loading the last model\n");
+        cur_iter = -1;
       }
       Wait(LoadModel(model_in_, cur_iter));
 
@@ -120,11 +121,16 @@ class MinibatchScheduler : public IterScheduler {
         printf("Hit max number of data passes %d\n", max_data_pass_);
         break;
       }
-      if (save_iter_ > 0 && (cur_iter+1) % save_iter_ == 0) {
+      if (model_out_.size() && save_iter_ > 0 && (cur_iter+1) % save_iter_ == 0) {
+        printf("Saving model for iter = %d\n", cur_iter);
         Wait(SaveModel(model_out_, cur_iter));
       }
     }
-    Wait(SaveModel(model_out_, -1));
+
+    if (model_out_.size()) {
+      printf("Saving the final model\n");
+      Wait(SaveModel(model_out_, -1));
+    }
     printf("Training is finished!\n");
     return true;
   }

@@ -20,12 +20,17 @@ template <typename T> using Blob = ps::Blob<T>;
  */
 struct ISGDHandle {
  public:
+  ISGDHandle() { ns_ = ps::NodeInfo::NumServers();
+    LOG(ERROR) << ns_;
+  }
   inline void Start(bool push, int timestamp, int cmd, void* msg) { }
 
   inline void Finish() {
-    if (new_w > 1000 && reporter) {
+    // avoid too frequently reporting
+    ++ ct_;
+    if (ct_ >= ns_ && reporter) {
       Progress prog; prog.new_w() = new_w; reporter(prog);
-      new_w = 0;
+      new_w = 0; ct_ = 0;
     }
   }
 
@@ -47,6 +52,10 @@ struct ISGDHandle {
 
   std::function<void(const Progress& prog)> reporter;
   static int64_t new_w;
+
+ private:
+  int ct_ = 0;
+  int ns_ = 0;
 };
 
 template <typename T> inline void TLoad(Stream* fi, T* ptr) {
@@ -255,9 +264,9 @@ class AsgdWorker : public solver::MinibatchWorker {
 
       if (wl.type == Workload::PRED) {
         loss->Predict(PredictStream(conf_.predict_out(), wl), conf_.prob_predict());
+      } else {
+        Progress prog; loss->Evaluate(&prog); ReportToScheduler(prog.data);
       }
-
-      Progress prog; loss->Evaluate(&prog); ReportToScheduler(prog.data);
 
       bool train = wl.type == Workload::TRAIN;
       if (train) {
