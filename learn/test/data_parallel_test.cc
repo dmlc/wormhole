@@ -30,7 +30,7 @@ class DataParTestScheduler : public solver::DataParScheduler {
   virtual ~DataParTestScheduler() { }
 
   virtual bool Run() {
-    Start(); while (!IsFinished()) usleep(100000); return true;
+    StartDispatch(); while (!IsFinished()) usleep(100000); return true;
   }
 };
 

@@ -1,4 +1,3 @@
-#include "linear.h"
 #include "async_sgd.h"
 #include "ps.h"
 #include "base/arg_parser.h"
@@ -11,11 +10,12 @@ App* App::Create(int argc, char *argv[]) {
   parser.ReadArgs(argc-2, argv+2);
   ::dmlc::linear::Config conf; parser.ParseToProto(&conf);
 
-  if (IsWorkerNode()) {
+  NodeInfo n;
+  if (n.IsWorker()) {
     return new ::dmlc::linear::AsgdWorker(conf);
-  } else if (IsServerNode()) {
+  } else if (n.IsServer()) {
     return new ::dmlc::linear::AsgdServer(conf);
-  } else if (IsSchedulerNode()) {
+  } else if (n.IsScheduler()) {
     return new ::dmlc::linear::AsgdScheduler(conf);
   } else {
     LOG(FATAL) << "unknown node";

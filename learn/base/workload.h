@@ -13,7 +13,7 @@ namespace dmlc {
  * \brief a workload the scheduler assigns to workers
  */
 struct Workload : public Serializable {
-  enum Type { TRAIN, VAL } type;
+  enum Type { TRAIN, VAL, PRED } type;
   /// \brief current pass of data, start from 1
   int data_pass;
 

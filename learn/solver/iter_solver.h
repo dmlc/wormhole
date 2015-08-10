@@ -103,9 +103,11 @@ class IterServer : public ps::App {
     if (cmd.save_model()) {
       Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
       SaveModel(fo);
+      delete fo;
     } else if (cmd.load_model()) {
       Stream* fi = CHECK_NOTNULL(Stream::Create(filename.c_str(), "r"));
       LoadModel(fi);
+      delete fi;
     }
   }
 

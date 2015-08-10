@@ -35,18 +35,13 @@ class IterTestScheduler : public solver::IterScheduler {
   }
 
   void OneIteration () {
-    Start();
+    StartDispatch();
     while (!IsFinished()) {
       sleep(1);
       auto p = GetProgress();
       if (p.size())
         std::cout << "#workload : " << p[0] << " time: " << p[1]/1e6 << std::endl;
     }
-  }
-
-  virtual std::string ProgString(const std::vector<double>& prog) const {
-    if (prog.size()) return std::to_string(prog[0]);
-    return "";
   }
 };
 

@@ -2,9 +2,9 @@
  * @file   async_sgd.h
  * @brief  Asynchronous stochastic gradient descent to solve linear methods.
  */
+#include "solver/minibatch_solver.h"
 #include "config.pb.h"
-#include "linear.h"
-#include "solver/async_sgd.h"
+#include "progress.h"
 #include "base/localizer.h"
 #include "loss.h"
 #include "penalty.h"
@@ -12,24 +12,24 @@
 namespace dmlc {
 namespace linear {
 
+using FeaID = ps::Key;
 template <typename T> using Blob = ps::Blob<T>;
 
-/*********************************************************************
- * \brief the base handle class
- *********************************************************************/
+/**
+ * \brief the base sgd handle
+ */
 struct ISGDHandle {
  public:
   inline void Start(bool push, int timestamp, int cmd, void* msg) { }
-  // report
+
   inline void Finish() {
-    if (new_w > 1000) {
-      Progress prog; prog.nnz_w() = new_w;
-      if (reporter) reporter(prog);
+    if (new_w > 1000 && reporter) {
+      Progress prog; prog.new_w() = new_w; reporter(prog);
       new_w = 0;
     }
   }
 
-  inline static void Report(Real cur_w, Real old_w) {
+  inline static void Update(float cur_w, float old_w) {
     if (old_w == 0 && cur_w != 0) {
       ++ new_w;
     } else if (old_w != 0 && cur_w == 0) {
@@ -40,139 +40,140 @@ struct ISGDHandle {
   void Load(Stream* fi) { }
   void Save(Stream *fo) const { }
 
-  L1L2<Real> penalty;
+  L1L2<float> penalty;
 
   // learning rate
-  Real alpha = 0.1, beta = 1;
+  float alpha = 0.1, beta = 1;
 
   std::function<void(const Progress& prog)> reporter;
   static int64_t new_w;
 };
 
 template <typename T> inline void TLoad(Stream* fi, T* ptr) {
-  CHECK_EQ(fi->Read(&ptr->w, sizeof(Real)), sizeof(Real));
-  ISGDHandle::Report(ptr->w, 0);
+  CHECK_EQ(fi->Read(&ptr->w, sizeof(float)), sizeof(float));
+  ISGDHandle::Update(ptr->w, 0);
 }
 
 template <typename T> inline void TSave(Stream* fo, T* const ptr) {
-  fo->Write(&ptr->w, sizeof(Real));
+  fo->Write(&ptr->w, sizeof(float));
 }
 
-/*********************************************************************
- * \brief Standard SGD
- * use alpha / ( beta + sqrt(t)) as the learning rate
- *********************************************************************/
+/**
+ * \brief Standard SGD value
+ */
 struct SGDEntry {
-  Real w = 0;
+  float w = 0;
   inline void Load(Stream *fi) { TLoad(fi, this); }
   inline void Save(Stream *fo) const { TSave(fo, this); }
   inline bool Empty() const { return w == 0; }
 };
 
+/**
+ * \brief Standard SGD handle
+ *
+ * use alpha / ( beta + sqrt(t)) as the learning rate
+ */
 struct SGDHandle : public ISGDHandle {
  public:
   inline void Start(bool push, int timestamp, int cmd, void* msg) {
     if (push) {
-      eta = (this->beta + sqrt((Real)t)) / this->alpha;
+      eta = (this->beta + sqrt((float)t)) / this->alpha;
       t += 1;
     }
   }
-  inline void Push(FeaID key, Blob<const Real> grad, SGDEntry& w) {
-    Real old_w = w.w;
+  inline void Push(FeaID key, Blob<const float> grad, SGDEntry& w) {
+    float old_w = w.w;
     w.w = penalty.Solve(eta * w.w - grad[0], eta);
-    Report(w.w, old_w);
+    Update(w.w, old_w);
   }
 
-  inline void Pull(FeaID key, const SGDEntry& w, Blob<Real>& send) {
+  inline void Pull(FeaID key, const SGDEntry& w, Blob<float>& send) {
     send[0] = w.w;
   }
-  // iteration count
   int t = 1;
-  Real eta = 0;
+  float eta = 0;
 };
 
-
-/*********************************************************************
- * \brief AdaGrad SGD handle.
- * use alpha / ( beta + sqrt(sum_t grad_t^2)) as the learning rate
- *
- * sq_cum_grad: sqrt(sum_t grad_t^2)
- *********************************************************************/
-
+/**
+ * \brief AdaGrad SGD value.
+ */
 struct AdaGradEntry {
-  Real w = 0; Real sq_cum_grad = 0;
+  float w = 0;
+  float sq_cum_grad = 0;  // sqrt(sum_t grad_t^2)
 
   inline void Load(Stream *fi) { TLoad(fi, this); }
   inline void Save(Stream *fo) const { TSave(fo, this); }
   inline bool Empty() const { return w == 0; }
 };
 
-struct AdaGradHandle : public ISGDHandle {
-  inline void Init(FeaID key,  AdaGradEntry& val) { }
 
-  inline void Push(FeaID key, Blob<const Real> grad, AdaGradEntry& val) {
+/**
+ * \brief AdaGrad SGD handle.
+ *
+ * use alpha / ( beta + sqrt(sum_t grad_t^2)) as the learning rate
+ */
+struct AdaGradHandle : public ISGDHandle {
+  inline void Push(FeaID key, Blob<const float> grad, AdaGradEntry& val) {
     // update cum grad
-    Real g = grad[0];
-    Real sqrt_n = val.sq_cum_grad;
+    float g = grad[0];
+    float sqrt_n = val.sq_cum_grad;
     val.sq_cum_grad = sqrt(sqrt_n * sqrt_n + g * g);
 
     // update w
-    Real eta = (val.sq_cum_grad + beta) / alpha;
-    Real old_w = val.w;
+    float eta = (val.sq_cum_grad + beta) / alpha;
+    float old_w = val.w;
     val.w = penalty.Solve(eta * old_w - g, eta);
 
-    Report(val.w, old_w);
+    Update(val.w, old_w);
   }
 
-  inline void Pull(FeaID key, const AdaGradEntry& val, Blob<Real>& send) {
+  inline void Pull(FeaID key, const AdaGradEntry& val, Blob<float>& send) {
     send[0] = val.w;
   }
 };
 
-/*********************************************************************
- * \brief FTRL updater, use a smoothed weight for better spasity
- *
- * w : weight
- * z : the smoothed version of - eta * w + grad
- * sq_cum_grad: sqrt(sum_t grad_t^2)
- *********************************************************************/
-
+/**
+ * \brief FTRL value
+ */
 struct FTRLEntry {
-  Real w = 0; Real z = 0; Real sq_cum_grad = 0;
+  float w = 0;  // weight
+  float z = 0;  // the smoothed version of - eta * w + grad
+  float sq_cum_grad = 0; // sqrt(sum_t grad_t^2)
 
   inline void Load(Stream *fi) { TLoad(fi, this); }
   inline void Save(Stream *fo) const { TSave(fo, this); }
   inline bool Empty() const { return w == 0; }
 };
 
+/**
+ * \brief FTRL updater, use a smoothed weight for better spasity
+ */
 struct FTRLHandle : public ISGDHandle {
  public:
-  inline void Init(FeaID key,  FTRLEntry& val) { }
-
-  inline void Push(FeaID key, Blob<const Real> grad, FTRLEntry& val) {
+  inline void Push(FeaID key, Blob<const float> grad, FTRLEntry& val) {
     // update cum grad
-    Real g = grad[0];
-    Real sqrt_n = val.sq_cum_grad;
+    float g = grad[0];
+    float sqrt_n = val.sq_cum_grad;
     val.sq_cum_grad = sqrt(sqrt_n * sqrt_n + g * g);
 
     // update z
-    Real old_w = val.w;
-    Real sigma = (val.sq_cum_grad - sqrt_n) / alpha;
+    float old_w = val.w;
+    float sigma = (val.sq_cum_grad - sqrt_n) / alpha;
     val.z += g - sigma * old_w;
 
     // update w
     val.w = penalty.Solve(-val.z, (beta + val.sq_cum_grad) / alpha);
 
-    Report(val.w, old_w);
+    Update(val.w, old_w);
   }
 
-  inline void Pull(FeaID key, const FTRLEntry& val, Blob<Real>& send) {
+  inline void Pull(FeaID key, const FTRLEntry& val, Blob<float>& send) {
     send[0] = val.w;
   }
 };
 
 
-class AsgdServer : public solver::AsyncSGDServer {
+class AsgdServer : public solver::MinibatchServer {
  public:
   AsgdServer(const Config& conf) : conf_(conf) {
     auto algo = conf_.algo();
@@ -186,8 +187,8 @@ class AsgdServer : public solver::AsyncSGDServer {
       LOG(FATAL) << "unknown algo: " << algo;
     }
   }
-
   virtual ~AsgdServer() { }
+
  protected:
   template <typename Entry, typename Handle>
   void CreateServer() {
@@ -198,38 +199,30 @@ class AsgdServer : public solver::AsyncSGDServer {
     if (conf_.has_lr_beta()) h.beta = conf_.lr_beta();
 
     h.reporter = [this](const Progress& prog) {
-      Report(&prog);
+      ReportToScheduler(prog.data);
     };
-    ps::OnlineServer<Real, Entry, Handle> s(h);
+    ps::OnlineServer<float, Entry, Handle> s(h);
     server_ = s.server();
   }
 
-  void LoadModel(int iter) {
-    auto filename = ModelName(conf_.model_in(), iter);
-    Stream* fi = CHECK_NOTNULL(Stream::Create(filename.c_str(), "r"));
+  virtual void LoadModel(Stream* fi) {
     server_->Load(fi);
-
-    Progress prog;
-    prog.nnz_w() = ISGDHandle::new_w;
+    Progress prog; prog.new_w() = ISGDHandle::new_w; ReportToScheduler(prog.data);
     ISGDHandle::new_w = 0;
-    Report(&prog);
   }
 
-  void SaveModel(int iter) {
-    auto filename = ModelName(conf_.model_out(), iter);
-    Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
+  virtual void SaveModel(Stream* fo) const {
     server_->Save(fo);
-    delete fo;
   }
 
   Config conf_;
   ps::KVStore* server_;
 };
 
-class AsgdWorker : public solver::AsyncSGDWorker {
+class AsgdWorker : public solver::MinibatchWorker {
  public:
   AsgdWorker(const Config& conf) : conf_(conf) {
-    Init(conf_);
+    // Init(conf_);
   }
   virtual ~AsgdWorker() {
     delete pred_out_;
@@ -247,7 +240,7 @@ class AsgdWorker : public solver::AsyncSGDWorker {
     workload_time_ += GetTime() - start;
 
     // pull the weight from the servers
-    auto val = new std::vector<Real>();
+    auto val = new std::vector<float>();
     ps::SyncOpts pull_w_opt;
 
     // this callback will be called when the weight has been actually pulled
@@ -257,21 +250,22 @@ class AsgdWorker : public solver::AsyncSGDWorker {
     pull_w_opt.callback = [this, data, feaid, val, k, train]() {
       double start = GetTime();
       // eval the objective, and report progress to the scheduler
-      auto loss = CreateLoss(conf_.loss());
+      auto loss = CreateLoss<float>(conf_.loss());
       loss->Init(data->GetBlock(), *val, nt_);
-      if (predict_) {
-        // save prediction
-        if (pred_out_ == NULL || k != cur_pred_part_) {
-          delete pred_out_;
-          auto fname = PredictName(conf_.pred_out(), k);
-          pred_out_ = CHECK_NOTNULL(Stream::Create(fname.c_str(), "w"));
-          cur_pred_part_ = k;
-        }
-        loss->SavePrediction(pred_out_);
-      }
 
-      Progress prog; loss->Evaluate(&prog);
-      Report(&prog);
+      // if (predict_) {
+      //   // save prediction
+      //   if (pred_out_ == NULL || k != cur_pred_part_) {
+      //     delete pred_out_;
+      //     auto fname = PredictName(conf_.pred_out(), k);
+      //     pred_out_ = CHECK_NOTNULL(Stream::Create(fname.c_str(), "w"));
+      //     cur_pred_part_ = k;
+      //   }
+      //   loss->SavePrediction(pred_out_);
+      // }
+
+      // Progress prog; loss->Evaluate(&prog);
+      // Update(&prog);
 
       if (train) {
         // calculate and push the gradients
@@ -284,7 +278,7 @@ class AsgdWorker : public solver::AsyncSGDWorker {
         // pushed
         push_grad_opt.callback = [this]() { FinishMinibatch(); };
         server_.ZPush(
-            feaid, std::shared_ptr<std::vector<Real>>(val), push_grad_opt);
+            feaid, std::shared_ptr<std::vector<float>>(val), push_grad_opt);
       } else {
         FinishMinibatch();
         delete val;
@@ -309,17 +303,26 @@ class AsgdWorker : public solver::AsyncSGDWorker {
     }
   }
   Config conf_;
-  ps::KVWorker<Real> server_;
+  ps::KVWorker<float> server_;
   int nt_ = 2;
   Stream* pred_out_ = NULL;
   int cur_pred_part_ = -1;
 };
 
 
-class AsgdScheduler : public solver::AsyncSGDScheduler<Progress> {
+class AsgdScheduler : public solver::MinibatchScheduler {
  public:
   AsgdScheduler(const Config& conf) { Init(conf); }
   virtual ~AsgdScheduler() { }
+
+  virtual std::string ProgHeader() { return Progress::HeadStr(); }
+
+  virtual std::string ProgString(const solver::Progress& prog) {
+    prog_.data = prog;
+    return prog_.PrintStr();
+  }
+ private:
+  Progress prog_;
 };
 
 }  // namespace linear

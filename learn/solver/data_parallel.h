@@ -90,7 +90,7 @@ class DataParScheduler : public ps::App {
   /**
    * \brief Start dispatching
    */
-  void Start() {
+  void StartDispatch() {
     pool_.Clear(); pool_.Init(shuffle_, straggler_);
 
     if (use_worker_local_data_) {
@@ -124,7 +124,7 @@ class DataParScheduler : public ps::App {
    * \brief Stop to assign new workload to workers. But cannot revoked the ones
    * already assigned
    */
-  void Stop() { pool_.ClearRemain(); }
+  void StopDispatch() { pool_.ClearRemain(); }
 
   // implementation
  public:
