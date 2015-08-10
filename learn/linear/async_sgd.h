@@ -254,7 +254,7 @@ class AsgdWorker : public solver::MinibatchWorker {
       loss->Init(data->GetBlock(), *val, nt_);
 
       if (wl.type == Workload::PRED) {
-        loss->Predict(PredictStream(wl));
+        loss->Predict(PredictStream(conf_.predict_out(), wl), conf_.prob_predict());
       }
 
       Progress prog; loss->Evaluate(&prog); ReportToScheduler(prog.data);

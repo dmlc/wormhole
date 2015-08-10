@@ -50,11 +50,16 @@ class ScalarLoss {
 
   /**
    * \brief save prediction
+   * \param prob_out output probability
    */
-  virtual void Predict(Stream* fo) {
+  virtual void Predict(Stream* fo, bool prob_out) {
     CHECK(init_); CHECK_NOTNULL(fo);
     ostream os(fo);
-    for (auto p : Xw_) os << p << "\n";
+    if (prob_out) {
+      for (auto p : Xw_) os << 1.0 / (1.0 + exp( - p )) << "\n";
+    } else {
+      for (auto p : Xw_) os << p << "\n";
+    }
   }
 
  protected:

@@ -131,13 +131,39 @@ class IterWorker : public DataParWorker {
    */
   void ReportToScheduler(const Progress& prog) { reporter_.Push(prog); }
 
+  /**
+   * \brief Returns stream for output prediction
+   *
+   * \param filename the predict out filename
+   * \param wl the received workload
+   */
+  Stream* PredictStream(const std::string& filename, const Workload& wl) {
+    CHECK_EQ(wl.type, Workload::PRED);
+    CHECK_GE(wl.file.size(), (size_t)1);
+
+    auto in = wl.file[0].filename;
+    size_t pos = in.find_last_of("/\\");
+    auto in_base = pos == std::string::npos ? in : in.substr(pos+1);
+    auto out = filename + in_base + "_part-" + std::to_string(wl.file[0].k);
+
+    if (out != prev_out_) {
+      delete pred_out_;
+      pred_out_ = CHECK_NOTNULL(Stream::Create(out.c_str(), "w"));
+      prev_out_ = out;
+    }
+
+    return pred_out_;
+  }
+
   // implementation
  public:
   IterWorker() { }
-  virtual ~IterWorker() { }
+  virtual ~IterWorker() {  delete pred_out_; }
 
  private:
   ps::Slave<double> reporter_;
+  Stream* pred_out_ = NULL;
+  std::string prev_out_;
 };
 
 }  // namespace solver
