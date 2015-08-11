@@ -89,13 +89,13 @@ bin/linear.dmlc: learn/linear/build/linear.dmlc
 linear: bin/linear.dmlc
 
 # FM
-learn/difacto/build/fm.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
+learn/difacto/build/difacto.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
 	$(MAKE) -C learn/difacto config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
 
-bin/fm.dmlc: learn/difacto/build/fm.dmlc
+bin/difacto.dmlc: learn/difacto/build/difacto.dmlc
 	cp $+ $@
 
-fm: bin/fm.dmlc
+fm: bin/difacto.dmlc
 
 # tools
 
