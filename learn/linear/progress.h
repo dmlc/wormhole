@@ -4,7 +4,6 @@
 namespace dmlc {
 namespace linear {
 
-
 struct Progress {
   Progress() : data(6) { }
 

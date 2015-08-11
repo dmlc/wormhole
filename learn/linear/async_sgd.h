@@ -20,9 +20,7 @@ template <typename T> using Blob = ps::Blob<T>;
  */
 struct ISGDHandle {
  public:
-  ISGDHandle() { ns_ = ps::NodeInfo::NumServers();
-    LOG(ERROR) << ns_;
-  }
+  ISGDHandle() { ns_ = ps::NodeInfo::NumServers(); }
   inline void Start(bool push, int timestamp, int cmd, void* msg) { }
 
   inline void Finish() {
@@ -310,6 +308,9 @@ class AsgdWorker : public solver::MinibatchWorker {
 };
 
 
+/**
+ * \brief the scheduler  for async SGD
+ */
 class AsgdScheduler : public solver::MinibatchScheduler {
  public:
   AsgdScheduler(const Config& conf) { Init(conf); }
