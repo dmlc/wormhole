@@ -113,7 +113,6 @@ class IterServer : public ps::App {
 
  private:
   std::string ModelName(const std::string& base, int iter) {
-    LL << base << " " << iter;
     std::string name = base;
     if (iter >= 0) name += "_iter-" + std::to_string(iter);
     return name + "_part-" + std::to_string(ps::NodeInfo::MyRank());
