@@ -19,14 +19,16 @@ class AsyncScheduler : public solver::MinibatchScheduler {
     }
     Init(conf);
   }
-
   virtual ~AsyncScheduler() { }
 
-  virtual bool Stop(const Progress& prog, bool train) {
-    return false;
+  virtual std::string ProgHeader() { return Progress::HeadStr(); }
+
+  virtual std::string ProgString(const solver::Progress& prog) {
+    prog_.data = prog;
+    return prog_.PrintStr();
   }
 
-  virtual bool Stop(const Progress& cur, const Progress& prev, bool train) {
+  virtual bool Stop(const Progress& cur, bool train) {
     double cur_objv = cur.objv() / cur.new_ex();
     if (train) {
       if (conf_.has_max_objv() && cur_objv > conf_.max_objv()) {
@@ -47,6 +49,7 @@ class AsyncScheduler : public solver::MinibatchScheduler {
   }
 
  private:
+  Progress prog_;
   Config conf_;
   double pre_val_objv_ = 100;
 };

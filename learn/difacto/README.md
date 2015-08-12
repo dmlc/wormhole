@@ -15,55 +15,18 @@ Given training data pairs *(x,y)*, FM learns the model
 
 ![obj](guide/obj.png)
 
-Here *ℓ* is the loss function such as logistic loss. If we set *k=0*, then
-FM is a linear method. Therefore, the configuration to run FM is almost identical to [linear method](../linear/guide).
+Here *ℓ* is the loss function such as logistic loss.
 
-### How to choose *k*
+## Quick start
 
-The right choice of the embedding dimension *k* varies for different data, and
-even for different features in the same dataset. A large *k* increases the model
-complexity and therefore potentially gives better accuracy. While a smaller *k*
-can reduce the overfitting, memory consumption, and network traffic.
-
-We can specify *k* using the following rules:
+Go the root directory of `wormhole`, then build by `make difacto`. Next try
+a small dataset using 2 worker and 1 server:
 
 ```
-if feature i appears more than 1024 times
-    then use a 512 embedding size
-else if feature i appears more than 256 times
-    then use a 64 embedding
-else
-    no embedding
+tracker/dmlc_local.py -n 2 -s 1 bin/difacto.dmlc learn/difacto/guide/demo.conf
 ```
 
-The according configuration is
+## More
 
-```proto
-embedding {
-dim = 512
-threshold = 1024
-}
-embedding {
-dim = 64
-threshold = 256
-}
-```
-
-### Learning algorithm
-
-In default, the objective function is minimized by distributed asynchronous
-stochastic gradient descent.
-
-## Build and Run
-
-First to go the root directory of `wormhole`, then build by `make linear`. Now
-train a small dataset in local machine by 1 worker and 1 server:
-
-```
-tracker/dmlc_local.py -n 1 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
-```
-
-More documents:
-
-- [Use bigger datasets](../../docs/data.md)
-- [Launch jobs in multiple machines](../../docs/run.md)
+- [Tutorial for the Criteo Kaggle CTR competition](http://wormhole.readthedocs.org/en/latest/tutorial/criteo_kaggle.html)
+- [User Guide](http://wormhole.readthedocs.org/en/latest/learn/difacto.html)

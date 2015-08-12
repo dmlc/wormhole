@@ -16,7 +16,7 @@ REPOS = $(addprefix repo/, dmlc-core xgboost ps-lite rabit)
 
 .PHONY: clean all test pull
 
-all: xgboost kmeans linear fm bin/text2crb.dmlc
+all: xgboost kmeans linear difacto bin/text2crb.dmlc
 
 ### repos and deps
 
@@ -95,7 +95,7 @@ learn/difacto/build/difacto.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/d
 bin/difacto.dmlc: learn/difacto/build/difacto.dmlc
 	cp $+ $@
 
-fm: bin/difacto.dmlc
+difacto: bin/difacto.dmlc
 
 # tools
 

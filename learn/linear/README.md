@@ -19,5 +19,4 @@ tracker/dmlc_local.py -n 2 -s 1 bin/linear.dmlc learn/linear/guide/demo.conf
 ## More
 
 - [Tutorial for the Criteo Kaggle CTR competition](http://wormhole.readthedocs.org/en/latest/tutorial/criteo_kaggle.html)
-
 - [User Guide](http://wormhole.readthedocs.org/en/latest/learn/linear.html)

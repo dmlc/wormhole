@@ -81,14 +81,16 @@ class Loss {
         for (int j = 0; j < V.dim; ++j) s += t[j] * t[j] - tt[j];
         py_[i] += .5 * s;
       }
+      prog->objv() = eval.LogitObjv();
+    } else {
+      prog->objv() = prog->objv_w();
     }
 
     // auc, acc, logloss, copc
-    prog->objv()   = eval.LogitObjv();
     prog->auc()    = eval.AUC();
-    // prog->copc()   = eval.Copc();
     prog->new_ex() = w.X.size;
     prog->count()  = 1;
+    // prog->copc()   = eval.Copc();
   }
 
   /*!
@@ -164,6 +166,10 @@ class Loss {
   }
 
   virtual void Predict(Stream* fo, bool prob_out) {
+    if (py_.empty()) {
+      py_.resize(w.X.size);
+      SpMV::Times(w.X, w.weight, &py_, nt_);
+    }
     ostream os(fo);
     if (prob_out) {
       for (auto p : py_) os << 1.0 / (1.0 + exp( - p )) << "\n";
@@ -207,7 +213,7 @@ class Loss {
         CHECK_EQ((size_t)p, model.size());
         weight.resize(pos.size() * dim);
         for (size_t i = 0; i < pos.size(); ++i) {
-          memcpy(weight.data()+i*dim, model.data()+pos[i], dim*sizeof(V));
+          memcpy(weight.data()+i*dim, model.data()+pos[i], dim*sizeof(T));
         }
       }
       if (weight.empty()) return;
@@ -253,7 +259,7 @@ class Loss {
       CHECK_EQ(weight.size(), pos.size()*d);
       for (size_t i = 0; i < pos.size(); ++i) {
         if (pos[i] == (unsigned)-1) continue;
-        memcpy(grad->data()+pos[i], weight.data()+i*d, d*sizeof(V));
+        memcpy(grad->data()+pos[i], weight.data()+i*d, d*sizeof(T));
       }
     }
 
@@ -272,7 +278,6 @@ class Loss {
     std::vector<unsigned> idx;
   };
   Data w, V;
-  // std::vector<Data> data_;
 
   std::vector<T> py_;
   int nt_;  // number of threads
