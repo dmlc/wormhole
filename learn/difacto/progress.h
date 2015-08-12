@@ -20,8 +20,8 @@ struct Progress {
 
     char buf[256];
     snprintf(buf, 256, "%9.4g  %7.2g | %9.4g  %6.4lf | %9.4g  %7.5lf  %7.5lf ",
-             ttl_ex, new_ex(), nnz_w, objv_w() / count(), nnz_V,
-             objv() / count(),  auc() / count());
+             ttl_ex, new_ex(), nnz_w, objv_w() / new_ex(), nnz_V,
+             objv() / new_ex(),  auc() / count());
     return std::string(buf);
   }
 
