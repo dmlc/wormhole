@@ -22,7 +22,6 @@ namespace data {
 template <typename IndexType>
 class CriteoParser : public ParserImpl<IndexType> {
  public:
-  static const int kNumBitForFeaGrp = 10;
   explicit CriteoParser(InputSplit *source, bool is_train)
       : bytes_read_(0), source_(source), is_train_(is_train) {
   }
@@ -67,7 +66,8 @@ class CriteoParser : public ParserImpl<IndexType> {
         pp = Find(p, end, '\t');
         CHECK_NOTNULL(pp);
         if (pp > p) {
-          blk.index.push_back((CityHash64(p, pp-p)<<kNumBitForFeaGrp)+i);
+          blk.index.push_back(
+              (CityHash64(p, pp-p)>>10) | ((size_t)i << 54));
         }
         p = pp + 1;
       }
@@ -78,7 +78,8 @@ class CriteoParser : public ParserImpl<IndexType> {
         if (isspace(*p)) { ++ p; continue; }
         pp = p + 8; CHECK(isspace(*pp)) << i << " " << end - p << " " << *p;
         size_t len = pp - p;
-        if (len) blk.index.push_back((CityHash64(p, len)<<kNumBitForFeaGrp)+i+13);
+        if (len) blk.index.push_back(
+                (CityHash64(p, len)>>10) | ((size_t)(i+13) << 54));
         p = pp + 1;
         if (*pp == '\n' || *pp == '\r') break;
       }

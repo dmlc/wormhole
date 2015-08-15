@@ -52,10 +52,16 @@ class AdfeaParser : public ParserImpl<IndexType> {
       CHECK_NE(head, p);
 
       if (*p == ':') {
-        blk.index.push_back((IndexType)strtoull(head, NULL, 10));
         ++p;
-        // skip the group id
+        IndexType idx = (IndexType)strtoull(head, NULL, 10);
+        if (sizeof(IndexType) == 8) {
+          IndexType gid = (IndexType)strtoull(p, NULL, 10);
+          idx = (idx >> 10) | (gid << 54);
+        } else {
+          // skip the group id
+        }
         while (isdigit(*p) && p != end) ++p;
+        blk.index.push_back(idx);
       } else {
         // skip the lineid and the first count
         if (i == 2) {

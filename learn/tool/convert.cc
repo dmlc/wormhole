@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
   std::string str;
   CompressedRowBlock cblk;
   while (parser->Next()) {
-    if (nwrite * 1000000 >= part_size) {
+    if (nwrite >= part_size * 1000000) {
       if (part_size == (size_t)-1) {
         snprintf(outfile, 1000, "%s", FLAGS_data_out.c_str());
       } else {
@@ -88,16 +88,16 @@ int main(int argc, char *argv[]) {
 
     if (type == "libsvm") {
       auto blk = parser->Value();
-      size_t last = libsvm_writer->bytes_written();
       for (size_t i = 0; i < blk.size; ++i) {
         *libsvm_writer << blk.label[i] << " ";
-        for (size_t j = blk.index[i]; j < blk.index[i+1]; ++j) {
+        for (size_t j = blk.offset[i]; j < blk.offset[i+1]; ++j) {
           *libsvm_writer << blk.index[j];
           if (blk.value) *libsvm_writer << ":" << blk.value[j];
+          *libsvm_writer << " ";
         }
         *libsvm_writer << "\n";
       }
-      nwrite += libsvm_writer->bytes_written() - last;
+      nwrite = libsvm_writer->bytes_written();
     } else if (type == "crb") {
       cblk.Compress(parser->Value(), &str);
       crb_writer->WriteRecord(str);
@@ -106,9 +106,10 @@ int main(int argc, char *argv[]) {
   }
 
   delete in;
-  delete out;
+
   delete libsvm_writer;
   delete crb_writer;
+  delete out;
 
   return 0;
 }

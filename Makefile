@@ -16,7 +16,7 @@ REPOS = $(addprefix repo/, dmlc-core xgboost ps-lite rabit)
 
 .PHONY: clean all test pull
 
-all: xgboost kmeans linear difacto bin/text2crb.dmlc
+all: xgboost kmeans linear difacto tool
 
 ### repos and deps
 
@@ -99,9 +99,11 @@ difacto: bin/difacto.dmlc
 
 # tools
 
-bin/text2crb.dmlc:
-	$(MAKE) -C learn/tool text2crb config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
-	cp learn/tool/text2crb $@
+bin/convert.dmlc:
+	$(MAKE) -C learn/tool convert config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
+	cp learn/tool/convert $@
+
+tool: bin/convert.dmlc
 
 # test
 include learn/test/build.mk

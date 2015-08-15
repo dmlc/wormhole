@@ -22,7 +22,7 @@ CFLAGS  += -O3 -ggdb -Wall -std=c++11 $(INCLUDE) $(DMLC_CFLAGS)
 
 LDFLAGS += $(CORE_PATH)/libdmlc.a $(DMLC_LDFLAGS) $(addprefix $(DEPS_PATH)/lib/, libglog.a libgflags.a libcityhash.a liblz4.a)
 
-all: text2crb
+all: text2crb convert
 
 clean:
 	rm -rf *.o text2crb
@@ -33,6 +33,9 @@ clean:
 
 
 text2crb: text2crb.o
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+convert: convert.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 -include *.d
