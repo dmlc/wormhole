@@ -104,7 +104,7 @@ class MinibatchScheduler : public IterScheduler {
       }
       Wait(LoadModel(model_in_, cur_iter));
 
-      Iterate(cur_iter, Workload::VAL);
+      Iterate(cur_iter, Workload::PRED);
       ++ cur_iter;
     }
 
