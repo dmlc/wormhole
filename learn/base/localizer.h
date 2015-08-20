@@ -12,6 +12,19 @@ DECLARE_uint64(max_key);
 
 namespace dmlc {
 
+/// \brief reverse the bytes of x to make it more uniformly spanning the space
+inline uint64_t ReverseBytes(uint64_t x) {
+  // return x;
+  x = x << 32 | x >> 32;
+  x = (x & 0x0000FFFF0000FFFFULL) << 16 |
+      (x & 0xFFFF0000FFFF0000ULL) >> 16;
+  x = (x & 0x00FF00FF00FF00FFULL) << 8 |
+      (x & 0xFF00FF00FF00FF00ULL) >> 8;
+  x = (x & 0x0F0F0F0F0F0F0F0FULL) << 4 |
+      (x & 0xF0F0F0F0F0F0F0F0ULL) >> 4;
+  return x;
+}
+
 /**
  * @brief Mapping a RowBlock with general indices into continuous indices
  * starting from 0
@@ -97,8 +110,13 @@ void Localizer<I>:: CountUniqIndex(
     max_index = (I) ps::FLAGS_max_key;
 #pragma omp parallel for num_threads(nt_)
     for (size_t i = 0; i < idx_size; ++i) {
-      // TODO rehash?
       pair_[i].k = blk.index[i] % max_index;
+      pair_[i].i = i;
+    }
+  } else if (sizeof(I) == 8) {
+#pragma omp parallel for num_threads(nt_)
+    for (size_t i = 0; i < idx_size; ++i) {
+      pair_[i].k = ReverseBytes(blk.index[i]);
       pair_[i].i = i;
     }
   } else {
