@@ -78,7 +78,7 @@ An example filename of a S3 file ::
 Microsoft Azure Blob Storage (Alpha support)
 ~~~~~~~~~~~~~~~
 
-To support Azure blob storage, compile with the flag ``USE_AZURE=1``, which  uses the Azure C++ Storage SDK (https://github.com/Azure/azure-storage-cpp)
+To support Azure blob storage, compile with the flag ``USE_AZURE=1`` and ``DEPS_PATH=deps``, which needs the Azure C++ Storage SDK (https://github.com/Azure/azure-storage-cpp)
 
 Install Azure Storage SDK (TODO: move to make/deps.mk) ::
   sudo apt-get -y install libboost1.54-all-dev libssl-dev cmake libxml++2.6-dev libxml++2.6-doc uuid-dev
@@ -109,6 +109,7 @@ One also needs to set the environment variables properly
 (`About Azure storage account <https://azure.microsoft.com/en-us/documentation/articles/storage-create-storage-account/>`_)::
   export AZURE_STORAGE_ACCOUNT=mystorageaccount
   export AZURE_STORAGE_ACCESS_KEY=EXAMPLEKEY
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/dmlc-core/deps/lib 
 
 An example filename of an Azure file ::
   azure://container/agaricus.txt.test
