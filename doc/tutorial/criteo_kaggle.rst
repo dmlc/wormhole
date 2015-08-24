@@ -28,7 +28,7 @@ a compressed row block (crb) format::
   wget https://s3-eu-west-1.amazonaws.com/criteo-labs/dac.tar.gz
   tar -zxvf dac.tar.gz
   mkdir data
-  wormhole/bin/text2crb.dmlc train.txt data/train criteo 300
+  wormhole/bin/convert.dmlc -data_in train.txt -format_in criteo -data_out data/train -format_out libsvm -part_size 300
 
 
 Linear Method
