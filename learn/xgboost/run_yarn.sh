@@ -22,9 +22,12 @@ hadoop fs -get $3/mushroom.final.model final.model
 # use dmlc-core/yarn/run_hdfs_prog.py to setup approperiate env 
 
 # output prediction task=pred 
-../../xgboost.dmlc mushroom.hadoop.conf task=pred model_in=final.model test:data=../data/agaricus.txt.test
+#../../xgboost.dmlc mushroom.hadoop.conf task=pred model_in=final.model test:data=../data/agaricus.txt.test
+../../repo/dmlc-core/yarn/run_hdfs_prog.py ../../bin/xgboost.dmlc mushroom.hadoop.conf task=pred model_in=final.model test:data=../data/agaricus.txt.test
 # print the boosters of final.model in dump.raw.txt
-../../xgboost.dmlc mushroom.hadoop.conf task=dump model_in=final.model name_dump=dump.raw.txt
+#../../xgboost.dmlc mushroom.hadoop.conf task=dump model_in=final.model name_dump=dump.raw.txt
+../../repo/dmlc-core/yarn/run_hdfs_prog.py ../../bin/xgboost.dmlc mushroom.hadoop.conf task=dump model_in=final.model name_dump=dump.raw.txt
 # use the feature map in printing for better visualization
-../../xgboost.dmlc mushroom.hadoop.conf task=dump model_in=final.model fmap=../data/featmap.txt name_dump=dump.nice.txt
+#../../xgboost.dmlc mushroom.hadoop.conf task=dump model_in=final.model fmap=../data/featmap.txt name_dump=dump.nice.txt
+../../repo/dmlc-core/yarn/run_hdfs_prog.py ../../bin/xgboost.dmlc mushroom.hadoop.conf task=dump model_in=final.model fmap=../data/featmap.txt name_dump=dump.nice.txt
 cat dump.nice.txt
