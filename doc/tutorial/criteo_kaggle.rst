@@ -87,7 +87,7 @@ config file ::
   val_data = "test.txt"
   data_format = "criteo_test"
   model_in = "model/criteo"
-  pred_out = "output/criteo"
+  predict_out = "output/criteo"
   EOF
 
 and predict::
