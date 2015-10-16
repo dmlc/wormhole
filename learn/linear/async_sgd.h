@@ -259,13 +259,10 @@ class AsgdWorker : public solver::MinibatchWorker {
       // eval the objective, and report progress to the scheduler
       auto loss = CreateLoss<float>(conf_.loss());
       loss->Init(data->GetBlock(), *val, nt_);
-
+      Progress prog; loss->Evaluate(&prog); ReportToScheduler(prog.data);
       if (wl.type == Workload::PRED) {
         loss->Predict(PredictStream(conf_.predict_out(), wl), conf_.prob_predict());
-      } else {
-        Progress prog; loss->Evaluate(&prog); ReportToScheduler(prog.data);
       }
-
       bool train = wl.type == Workload::TRAIN;
       if (train) {
         // calculate and push the gradients

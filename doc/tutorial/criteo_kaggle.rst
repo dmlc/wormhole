@@ -131,6 +131,20 @@ Then train the model::
   wormhole/tracker/dmlc_local.py -n 10 -s 10 wormhole/bin/difacto.dmlc train.conf
 
 We can reuse the previous ``pred.conf`` for prediction::
+config file ::
+  cat >pred.conf <<EOF
+  val_data = "data/train-part_2.*"
+  data_format = "crb"
+  model_in = "model/criteo"
+  predict_out = "output/criteo"
+  embedding {
+    dim = 16
+    threshold = 16
+    lambda_l2 = 0.0001
+  }
+  EOF
+
+and predict::
 
   wormhole/tracker/dmlc_local.py -n 10 -s 10 wormhole/bin/difacto.dmlc pred.conf
   cat output/criteo* >pred.txt

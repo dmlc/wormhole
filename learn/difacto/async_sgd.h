@@ -391,13 +391,10 @@ class AsyncWorker : public solver::MinibatchWorker {
       double start = GetTime();
       // eval the objective, and report progress to the scheduler
       Loss<float> loss(data->GetBlock(), *val, *val_siz, conf_);
+      Progress prog; loss.Evaluate(&prog); ReportToScheduler(prog.data);
       if (wl.type == Workload::PRED) {
         loss.Predict(PredictStream(conf_.predict_out(), wl), conf_.prob_predict());
-      } else {
-        Progress prog; loss.Evaluate(&prog); ReportToScheduler(prog.data);
-      }
-
-      if (wl.type == Workload::TRAIN) {
+      } else if (wl.type == Workload::TRAIN) {
         // calculate and push the gradients
         loss.CalcGrad(val);
 
