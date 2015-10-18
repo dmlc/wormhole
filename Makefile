@@ -79,6 +79,15 @@ bin/kmeans.dmlc: learn/kmeans/kmeans.dmlc
 
 kmeans: bin/kmeans.dmlc
 
+# lbfgs
+learn/lbfgs-linear/lbfgs.dmlc: learn/lbfgs-linear/lbfgs.cc | repo/rabit/lib/librabit.a repo/dmlc-core/libdmlc.a
+	+	$(MAKE) -C learn/lbfgs-linear lbfgs.dmlc DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
+
+bin/lbfgs.dmlc: learn/lbfgs-linear/lbfgs.dmlc
+	cp $+ $@
+
+lbfgs: bin/lbfgs.dmlc
+
 # linear
 learn/linear/build/linear.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
 	$(MAKE) -C learn/linear config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
