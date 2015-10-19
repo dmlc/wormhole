@@ -5,16 +5,16 @@ else
 endif
 
 include $(config)
-include ../../dmlc-core/make/dmlc.mk
+include ../../repo/dmlc-core/make/dmlc.mk
 
 BIN = linear.dmlc
 
 # common build script for programs
 
-export LDFLAGS= -L../../lib -pthread -lm -lrt $(DMLC_LDFLAGS)
-export CFLAGS = -Wall  -msse2  -Wno-unknown-pragmas -fPIC -I../../repo/rabit/include  -I../../dmlc-core/include -std=c++11 -fopenmp
+export LDFLAGS= -L../../deps/lib -pthread -lm -lrt $(DMLC_LDFLAGS)
+export CFLAGS = -Wall  -msse2  -Wno-unknown-pragmas -fPIC -I../../repo/rabit/include  -I../../repo/dmlc-core/include -std=c++11 -fopenmp
 
-linear.dmlc : linear.cc ../../dmlc-core/libdmlc.a ../../repo/rabit/lib/librabit.a
+linear.dmlc : linear.cc ../../repo/dmlc-core/libdmlc.a ../../repo/rabit/lib/librabit.a
 
 all: $(BIN) 
 
