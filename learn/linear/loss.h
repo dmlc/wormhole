@@ -83,6 +83,10 @@ class BinClassLoss : public ScalarLoss<V> {
     BinClassEval<V> eval(data_.label, Xw_.data(), Xw_.size(), nt_);
     prog->auc()     = eval.AUC();
     prog->acc()     = eval.Accuracy(0);
+    prog->precision() = eval.Precision(0);
+    prog->recall() = eval.Recall(0);
+    prog->neg_precision() = eval.NegPrecision(0);
+    prog->neg_recall() = eval.NegRecall(0);
   }
 };
 
