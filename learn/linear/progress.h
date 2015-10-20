@@ -8,7 +8,7 @@ struct Progress {
   Progress() : data(6) { }
 
   static std::string HeadStr() {
-    return "  ttl #ex   inc #ex    |w|_0       logloss  accuracy     AUC";
+    return "  ttl #ex   inc #ex    |w|_0    logloss  accuracy  precison  recall  neg_precision  neg_recall  AUC";
   }
 
   std::string PrintStr() {
@@ -18,9 +18,16 @@ struct Progress {
     if (new_ex() == 0) return "";
 
     char buf[256];
-    snprintf(buf, 256, "%8.3g  %8.3g  %11.6g  %8.6lf  %8.6lf  %8.6lf",
-             ttl_ex, new_ex(), nnz_w, objv() / new_ex(),
-             acc() / count(), auc() / count());
+    snprintf(buf, 256,  "%8.3g  %8.3g  %8.6g  %8.6lf  %8.6lf   %8.6lf  %8.6lf  %8.6lf   %8.6lf   %8.6lf"
+             ttl_ex, 
+             new_ex(), 
+             nnz_w, objv() / new_ex(),
+             acc() / count(), 
+             precision() / count(), 
+             recall() / count(), 
+             neg_precision() / count(), 
+             neg_recall() / count(), 
+             auc() / count());
     return std::string(buf);
   }
 
