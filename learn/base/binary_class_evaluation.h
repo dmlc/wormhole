@@ -49,7 +49,95 @@ class BinClassEval {
     V acc = correct / (V) n;
     return acc > 0.5 ? acc : 1 - acc;
   }
-
+  V Precision(V threshold) {
+    size_t n = size_;
+    size_t i;
+    V tp, fp; 
+    V precision;
+    tp = fp = 0;
+    for (i = 0; i < n; ++i) {
+        if (predict_[i] > threshold) {
+            if (label_[i] > 0) {
+                ++tp;
+            } else {
+                ++fp;
+            }   
+        }   
+    }   
+    if (tp + fp == 0) {
+        precision = 0;
+    } else {
+        precision = tp / (V) (tp + fp);
+    }   
+    return precision;
+  }
+  V NegPrecision(V threshold) {
+    size_t n = size_;
+    size_t i;
+    V tn, fn; 
+    V neg_precision;
+    tn = fn = 0;
+    for (i = 0; i < n; ++i) {
+        if (predict_[i] <= threshold) {
+            if (label_[i] <= 0) {
+                ++tn;
+            } else {
+                ++fn;
+            }   
+        }   
+    }
+    if (tn + fn == 0) {
+        neg_precision = 0;
+    } else {
+        neg_precision = tn / (V) (tn + fn);
+    }
+    return neg_precision;
+  }
+   // recall 
+  V Recall(V threshold) {
+      size_t n = size_;
+      size_t i;
+      V tp, fn;
+      V recall;
+      tp = fn = 0;
+      for (i = 0; i < n; ++i) {
+          if (label_[i] > 0) {
+              if (predict_[i] > threshold) {
+                  ++tp;
+              } else {
+                  ++fn;
+              }
+          }
+      }
+      if (tp + fn == 0) {
+          recall = 0;
+      } else {
+          recall = tp / (V) (tp + fn);
+      }
+      return recall;
+  }
+  V NegRecall(V threshold) {
+      size_t n = size_;
+      size_t i;
+      V tn, fp;
+      V neg_recall;
+      tn = fp = 0;
+      for (i = 0; i < n; ++i) {
+          if (label_[i] <= 0) {
+              if (predict_[i] <= threshold) {
+                  ++tn;
+              } else {
+                  ++fp;
+              }
+          }
+      }
+      if (tn + fp == 0) {
+          neg_recall = 0;
+      } else {
+          neg_recall = tn / (V) (tn + fp);
+      }
+      return neg_recall;
+  }
   V LogLoss() {
     V loss = 0;
     size_t n = size_;
