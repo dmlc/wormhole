@@ -103,16 +103,14 @@ class MinibatchScheduler : public IterScheduler {
         cur_iter = -1;
       }
       Wait(LoadModel(model_in_, cur_iter));
-
-      Iterate(cur_iter, Workload::PRED);
       ++ cur_iter;
     }
 
     if (is_predict) {
+      Iterate(cur_iter, Workload::PRED);
       printf("Prediction is finished!\n");
       return true;
     }
-
     for (; cur_iter < max_data_pass_; ++cur_iter) {
       if (Iterate(cur_iter, Workload::TRAIN) || Iterate(cur_iter, Workload::VAL)) {
         printf("Hit stop critera\n"); break;
