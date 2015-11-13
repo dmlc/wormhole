@@ -45,7 +45,7 @@ Now generate the configuration file (`learn more <../learn/linear.html>`_)::
   cat >train.conf <<EOF
   train_data = "data/train-part_[0-1].*"
   val_data = "data/train-part_2.*"
-  data_format = "crb"
+  data_format = "libsvm"
   model_out = "model/criteo"
   lambda_l1 = 4
   lr_eta = .1
@@ -112,7 +112,7 @@ file ::
   cat >train.conf <<EOF
   train_data = "data/train-part_[0-1].*"
   val_data = "data/train-part_2.*"
-  data_format = "crb"
+  data_format = "libsvm"
   model_out = "model/criteo"
   embedding {
     dim = 16
@@ -134,7 +134,7 @@ We can reuse the previous ``pred.conf`` for prediction::
 config file ::
   cat >pred.conf <<EOF
   val_data = "data/train-part_2.*"
-  data_format = "crb"
+  data_format = "libsvm"
   model_in = "model/criteo"
   predict_out = "output/criteo"
   embedding {
