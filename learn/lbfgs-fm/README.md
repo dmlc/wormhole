@@ -21,7 +21,7 @@ All the parameters can be set by param=value
 
 #### Important Parameters
 * nfactor [default = 8]
-* -the embedding dimension
+  - the embedding dimension
 * objective [default = logistic]
   - can be linear or logistic
 * base_score [default = 0.5]
