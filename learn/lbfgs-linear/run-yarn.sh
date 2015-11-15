@@ -17,4 +17,4 @@ hadoop fs -put ../data/agaricus.txt.train $2/data
 # get the final model file
 hadoop fs -get $2/mushroom.linear.model ./linear.model
 
-./lbfgs.dmlc ../data/agaricus.txt.test task=pred model_in=linear.model
+../../repo/dmlc-core/yarn/run_hdfs_prog.py ./lbfgs.dmlc ../data/agaricus.txt.test task=pred model_in=linear.model
