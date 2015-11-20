@@ -37,7 +37,7 @@ class FmObjFunction : public solver::IObjFunction<float> {
     lbfgs.SetObjFunction(this);
     nthread = 1;
     nfactor = 8;
-    reg_L2 = 0.0f;
+    reg_L2 = 1.0f;
     reg_L2_fm = reg_L2;
     fm_random = 0.01f;
     model.weight = NULL;
