@@ -1,4 +1,4 @@
-Linear and Logistic Regression
+Factorization Machine
 ====
 * input format: LibSVM
 * Local Example: [run-linear.sh](run-linear.sh)
@@ -20,6 +20,8 @@ Parameters
 All the parameters can be set by param=value
 
 #### Important Parameters
+* nfactor [default = 8]
+  - the embedding dimension
 * objective [default = logistic]
   - can be linear or logistic
 * base_score [default = 0.5]
