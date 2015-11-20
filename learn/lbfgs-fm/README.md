@@ -30,6 +30,8 @@ All the parameters can be set by param=value
   - l1 regularization co-efficient
 * reg_L2 [default = 1]
   - l2 regularization co-efficient
+* reg_L2_fm [default = reg_L2]
+  - l2 regularization for embedding V
 * lbfgs_stop_tol [default = 1e-5]
   - relative tolerance level of loss reduction with respect to initial loss
 * max_lbfgs_iter [default = 500]
