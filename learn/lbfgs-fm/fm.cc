@@ -21,6 +21,8 @@ class FmObjFunction : public solver::IObjFunction<float> {
   int nfactor;
   // L2 regularization
   float reg_L2;
+  // L2 regularization for V
+  float reg_L2_fm;
   // fm_random
   float fm_random;
   // model
@@ -36,6 +38,7 @@ class FmObjFunction : public solver::IObjFunction<float> {
     nthread = 1;
     nfactor = 8;
     reg_L2 = 0.0f;
+    reg_L2_fm = reg_L2;
     fm_random = 0.01f;
     model.weight = NULL;
     task = "train";
@@ -57,6 +60,9 @@ class FmObjFunction : public solver::IObjFunction<float> {
     }
     if (!strcmp(name, "reg_L2")) {
       reg_L2 = static_cast<float>(atof(val));
+    }
+    if (!strcmp(name, "reg_L2_fm")) {
+      reg_L2_fm = static_cast<float>(atof(val));
     }
     if (!strcmp(name, "fm_random")) {
       fm_random = static_cast<float>(atof(val));
@@ -171,13 +177,20 @@ class FmObjFunction : public solver::IObjFunction<float> {
       }
     }
     if (rabit::GetRank() == 0) {
-      // only add regularization once
+      // only add L2 regularization once
       if (reg_L2 != 0.0f) {
         double sum_sqr = 0.0;
-        for (size_t i = 0; i < size; ++i) {
+        for (size_t i = 0; i < model.param.num_feature; ++i) {
           sum_sqr += weight[i] * weight[i];
         }
         sum_val += 0.5 * reg_L2 * sum_sqr;        
+      }
+      if (reg_L2_fm != 0.0f) {
+        double sum_sqr = 0.0;
+        for (size_t i = model.param.num_feature; i < model.param.num_feature * (nfactor + 1); ++i) {
+          sum_sqr += weight[i] * weight[i];
+        }
+        sum_val += 0.5 * reg_L2_fm * sum_sqr;
       }
     }
     CHECK(!std::isnan(sum_val)) << "nan occurs";
@@ -232,10 +245,15 @@ class FmObjFunction : public solver::IObjFunction<float> {
     }
     out_grad[model.param.num_feature * (nfactor + 1)] = static_cast<float>(sum_gbias);
     if (rabit::GetRank() == 0) {
-      // only add regularization once
+      // only add L2 regularization once
       if (reg_L2 != 0.0f) {
-        for (size_t i = 0; i < model.param.num_feature * (nfactor + 1); ++i) {
+        for (size_t i = 0; i < model.param.num_feature; ++i) {
           out_grad[i] += reg_L2 * weight[i];
+        }
+      }
+      if (reg_L2_fm != 0.0f) {
+        for (size_t i = model.param.num_feature; i < model.param.num_feature * (nfactor + 1); ++i) {
+          out_grad[i] += reg_L2_fm * weight[i];
         }
       }
     }
