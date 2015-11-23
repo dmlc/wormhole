@@ -8,7 +8,7 @@
 #include <dmlc/io.h>
 #include <dmlc/data.h>
 #include <dmlc/logging.h>
-//#include "/usr/include/boost/random.hpp"
+#include <random>
 #include "./fm.h"
 
 namespace dmlc {
@@ -22,7 +22,7 @@ class FmObjFunction : public solver::IObjFunction<float> {
   // L2 regularization
   float reg_L2;
   // L2 regularization for V
-  float reg_L2_fm;
+  float reg_L2_V;
   // fm_random
   float fm_random;
   // model
@@ -36,9 +36,9 @@ class FmObjFunction : public solver::IObjFunction<float> {
       : dtrain(dtrain) {
     lbfgs.SetObjFunction(this);
     nthread = 1;
-    nfactor = 8;
-    reg_L2 = 1.0f;
-    reg_L2_fm = reg_L2;
+    nfactor = 10;
+    reg_L2 = 0.0f;
+    reg_L2_V = reg_L2;
     fm_random = 0.01f;
     model.weight = NULL;
     task = "train";
@@ -61,8 +61,8 @@ class FmObjFunction : public solver::IObjFunction<float> {
     if (!strcmp(name, "reg_L2")) {
       reg_L2 = static_cast<float>(atof(val));
     }
-    if (!strcmp(name, "reg_L2_fm")) {
-      reg_L2_fm = static_cast<float>(atof(val));
+    if (!strcmp(name, "reg_L2_V")) {
+      reg_L2_V = static_cast<float>(atof(val));
     }
     if (!strcmp(name, "fm_random")) {
       fm_random = static_cast<float>(atof(val));
@@ -140,15 +140,14 @@ class FmObjFunction : public solver::IObjFunction<float> {
   }
   virtual void InitModel(float *weight, size_t size) {
     if (model_in == "NULL") {
-    /*  if(rabit::GetRank() == 0){
-              boost::mt19937 gen;
-              boost::uniform_01<boost::mt19937&> u01(gen);
-              boost::normal_distribution<> nd(0,1);
+      if(rabit::GetRank() == 0){
+        std::default_random_engine generator;
+        std::normal_distribution<float> distribution(0.0,1.0);
         for(size_t i = 0; i < size; ++i) {
-          weight[i] = nd(u01) * fm_random;
+          weight[i] = distribution(generator) * fm_random;
         }
-      } */
-      memset(weight, 0.0f, size * sizeof(float));
+      }
+      //memset(weight, 0.0f, size * sizeof(float));
       model.param.InitBaseScore();
     } else {
       rabit::Broadcast(model.weight, size * sizeof(float), 0);
@@ -185,12 +184,12 @@ class FmObjFunction : public solver::IObjFunction<float> {
         }
         sum_val += 0.5 * reg_L2 * sum_sqr;        
       }
-      if (reg_L2_fm != 0.0f) {
+      if (reg_L2_V != 0.0f) {
         double sum_sqr = 0.0;
         for (size_t i = model.param.num_feature; i < model.param.num_feature * (nfactor + 1); ++i) {
           sum_sqr += weight[i] * weight[i];
         }
-        sum_val += 0.5 * reg_L2_fm * sum_sqr;
+        sum_val += 0.5 * reg_L2_V * sum_sqr;
       }
     }
     CHECK(!std::isnan(sum_val)) << "nan occurs";
@@ -251,9 +250,9 @@ class FmObjFunction : public solver::IObjFunction<float> {
           out_grad[i] += reg_L2 * weight[i];
         }
       }
-      if (reg_L2_fm != 0.0f) {
+      if (reg_L2_V != 0.0f) {
         for (size_t i = model.param.num_feature; i < model.param.num_feature * (nfactor + 1); ++i) {
-          out_grad[i] += reg_L2_fm * weight[i];
+          out_grad[i] += reg_L2_V * weight[i];
         }
       }
     }

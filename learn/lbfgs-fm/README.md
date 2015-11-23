@@ -20,7 +20,7 @@ Parameters
 All the parameters can be set by param=value
 
 #### Important Parameters
-* nfactor [default = 8]
+* nfactor [default = 10]
   - the embedding dimension
 * objective [default = logistic]
   - can be linear or logistic
@@ -28,10 +28,12 @@ All the parameters can be set by param=value
   - global bias, recommended set to mean value of label
 * reg_L1 [default = 0]
   - l1 regularization co-efficient
-* reg_L2 [default = 1]
+* reg_L2 [default = 0]
   - l2 regularization co-efficient
-* reg_L2_fm [default = reg_L2]
+* reg_L2_V [default = reg_L2]
   - l2 regularization for embedding V
+* fm_random [default = 0.01]
+  - gaussian random initialization for weights co-efficient
 * lbfgs_stop_tol [default = 1e-5]
   - relative tolerance level of loss reduction with respect to initial loss
 * max_lbfgs_iter [default = 500]
