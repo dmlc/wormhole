@@ -11,7 +11,7 @@ hadoop fs -rm -r -f $2/mushroom.linear.model
 hadoop fs -put ../data/agaricus.txt.train $2/data
 
 # submit to hadoop
-../../repo/dmlc-core/tracker/dmlc_yarn.py --jobname test -q wajue -n $1 --vcores 2 ./fm.dmlc hdfs://$2/data/agaricus.txt.train model_out=hdfs://$2/mushroom.linear.model nfactor=8 "${*:3}"
+../../repo/dmlc-core/tracker/dmlc_yarn.py -n $1 --vcores 2 ./fm.dmlc hdfs://$2/data/agaricus.txt.train model_out=hdfs://$2/mushroom.linear.model nfactor=8 "${*:3}"
 
 
 # get the final model file

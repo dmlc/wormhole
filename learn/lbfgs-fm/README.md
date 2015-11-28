@@ -1,6 +1,7 @@
 Factorization Machine
 ====
 * input format: LibSVM
+* Local Example: [run-fm.sh](run-fm.sh)
 * Runnig on YARN: [run-yarn.sh](run-yarn.sh)
 
 Multi-Threading Optimization
