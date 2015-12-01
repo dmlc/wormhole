@@ -39,11 +39,16 @@ make DEPS_PATH=your_path
 
 make USE_HDFS=1
   supports read/write HDFS. It requires ``libhdfs``, which is often installed
-  with Hadoop.
+  with Hadoop. Apparently Cloudera only ships static version of libhdfs.
+  Hortonworks includes the shared version but not in the lib/native folder.
+  Used ldconfig etc to point compiler, linker and runtime to correct location.
 
 make USE_S3=1
   supports read/write AWS S3. ``libcurl4-openssl-dev`` is required, it can be
   installed via ``sudo apt-get install libcurl4-openssl-dev`` on Ubuntu
+
+make dmlc=<dmlc_core_path>
+  in order to run XGBOOST in distributed mode on YARN. Combine with USE_HDFS=1.
 
 Run
 ---
