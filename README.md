@@ -31,7 +31,7 @@ Build & Run
   >= 13.10
 
 ```
-sudo apt-get update && sudo apt-get install -y build-essential git
+sudo apt-get update && sudo apt-get install -y build-essential git libgoogle-glog-dev
 ```
 
 * Type `make` to build all deps and tools
