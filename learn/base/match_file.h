@@ -19,7 +19,7 @@ inline void MatchFile(const std::string& pattern,
   // find all files
   dmlc::io::URI path_uri(path.c_str());
   dmlc::io::FileSystem *fs =
-      dmlc::io::FileSystem::GetInstance(path_uri.protocol);
+      dmlc::io::FileSystem::GetInstance(path_uri);
   std::vector<io::FileInfo> info;
   fs->ListDirectory(path_uri, &info);
 
