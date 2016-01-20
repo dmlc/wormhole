@@ -1,0 +1,166 @@
+//  @file   config.proto
+//  @brief  configuration for svdfeature
+
+package dmlc.svdfeature;
+
+message Config {
+
+  // --  basic settings - input & output  --
+
+  /// The training data, can be either a directory or a wildcard filename
+  optional string train_data = 1;
+
+  /// The validation or test data, can be either a directory or a wildcard filename
+  optional string val_data = 2;
+
+  /// data format. supports libsvm, crb, criteo, adfea, ...
+  optional string data_format = 4 [default = "svdfeature"];
+
+  /// model output filename
+  optional string model_out = 5;
+
+  /// model input filename
+  optional string model_in = 7;
+
+  /// the filename for prediction output. if specified, then run
+  /// prediction. otherwise run training
+  optional string predict_out = 9;
+
+  /// the loss function
+  enum Loss {
+    /// square loss: :math:`\frac12 (p-y)^2`
+    SQUARE = 1;
+    /// logistic loss: :math:`\log(1+\exp(-yp))`
+    LOGIT = 2;
+    /// squared hinge loss: :math:`\max\left(0, (1-yp)^2\right)`
+    SQUARE_HINGE = 4;
+  }
+
+  /// the loss function. default is LOGIT
+  optional Loss loss = 10 [default = LOGIT];
+
+  optional float bias = 11 [default = 0.5 ];
+
+  // --  basic settings - objective and optimization  --
+
+  // - w -
+
+  /// l1 regularizer for :math:`w`: :math:`\lambda_1 |w|_1`
+  optional float lambda_l1 = 12 [default = 1];
+
+  /// l2 regularizer for :math:`w`: :math:`\lambda_2 \|w\|_2^2`
+  optional float lambda_l2 = 13 [default = 0];
+
+  /// learning rate :math:`\eta` (or :math:`\alpha`) for :math:`w`
+  optional float lr_eta = 14 [default = .01];
+
+  // - V = UI -
+
+  /// for embedding :math:`V`
+  message MF {
+    /// -- model --
+
+    /// the embedding dimension :math:`k`
+    optional int32 dim = 1;
+
+    /// l2 regularizer for :math:`V`: :math:`\lambda_2 \|V_i\|_2^2`
+    optional float lambda_l2 = 3;
+
+    /// -- learning --
+
+    /// learning rate :math:`\eta` for :math:`V`. if not specified, then share the same with :math:`w`
+    optional float lr_eta = 4 [default = .01];
+
+    /// V is initialized by uniformly random weight in
+    ///   [-init_scale, +init_scale]
+    optional float init_scale = 6 [default = .01];
+
+    /// -- advanced --
+
+    /// leanring rate :math:`\beta` for :math:`V`.
+    optional float lr_beta = 5 [default = 1];
+
+    optional bool no_user_bias = 7 [default = false];
+  }
+
+  /// the embedding :math:`V`
+  repeated MF mf = 15;
+
+  /// - learning -
+
+  /// the size of minibatch. the smaller, the faster the convergence, but the
+  /// slower the system performance
+  optional int32 minibatch = 22 [default = 1000];
+
+  /// the maximal number of data passes
+  optional int32 max_data_pass= 23 [default = 10];
+
+  /// stop earilier based on validation
+  optional bool early_stop = 24 [default = false];
+
+
+  /// -- advanced --
+
+  /// - data -
+
+  /// save model for every k data pass. default is -1, which only saves for the
+  /// last iteration
+  optional int32 save_iter = 90 [default = -1];
+
+  /// load model from the k-th iteration. default is -1, which loads the last
+  /// iteration model
+  optional int32 load_iter = 91 [default = -1];
+
+  /// give a worker the data only if it can access. often used when the data has
+  /// been dispatched to workers' local filesystem
+  optional bool local_data = 101 [default = false];
+
+  /// virtually partition a file into n parts for better loadbalance. default is 10
+  optional int32 num_parts_per_file = 102 [default = 10];
+
+  /// randomly shuffle data for minibatch SGD. a minibatch is randomly picked from
+  /// rand_shuffle * minibatch examples. default is 10.
+  optional int32 rand_shuffle = 103 [default = 10];
+
+  /// down sampling negative examples in the training data. no in default
+  optional float neg_sampling = 104 [default = 1.0];
+
+  /// if true, then outputs a probability prediction. otherwise :math:`\langle  x, y \rangle`
+  optional bool prob_predict = 105 [default = false];
+
+
+  /// - learning -
+
+  /// print the progress every n sec during training. 1 sec in default
+  optional float print_sec = 111 [default = 1];
+
+  /// learning rate :math:`\beta`, 1 in default
+  optional float lr_beta = 112 [default = 1];
+
+  /// the minimal objective decrease in early stop
+  optional float min_objv_decr = 119 [default = .00001];
+
+  /// the maximal allowed objective
+  optional float max_objv = 118;
+
+  /// - system performance -
+
+  /// number of threads used within a worker and a server
+  optional int32 num_threads = 121 [default = 2];
+
+  /// the maximal concurrent minibatches being processing at the same time for
+  /// sgd, and the maximal concurrent blocks for block CD. 2 in default.
+  optional int32 max_concurrency = 122 [default = 2];
+
+  /// cache the key list on both sender and receiver to reduce communication
+  /// cost. it may increase the memory usage
+  optional bool key_cache = 123 [default = true];
+
+  /// compression the message to reduce communication cost. it may increase the
+  /// computation cost.
+  optional bool msg_compression = 124 [default = true];
+
+  /// convert floating-points into fixed-point integers with n bytes. n can be 1,
+  /// 2 and 3. 0 means no compression.
+  optional int32 fixed_bytes = 125 [default = 0];
+}

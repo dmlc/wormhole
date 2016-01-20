@@ -13,6 +13,7 @@
 #include "base/adfea_parser.h"
 #include "base/criteo_parser.h"
 #include "base/crb_parser.h"
+#include "base/svdfeature_parser.h"
 #include "base/debug.h"
 namespace dmlc {
 namespace data {
@@ -54,6 +55,9 @@ class MinibatchIter {
       } else if (!strcmp(type, "crb")) {
         parser_ = new CRBParser<IndexType>(
             InputSplit::Create(uri, part_index, num_parts, "recordio"));
+      } else if(!strcmp(type,"svdfeature")) {
+        parser_ = new SvdFeaParser<IndexType>(
+            InputSplit::Create(uri, part_index, num_parts, "text"));  
       } else {
         LOG(FATAL) << "unknown datatype " << type;
       }
