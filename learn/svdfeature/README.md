@@ -13,7 +13,9 @@ The input format is in sparse feature format similar to SVM format, but we use n
 line:= target |g g1:v1 ... gk:vk  |u u1:v1 ... u2:v2 |i i1:v1 ... i2:v2
 
 |g indicates the followings are global features
+
 |u indicates the followings are user features
+
 |i indicates the followings are item features
 
 For example,if we use basic matrix factorization model, the sample of user 0 and item 10 with rate 5 is as follows
