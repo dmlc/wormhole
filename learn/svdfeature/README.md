@@ -4,13 +4,14 @@ The feature-based matrix factorization models the prediction score as below:
 
 ![obj](guide/model.png)
 
-μ is the base score of the predictions. G,M,N are the indice sets of global features, user features, item features respectively, and γg,αm,βn are the feature values extracted according to the design of the features. Here γ, α, β are global feature, user feature and item feature respectively, and SVDFeature tries to find the ideal parmaters including the feature weights bg,b^u_m,b^i_n and factors \mathbf{p}_m, \mathbf{q}_n via fitting on the training data. The global features try to incorporate the information which are related to both users and items and the feature weight is shared in the whole rating sets, and the user features and item features try to incorporate the information only related to users or items. For instance, we can encode global bias as global feature, user backgrounds as user feature and item attributes as item features.
+μ is the base score of the predictions. G,M,N are the indice sets of global features, user features, item features respectively, and γg,αm,βn are the feature values extracted according to the design of the features. Here γ, α, β are global feature, user feature and item feature respectively. The global features try to incorporate the information which are related to both users and items and the feature weight is shared in the whole rating sets, and the user features and item features try to incorporate the information only related to users or items. For instance, we can encode global bias as global feature, user backgrounds as user feature and item attributes as item features.
 
 ## Input Format
 
 The input format is in sparse feature format similar to SVM format, but we use namespace to specify three kinds of feature. The format is as follows: 
 
 line:= target |g g1:v1 ... gk:vk  |u u1:v1 ... u2:v2 |i i1:v1 ... i2:v2
+
 |g indicates the followings are global features
 |u indicates the followings are user features
 |i indicates the followings are item features
