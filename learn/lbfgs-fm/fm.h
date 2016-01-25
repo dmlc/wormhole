@@ -2,17 +2,25 @@
 #define DMLC_LEARN_FM_H_
 #include <omp.h>
 #include <dmlc/data.h>
-#include "../solver/lbfgs.h"
+#include "lbfgs.h"
 
 namespace dmlc {
 namespace fm {
 /*! \brief simple linear model */
 struct FmModel {
   struct ModelParam {
+    /*! \brief factor num */
+    int nfactor;
     /*! \brief global bias */
     float base_score;
-    /*! \brief number of features  */
+    /*! \brief number of samples */
+    size_t num_size;
+    /*! \brief number of validation samples */
+    size_t num_size_val;
+    /*! \brief number of features */
     size_t num_feature;
+    /*! \brife number of weight */
+    size_t num_weight;
     /*! \brief loss type*/
     int loss_type;
     // reserved field
@@ -20,16 +28,19 @@ struct FmModel {
     // constructor
     ModelParam(void) {
       memset(this, 0, sizeof(ModelParam));
+      nfactor = 4;
       base_score = 0.5f;
       num_feature = 0;
+      num_weight = 0;
+      num_size = 0;
+      num_size_val = 0;
       loss_type = 1;
-      num_feature = 0;
     }
     // initialize base score
     inline void InitBaseScore(void) {
       CHECK(base_score > 0.0f && base_score < 1.0f) <<
           "base_score must be in (0,1) for logistic loss";
-      base_score = -std::log(1.0f / base_score - 1.0f);      
+      base_score = -std::log(1.0f / base_score - 1.0f);
     }
     /*!
      * \brief set parameters from outside
@@ -38,6 +49,9 @@ struct FmModel {
      */    
     inline void SetParam(const char *name, const char *val) {
       using namespace std;
+      if (!strcmp("nfactor",name)) {
+        nfactor = atoi(val);
+      }
       if (!strcmp("base_score", name)) {
         base_score = static_cast<float>(atof(val));
       }
@@ -82,21 +96,22 @@ struct FmModel {
       return pred - label;      
     }
     inline float PredictMargin(const float *weight,
-                               const Row<unsigned> &v, const int nfactor) const {
-      // weight[num_feature] is bias
-      float sum = base_score + weight[num_feature];
+                               const Row<unsigned> &v) const {
+      // weight[num_weight-1] is bias
+      float sum = base_score + weight[num_weight - 1];
       // single features X*w
       for (unsigned i = 0; i < v.length; ++i) {
-        if (v.index[i] >= num_feature) continue;
+        if (v.index[i] >= num_weight) continue;
         sum += weight[v.index[i]] * v.get_value(i);
       }
       // pairwisie interation features 0.5 * sum((X*V).^2 - (X.*X)*(V.*V), 2)
       float sum1, sum2;
-      for (int i = 0; i < nfactor; ++i){
+      for (int i = 0; i < nfactor; ++i) {
         sum1 = 0.f;
         sum2 = 0.f;
-        for (unsigned j = 0; j < v.length; ++j){
-          int n = num_feature  + v.index[j] * nfactor + i;
+        for (unsigned j = 0; j < v.length; ++j) {
+          size_t n = num_feature  + v.index[j] * nfactor + i;
+          if (n >= num_weight) continue;
           float XV = weight[n] * v.get_value(j);
           sum1 += XV;
           sum2 += XV * XV;
@@ -106,8 +121,8 @@ struct FmModel {
       return sum;
     }
     inline float Predict(const float *weight,
-                         const Row<unsigned> &v, const int nfactor) const {
-      return MarginToPred(PredictMargin(weight, v, nfactor));
+                         const Row<unsigned> &v) const {
+      return MarginToPred(PredictMargin(weight, v));
     }
   };
   // model parameter
@@ -120,20 +135,20 @@ struct FmModel {
     if (weight != NULL) delete [] weight;
   }
   // load model
-  inline void Load(dmlc::Stream *fi, const int nfactor) {
+  inline void Load(dmlc::Stream *fi) {
     fi->Read(&param, sizeof(param));
     if (weight == NULL) {
-      weight = new float[param.num_feature * (nfactor + 1) + 1];
+      weight = new float[param.num_weight];
     }
-    fi->Read(weight, sizeof(float) * (param.num_feature * (nfactor + 1) + 1));
+    fi->Read(weight, sizeof(float) * (param.num_weight));
   }
-  inline void Save(dmlc::Stream *fo, const int nfactor, const float *wptr = NULL) {
+  inline void Save(dmlc::Stream *fo, const float *wptr = NULL) {
     fo->Write(&param, sizeof(param));
     if (wptr == NULL) wptr = weight;
-    fo->Write(wptr, sizeof(float) * (param.num_feature * (nfactor + 1) + 1));
+    fo->Write(wptr, sizeof(float) * (param.num_weight));
   }
-  inline float Predict(const Row<unsigned> &v, const int nfactor) const {
-    return param.Predict(weight, v, nfactor);
+  inline float Predict(const Row<unsigned> &v) const {
+    return param.Predict(weight, v);
   }
 };
 }  // namespace fm

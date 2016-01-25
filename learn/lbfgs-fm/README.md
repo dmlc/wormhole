@@ -20,7 +20,7 @@ Parameters
 All the parameters can be set by param=value
 
 #### Important Parameters
-* nfactor [default = 10]
+* nfactor [default = 4]
   - the embedding dimension
 * objective [default = logistic]
   - can be linear or logistic
