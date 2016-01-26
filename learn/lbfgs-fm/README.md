@@ -1,7 +1,7 @@
 Factorization Machine
 ====
 * input format: LibSVM
-  label[:weight] index[:value] index[:value] index[:value]
+  - label[:weight] index[:value] index[:value] index[:value]
 * Local Example: [run-fm.sh](run-fm.sh)
 * Runnig on YARN: [run-yarn.sh](run-yarn.sh)
 
