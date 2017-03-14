@@ -13,7 +13,7 @@ Pointers to the Projects
 ------------------------
 - [XGBoost](https://github.com/dmlc/xgboost) for tree boosting.
 - [MXNet](https://github.com/dmlc/mxnet) for for deep learning
-- [DiFaco](https://github.com/dmlc/difaco) for factorization.
+- [DiFaco](https://github.com/dmlc/difacto) for factorization.
 
 
 List of Tools
