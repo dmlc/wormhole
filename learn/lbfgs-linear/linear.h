@@ -62,7 +62,7 @@ struct LinearModel {
       }
     }
     // transform margin to prediction
-    inline float MarginToPred(float margin) const {
+    inline double MarginToPred(double margin) const {
       if (loss_type == 1) {
         return 1.0f / (1.0f + std::exp(-margin));
       } else {
@@ -70,35 +70,35 @@ struct LinearModel {
       }
     }
     // margin to loss
-    inline float MarginToLoss(float label, float margin) const {
+    inline double MarginToLoss(double label, double weight, double margin) const {
       if (loss_type == 1) {
-        float nlogprob;
+        double nlogprob;
         if (margin > 0.0f) {
           nlogprob = std::log(1.0f + std::exp(-margin));
         } else {
           nlogprob = -margin + std::log(1.0f + std::exp(margin));
         }
-        return label * nlogprob +
-            (1.0f -label) * (margin + nlogprob); 
+        return label * weight * nlogprob +
+            (1.0f -label) * weight * (margin + nlogprob); 
       } else {
-        float diff = margin - label;
-        return 0.5f * diff * diff;
+        double diff = margin - label;
+        return 0.5f * weight * diff * diff;
       }
     }
-    inline float PredToGrad(float label, float pred) const {
-      return pred - label;      
+    inline double PredToGrad(double label, double weight, double pred) const {
+      return weight * (pred - label);      
     }
-    inline float PredictMargin(const float *weight,
+    inline double PredictMargin(const double *weight,
                                const Row<unsigned> &v) const {
       // weight[num_feature] is bias
-      float sum = base_score + weight[num_feature];
+      double sum = base_score + weight[num_feature];
       for (unsigned i = 0; i < v.length; ++i) {
         if (v.index[i] >= num_feature) continue;
         sum += weight[v.index[i]] * v.get_value(i);
       }
       return sum;
     }
-    inline float Predict(const float *weight,
+    inline double Predict(const double *weight,
                          const Row<unsigned> &v) const {
       return MarginToPred(PredictMargin(weight, v));
     }
@@ -106,7 +106,7 @@ struct LinearModel {
   // model parameter
   ModelParam param;
   // weight corresponding to the model
-  float *weight;
+  double *weight;
   LinearModel(void) : weight(NULL) {
   }
   ~LinearModel(void) {
@@ -116,16 +116,16 @@ struct LinearModel {
   inline void Load(dmlc::Stream *fi) {
     fi->Read(&param, sizeof(param));
     if (weight == NULL) {
-      weight = new float[param.num_feature + 1];
+      weight = new double[param.num_feature + 1];
     }
-    fi->Read(weight, sizeof(float) * (param.num_feature + 1));
+    fi->Read(weight, sizeof(double) * (param.num_feature + 1));
   }
-  inline void Save(dmlc::Stream *fo, const float *wptr = NULL) {
+  inline void Save(dmlc::Stream *fo, const double *wptr = NULL) {
     fo->Write(&param, sizeof(param));
     if (wptr == NULL) wptr = weight;
-    fo->Write(wptr, sizeof(float) * (param.num_feature + 1));
+    fo->Write(wptr, sizeof(double) * (param.num_feature + 1));
   }
-  inline float Predict(const Row<unsigned> &v) const {
+  inline double Predict(const Row<unsigned> &v) const {
     return param.Predict(weight, v);
   }
 };

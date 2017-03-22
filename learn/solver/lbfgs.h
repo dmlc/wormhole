@@ -35,6 +35,8 @@ class IObjFunction : public rabit::Serializable {
    * only called once during initialization
    */
   virtual size_t InitNumDim(void) = 0;
+  
+  virtual void InitInstancesNum(void) = 0;
   /*!
    * \brief initialize the weight before starting the solver
    * only called once for initialization
@@ -110,6 +112,9 @@ class LBFGSSolver {
   virtual void SetObjFunction(IObjFunction<DType> *obj) {
     gstate.obj = obj;
   }
+  virtual void SetSampleNum(size_t num) {
+    gstate.num_sample = num;
+  }
   /*!
    * \brief initialize the LBFGS solver
    *  user must already set the objective function
@@ -120,6 +125,7 @@ class LBFGSSolver {
     int version = rabit::LoadCheckPoint(&gstate, &hist);
     if (version == 0) {
       gstate.num_dim = gstate.obj->InitNumDim();
+      gstate.obj->InitInstancesNum();
     } else {
       printf("restart from version=%d\n", version);
     }
@@ -147,7 +153,7 @@ class LBFGSSolver {
       if (silent == 0 && rabit::GetRank() == 0) {
         rabit::TrackerPrintf
             ("L-BFGS solver starts, num_dim=%lu, init_objval=%g, size_memory=%lu, RAM-approx=%lu\n",
-             gstate.num_dim, gstate.init_objval, gstate.size_memory,
+             gstate.num_dim, gstate.init_objval/gstate.num_sample, gstate.size_memory,
              gstate.MemCost() + hist.MemCost());
       }
     }
@@ -187,8 +193,8 @@ class LBFGSSolver {
       rabit::TrackerPrintf
           ("[%d] L-BFGS: linesearch finishes in %d rounds, new_objval=%g, improvment=%g\n",
            gstate.num_iteration, iter,
-           gstate.new_objval,
-           gstate.old_objval - gstate.new_objval);
+           gstate.new_objval/gstate.num_sample,
+           (gstate.old_objval - gstate.new_objval)/gstate.num_sample);
     }
     gstate.old_objval = gstate.new_objval;
     rabit::CheckPoint(&gstate, &hist);
@@ -469,6 +475,8 @@ class LBFGSSolver {
     size_t num_iteration;
     // number of features in the solver
     size_t num_dim;
+	// number of sample
+    size_t num_sample;
     // initialize objective value
     double init_objval;
     // history objective value
@@ -486,6 +494,7 @@ class LBFGSSolver {
       size_memory = 10;
       num_iteration = 0;
       num_dim = 0;
+      num_sample = 1;
       old_objval = 0.0;
       offset_ = 0;
     }

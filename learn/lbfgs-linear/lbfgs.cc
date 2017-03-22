@@ -5,18 +5,18 @@
 
 namespace dmlc {
 namespace linear {
-class LinearObjFunction : public solver::IObjFunction<float> {
+class LinearObjFunction : public solver::IObjFunction<double> {
  public:
   // training threads
   int nthread;
   // L2 regularization
-  float reg_L2;
+  double reg_L2;
   // model
   LinearModel model;
   // training data
   dmlc::RowBlockIter<unsigned> *dtrain;
   // solver
-  solver::LBFGSSolver<float> lbfgs;
+  solver::LBFGSSolver<double> lbfgs;
   // constructor
   LinearObjFunction(dmlc::RowBlockIter<unsigned> *dtrain)
       : dtrain(dtrain) {
@@ -42,7 +42,7 @@ class LinearObjFunction : public solver::IObjFunction<float> {
       lbfgs.SetParam("num_dim", ndigit);
     }
     if (!strcmp(name, "reg_L2")) {
-      reg_L2 = static_cast<float>(atof(val));
+      reg_L2 = static_cast<double>(atof(val));
     }
     if (!strcmp(name, "nthread")) {
       nthread = atoi(val);
@@ -97,12 +97,17 @@ class LinearObjFunction : public solver::IObjFunction<float> {
     delete fi;
   }
   inline void SaveModel(const char *fname,
-                        const float *wptr,
+                        const double *wptr,
                         bool save_base64 = false) {
     Stream *fo = Stream::Create(fname, "w");
     fo->Write("binf", 4);
     model.Save(fo, wptr);
     delete fo;
+  }
+  inline void InitInstancesNum(void) {
+    size_t num = dtrain->NumInstances();
+    rabit::Allreduce<rabit::op::Sum>(&num,1);
+    lbfgs.SetSampleNum(num);
   }
   virtual size_t InitNumDim(void)  {
     if (model_in == "NULL") {
@@ -112,13 +117,13 @@ class LinearObjFunction : public solver::IObjFunction<float> {
     }
     return model.param.num_feature + 1;
   }
-  virtual void InitModel(float *weight, size_t size) {
+  virtual void InitModel(double *weight, size_t size) {
     if (model_in == "NULL") {
-      memset(weight, 0.0f, size * sizeof(float));
+      memset(weight, 0.0f, size * sizeof(double));
       model.param.InitBaseScore();
     } else {
-      rabit::Broadcast(model.weight, size * sizeof(float), 0);
-      memcpy(weight, model.weight, size * sizeof(float));
+      rabit::Broadcast(model.weight, size * sizeof(double), 0);
+      memcpy(weight, model.weight, size * sizeof(double));
     }
   }
   // load model
@@ -128,7 +133,7 @@ class LinearObjFunction : public solver::IObjFunction<float> {
   virtual void Save(rabit::Stream *fo) const {
     fo->Write(&model.param, sizeof(model.param));
   }
-  virtual double Eval(const float *weight, size_t size) {
+  virtual double Eval(const double *weight, size_t size) {
     if (nthread != 0) omp_set_num_threads(nthread);
     CHECK(size == model.param.num_feature + 1);
     double sum_val = 0.0;
@@ -137,8 +142,8 @@ class LinearObjFunction : public solver::IObjFunction<float> {
       const RowBlock<unsigned> &batch = dtrain->Value();
       #pragma omp parallel for schedule(static) reduction(+:sum_val)
       for (size_t i = 0; i < batch.size; ++i) {
-        float py = model.param.PredictMargin(weight, batch[i]);
-        float fv = model.param.MarginToLoss(batch[i].label, py);
+        double py = model.param.PredictMargin(weight, batch[i]);
+        double fv = model.param.MarginToLoss(batch[i].label, batch[i].weight, py);
         sum_val += fv;
       }
     }
@@ -155,15 +160,15 @@ class LinearObjFunction : public solver::IObjFunction<float> {
     CHECK(!std::isnan(sum_val)) << "nan occurs";
     return sum_val;
   }
-  virtual void CalcGrad(float *out_grad,
-                        const float *weight,
+  virtual void CalcGrad(double *out_grad,
+                        const double *weight,
                         size_t size) {
     if (nthread != 0) omp_set_num_threads(nthread);
     
     CHECK(size == model.param.num_feature + 1) << "size consistency check";
-    memset(out_grad, 0.0f, sizeof(float) * size);
+    memset(out_grad, 0.0f, sizeof(double) * size);
     double sum_gbias = 0.0;
-    std::vector<float> grad;
+    std::vector<double> grad;
     dtrain->BeforeFirst();    
     while (dtrain->Next()) {
       const RowBlock<unsigned> &batch = dtrain->Value();
@@ -171,8 +176,8 @@ class LinearObjFunction : public solver::IObjFunction<float> {
       #pragma omp parallel for schedule(static)
       for (size_t i = 0; i < batch.size; ++i) {
         Row<unsigned> v = batch[i];
-        float py = model.param.Predict(weight, v);
-        grad[i] = model.param.PredToGrad(v.label, py);
+        double py = model.param.Predict(weight, v);
+        grad[i] = model.param.PredToGrad(v.label, v.weight, py);
       }
       #pragma omp parallel
       {
@@ -195,7 +200,7 @@ class LinearObjFunction : public solver::IObjFunction<float> {
         }
       }
     }
-    out_grad[model.param.num_feature] = static_cast<float>(sum_gbias);
+    out_grad[model.param.num_feature] = static_cast<double>(sum_gbias);
     if (rabit::GetRank() == 0) {
       // only add regularization once
       if (reg_L2 != 0.0f) {
