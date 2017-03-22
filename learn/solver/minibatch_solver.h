@@ -95,7 +95,7 @@ class MinibatchScheduler : public IterScheduler {
 
     int cur_iter = 0;
     if (model_in_.size()) {
-      if (load_iter_ > 0) {
+      if (load_iter_ >= 0) {
         printf("Loading model from iter = %d\n", load_iter_);
         cur_iter = load_iter_;
       } else {
@@ -104,7 +104,9 @@ class MinibatchScheduler : public IterScheduler {
       }
       Wait(LoadModel(model_in_, cur_iter));
 
-      Iterate(cur_iter, Workload::PRED);
+      if(is_predict) {
+          Iterate(cur_iter, Workload::PRED);
+      }
       ++ cur_iter;
     }
 

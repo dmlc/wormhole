@@ -16,7 +16,7 @@ REPOS = $(addprefix repo/, dmlc-core xgboost ps-lite rabit)
 
 .PHONY: clean all test pull
 
-all: xgboost kmeans linear difacto tool
+all: xgboost kmeans linear difacto svdfeature tool
 
 ### repos and deps
 
@@ -106,6 +106,15 @@ bin/difacto.dmlc: learn/difacto/build/difacto.dmlc
 	cp $+ $@
 
 difacto: bin/difacto.dmlc
+
+# svdfeature
+learn/svdfeature/build/svdfeature.dmlc: ps-lite core repo/ps-lite/build/libps.a repo/dmlc-core/libdmlc.a
+	$(MAKE) -C learn/svdfeature config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)
+
+bin/svdfeature.dmlc: learn/svdfeature/build/svdfeature.dmlc
+	cp $+ $@
+
+svdfeature: bin/svdfeature.dmlc	
 
 # tools
 
